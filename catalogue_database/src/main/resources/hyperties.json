@@ -1,0 +1,10 @@
+[
+  {
+    "name": "MyFirstProgram",
+    "code": "console.log('hello world!')"
+  },
+  {
+    "name": "MySecondProgram",
+    "code": "function foo() {console.log('HELLO WORLD');}"
+  }
+]
