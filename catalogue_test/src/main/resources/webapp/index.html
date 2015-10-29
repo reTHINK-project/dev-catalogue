@@ -1,0 +1,125 @@
+<!--
+/************************************************************************************
+* Copyright (c) 2015 -- 2017 by Fraunhofer Fokus
+************************************************************************************/
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>reTHINK catalogue broker test page</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.7/angular.js"></script>
+</head>
+<body>
+<h1>reTHINK catalogue broker test page</h1>
+
+<div ng-app="rethinkTest" ng-controller="myCtrl">
+    <p>reTHINK broker address : <input type="text" ng-model="address" ng-init="address = 'localhost:8080'"></p>
+
+    <p> Kind:
+        <select name="singleSelect" ng-model="kind">
+            <option value="hyperty">Hyperty</option>
+            <option value="protocolstub">Protocolstub</option>
+        </select>
+    </p>
+    <div ng-show="kind != null">
+        <p>(optional) {{kind}} name: <input type="text" ng-model="name" ng-change="name = name == '' ? null : name"></p>
+    </div>
+
+    <div ng-show="address != null && kind != null">
+        <div ng-show="name != null && kind == 'hyperty'">
+            <p> (optional) resource of {{name}}:
+                <select name="singleSelect" ng-model="resourceName"
+                        ng-change="resourceName = resourceName == '' ? null : resourceName">
+                    <option></option>
+                    <option value="uurl">uurl</option>
+                    <option value="name">name</option>
+                    <option value="src_url">src_url</option>
+                    <option value="code">code</option>
+                </select>
+            </p>
+        </div>
+
+        <!-- TODO: improve code -->
+        <h3>Generated path:<br>
+            {{"http://" + address + "/.well-known/" + kind + "/" + (name == null ? '' : name) + (resourceName != null ? "/" + resourceName : "")}}</h3>
+        <button ng-click="response = getResource('http://' + address + '/.well-known/' + kind + '/' + (name == null ? '' : name) + (resourceName != null ? '/' + resourceName : ''))" ng-init="response = null">get {{name || kind}}</button>
+        <button ng-click="response = getAndExecCode('http://' + address + '/.well-known/' + kind + '/' + name + '/code')">get & execute code</button>
+
+
+        <div ng-show="response != null">
+            <br>
+            Response:<pre>{{response | json}}</pre>
+        </div>
+
+    </div>
+
+    <br>
+    ---------------------------------------------------<br>
+    <button ng-click="debug = !debug" ng-init="debug = false">Toggle Debug Info</button>
+    <div ng-show="debug">
+        <table border="1">
+            <tr>
+                <td align="right">address</td>
+                <td>{{address}}</td>
+            </tr>
+            <tr>
+                <td align="right">kind</td>
+                <td>{{kind}}</td>
+            </tr>
+            <tr>
+                <td align="right">name</td>
+                <td>{{name}}</td>
+            </tr>
+            <tr>
+                <td align="right">resourceName</td>
+                <td>{{resourceName}}</td>
+            </tr>
+            <tr>
+                <td align="right">response</td>
+                <td><pre>{{response}}</pre></td>
+            </tr>
+        </table>
+    </div>
+
+
+</div>
+<script>
+    var app = angular.module('rethinkTest', []);
+    app.controller('myCtrl', function ($scope) {
+        $scope.getResource = function(url) {
+//            var url = "http://" + address + "/.well-known/" + kind + "/" + name;
+            console.log("trying to send a request to: " + url);
+
+            var xmlHttp = new XMLHttpRequest();
+            xmlHttp.open("GET", url, false); // false for synchronous request
+            xmlHttp.send(null);
+            console.log("got response: " + xmlHttp.responseText);
+            var resp = xmlHttp.responseText;
+
+            try {
+                resp = JSON.parse(xmlHttp.responseText);
+            } catch (e) {
+                // TODO: error messages will probably be in json in the future
+                resp = JSON.parse("{ \"error\": \"" + resp + "\"}")
+            }
+            console.log("response json: ", resp);
+
+
+            return resp;
+        };
+
+
+        $scope.getAndExecCode = function(url) {
+            var respJson = getResource(url);
+            var code = respJson.content.value;
+            console.log("About to exec following code: " + code);
+            eval(code);
+            return respJson;
+        };
+
+        window.getResource = $scope.getResource;
+    });
+</script>
+</body>
+</html>
