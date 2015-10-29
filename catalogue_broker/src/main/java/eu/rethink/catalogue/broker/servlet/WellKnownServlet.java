@@ -32,6 +32,7 @@ public class WellKnownServlet extends HttpServlet {
         LOG.info("GOT GET");
         String response = requestHandler.handleGET(req.getRequestURI());
         resp.setStatus(HttpServletResponse.SC_OK);
+        resp.addHeader("Access-Control-Allow-Origin", "*");
         resp.getWriter().format(response).flush();
     }
 }
