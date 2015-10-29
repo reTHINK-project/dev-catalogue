@@ -42,8 +42,8 @@ package eu.rethink.catalogue.broker;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import eu.rethink.catalogue.broker.json.ClientSerializer;
-import eu.rethink.catalogue.broker.json.LwM2mNodeDeserializer;
 import eu.rethink.catalogue.broker.json.LwM2mNodeSerializer;
+import eu.rethink.catalogue.broker.json.LwM2mNodeDeserializer;
 import eu.rethink.catalogue.broker.json.ResponseSerializer;
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.leshan.LinkObject;
@@ -71,9 +71,17 @@ public class RequestHandler {
     private LeshanServer server;
     private final Gson gson;
     private static final Logger LOG = LoggerFactory.getLogger(RequestHandler.class);
+    private HashMap<String, Integer> hypertyResourceNameToID = new HashMap<>();
 
     public RequestHandler(LeshanServer server) {
         this.server = server;
+
+        // populate hypertyResourceNameToID
+        hypertyResourceNameToID.put("uuid", 0);
+        hypertyResourceNameToID.put("name", 1);
+        hypertyResourceNameToID.put("src_url", 2);
+        hypertyResourceNameToID.put("code", 3);
+
         GsonBuilder gsonBuilder = new GsonBuilder();
         gsonBuilder.registerTypeHierarchyAdapter(Client.class, new ClientSerializer());
         gsonBuilder.registerTypeHierarchyAdapter(LwM2mResponse.class, new ResponseSerializer());
@@ -81,6 +89,8 @@ public class RequestHandler {
         gsonBuilder.registerTypeHierarchyAdapter(LwM2mNode.class, new LwM2mNodeDeserializer());
         gsonBuilder.setDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
         this.gson = gsonBuilder.create();
+
+
 
         server.getClientRegistry().addListener(clientRegistryListener);
 
@@ -102,19 +112,22 @@ public class RequestHandler {
             return "Please provide resource type and name. Example: /hyperty/MyHyperty";
         } else if (pathParts.length == 1) {
             // hyperty | protocolstub only
-            String resourceType = pathParts[0];
+            String type = pathParts[0];
 
             // TODO: return only hyperty clients or protocolstub clients
 
-            if (resourceType.equals("hyperty") || resourceType.equals("protocolstub")) {
+            if (type.equals("hyperty")) {
                 String json = this.gson.toJson(clientToHypertyMap.keySet().toArray());
                 return json;
+            } else if (type.equals("protocolstub")) {
+                String json = this.gson.toJson(clientToProtocolstubMap.keySet().toArray());
+                return json;
             } else {
-                return "Invalid resource type. Please use: hyperty | protocolstub";
+                    return "Invalid resource type. Please use: hyperty | protocolstub";
             }
 
         } else {
-            String resourceType = pathParts[0];
+            String type = pathParts[0];
             String hypertyName = pathParts[1];
             String resourceName = null;
 
@@ -122,16 +135,31 @@ public class RequestHandler {
                 resourceName = pathParts[2];
             }
 
-            LOG.info("resourcetype: " + resourceType);
+            LOG.info("resourcetype: " + type);
             LOG.info("hypertyname: " + hypertyName);
 
             LOG.info("resourceName: " + resourceName);
+            Integer resourceID = null;
+            // check if resourceName is valid
+            if (type.equals("hyperty")) {
+                resourceID = hypertyResourceNameToID.get(resourceName);
+            } else if (type.equals("protocolstub")) {
+                // TODO: get ID for protocolstub resources
+            }
+
+            if (resourceName != null && resourceID == null) {
+                return String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, hypertyResourceNameToID.keySet());
+            }
 
             // target should be: /<endpoint>/<objectID>/<instance>
             String target = hypertyToInstanceMap.get(hypertyName);
             LOG.info(String.format("target for hyperty '%s': %s", hypertyName, target));
 
             if (target != null) {
+
+                if (resourceID != null)
+                    target += "/" + resourceID;
+
                 String[] targetPaths = StringUtils.split(target, "/");
                 LOG.info("checking endpoint: " + targetPaths[0]);
                 Client client = server.getClientRegistry().get(targetPaths[0]);
@@ -280,8 +308,7 @@ public class RequestHandler {
                                 for (LwM2mResource resource : resources.values()) {
                                     resourceID = resource.getId();
                                     LOG.debug(String.format("#%d: %s", resourceID, resource.getValue().value));
-                                    // TODO: get value of correct field ('name' for now)
-                                    // TODO: mapping: {<value> : /endpoint/1338/<instanceID>}
+                                    // TODO: get resourceID for field 'name' dynamically from model
                                     if (resourceID == 1) { // current resource is name field
                                         String protocolstubName = resource.getValue().value.toString();
                                         protocolstubToInstanceMap.put(protocolstubName, "/" + client.getEndpoint() + "/" + PROTOCOLSTUB_OBJ_ID + "/" + instanceID);
@@ -317,7 +344,9 @@ public class RequestHandler {
             String hypertyName = clientToHypertyMap.remove(client);
             if (hypertyName != null) {
                 LOG.debug("client contained hyperties, removing them from maps");
-                hypertyToInstanceMap.remove(hypertyName);
+                String retVal = hypertyToInstanceMap.remove(hypertyName);
+                if (retVal == null)
+                    LOG.warn("unable to remove hyperty " + hypertyName + "from hypertyToInstanceMap!") ;
             }
 
             String protocolstubName = clientToProtocolstubMap.remove(client);
