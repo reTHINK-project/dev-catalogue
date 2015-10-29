@@ -1,10 +1,10 @@
 [
   {
-    "name": "MyFirstProgram",
+    "name": "MyFirstHyperty",
     "code": "console.log('hello world!')"
   },
   {
-    "name": "MySecondProgram",
-    "code": "function foo() {console.log('HELLO WORLD');}"
+    "name": "MySecondHyperty",
+    "code": "function foo() {alert('Hello! I am the MySecondHyperty hyperty! You successfully executed my code! This alert window is created from my code.');}; foo();"
   }
 ]
