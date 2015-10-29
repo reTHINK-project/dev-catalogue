@@ -18,6 +18,7 @@
     <modules>
         <module>catalogue_broker</module>
         <module>catalogue_database</module>
+        <module>catalogue_test</module>
     </modules>
 
     <scm>
@@ -113,6 +114,11 @@
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-continuation</artifactId>
+            <version>${jetty.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-servlets</artifactId>
             <version>${jetty.version}</version>
         </dependency>
         <dependency>
