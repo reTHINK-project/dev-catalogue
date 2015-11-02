@@ -9,7 +9,8 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>catalogue-test</artifactId>
+    <artifactId>rethink-catalogue-test</artifactId>
+    <name>reTHINK Catalogue Broker Test</name>
 
     <build>
         <plugins>
