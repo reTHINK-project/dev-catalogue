@@ -40,12 +40,16 @@
 package eu.rethink.catalogue.database;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import org.eclipse.leshan.ResponseCode;
 import org.eclipse.leshan.client.californium.LeshanClient;
 import org.eclipse.leshan.client.resource.BaseInstanceEnabler;
 import org.eclipse.leshan.client.resource.LwM2mObjectEnabler;
 import org.eclipse.leshan.client.resource.ObjectEnabler;
 import org.eclipse.leshan.client.resource.ObjectsInitializer;
+import org.eclipse.leshan.core.model.ResourceModel;
 import org.eclipse.leshan.core.node.LwM2mResource;
 import org.eclipse.leshan.core.node.Value;
 import org.eclipse.leshan.core.request.DeregisterRequest;
@@ -57,7 +61,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -69,10 +72,14 @@ public class CatalogueDatabase {
     private String registrationID;
     private static final Logger LOG = LoggerFactory.getLogger(CatalogueDatabase.class);
 
+    private final int HYPERTY_MODEL_ID          = 1337;
+    private final int PROTOSTUB_MODEL_ID        = 1338;
+    private final int HYPERTY_RUNTIME_MODEL_ID  = 1339;
+
     public static void main(final String[] args) {
         if (args.length != 4 && args.length != 2) {
             System.out
-                    .println("Usage:\njava -jar target/leshan-client-example-*-SNAPSHOT-jar-with-dependencies.jar [ClientIP] [ClientPort] ServerIP ServerPort");
+                    .println("Usage:\njava -jar target/catalogue_database-*-jar-with-dependencies.jar [ClientIP] [ClientPort] ServerIP ServerPort");
         } else {
             if (args.length == 4)
                 new CatalogueDatabase(args[0], Integer.parseInt(args[1]), args[2], Integer.parseInt(args[3]));
@@ -84,23 +91,55 @@ public class CatalogueDatabase {
     public CatalogueDatabase(final String localHostName, final int localPort, final String serverHostName,
                              final int serverPort) {
 
-        // 1. open file, 2. parse json
-        Gson gson = new Gson();
-        Hyperty[] parsedHyperties;
-        InputStream in = getClass().getResourceAsStream("/hyperties.json");
-        parsedHyperties = gson.fromJson(new InputStreamReader(in), Hyperty[].class);
-        for (Hyperty h : parsedHyperties) {
-            LOG.info("parsed hyperty: " + h);
-        }
+        // parse files
+        rethinkInstance[] parsedHyperties = parseHyperties();
+        rethinkInstance[] parsedProtostubs = parseProtostubs();
 
 
         // Initialize object list
         ObjectsInitializer initializer = new ObjectsInitializer();
         initializer.setClassForObject(3, Device.class);
+        initializer.setInstancesForObject(HYPERTY_MODEL_ID, parsedHyperties);
+        initializer.setInstancesForObject(PROTOSTUB_MODEL_ID, parsedProtostubs);
 
-        initializer.setInstancesForObject(1337, parsedHyperties);
+        ObjectEnabler hypertyEnabler        = initializer.create(HYPERTY_MODEL_ID);
+        ObjectEnabler protostubEnabler      = initializer.create(PROTOSTUB_MODEL_ID);
+//        ObjectEnabler hypertyRuntimeEnabler = initializer.create(HYPERTY_RUNTIME_MODEL_ID);
+
         List<ObjectEnabler> enablers = initializer.createMandatory();
-        enablers.add(initializer.create(1337));
+        enablers.add(hypertyEnabler);
+        enablers.add(protostubEnabler);
+
+        // create idNameMap for hypterties
+        LinkedHashMap<Integer, String> idNameMap = new LinkedHashMap<>();
+        Map<Integer, ResourceModel> model = hypertyEnabler.getObjectModel().resources;
+
+        // populate id:name map from resources
+        for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
+            idNameMap.put(entry.getKey(), entry.getValue().name);
+        }
+
+        // set id:name map on all hyperties
+        for (rethinkInstance parsedHyperty : parsedHyperties) {
+            parsedHyperty.setIdNameMap(idNameMap);
+        }
+
+
+
+        // create idNameMap for protostubs
+        idNameMap = new LinkedHashMap<>();
+        model = protostubEnabler.getObjectModel().resources;
+
+        // populate id:name map from resources
+        for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
+            idNameMap.put(entry.getKey(), entry.getValue().name);
+        }
+
+        // set id:name map on all protostubs
+        for (rethinkInstance parsedProtostub : parsedProtostubs) {
+            parsedProtostub.setIdNameMap(idNameMap);
+        }
+
 
         // Create client
         final InetSocketAddress clientAddress = new InetSocketAddress(localHostName, localPort);
@@ -120,7 +159,7 @@ public class CatalogueDatabase {
             return;
         }
 
-        LOG.info("Device Registration (Success? " + response.getCode() + ")");
+        LOG.debug("Device Registration (Success? " + response.getCode() + ")");
         if (response.getCode() != ResponseCode.CREATED) {
             System.err.println("If you're having issues connecting to the LWM2M endpoint, try using the DTLS port instead");
             return;
@@ -128,14 +167,14 @@ public class CatalogueDatabase {
 
         registrationID = response.getRegistrationID();
 
-        LOG.info("\tDevice: Registered Client Catalogue '" + registrationID + "'");
+        LOG.info("Device: Registered Client Catalogue '" + registrationID + "'");
 
         // Deregister on shutdown and stop client.
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
                 if (registrationID != null) {
-                    LOG.info("\tDevice: Deregistering Client '" + registrationID + "'");
+                    LOG.info("Device: Deregistering Client '" + registrationID + "'");
                     client.send(new DeregisterRequest(registrationID), 1000);
                     client.stop();
                 }
@@ -145,39 +184,97 @@ public class CatalogueDatabase {
 
     }
 
-    public static class Hyperty extends BaseInstanceEnabler {
-        String uuid;
-        String name;
-        String src_url = "unset";
-        String code = "unset";
+    private rethinkInstance[] parseHyperties() {
+        // 1. open file, 2. parse hyperties.json
+        Gson gson = new Gson();
+        InputStream in = getClass().getResourceAsStream("/hyperties.json");
+        String fileString = new Scanner(in, "UTF-8").useDelimiter("\\A").next();
+        JsonArray jsonArray = new JsonParser().parse(fileString).getAsJsonArray();
 
-        public void setCode(String code) {
-            this.code = code;
+        rethinkInstance[] parsedHyperties = new rethinkInstance[jsonArray.size()];
+        int i = 0;
+        for (JsonElement obj : jsonArray) {
+            // make name:value map from json
+            LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
+            for (Map.Entry<String, JsonElement> entry : obj.getAsJsonObject().entrySet()) {
+                nameValueMap.put(entry.getKey(), entry.getValue().getAsString());
+            }
+
+            LOG.debug("name:value map for hyperty #" + i + ": " + nameValueMap);
+
+            parsedHyperties[i++] = new rethinkInstance(nameValueMap);
+
+
         }
 
+        LOG.debug("parsed " + i + " hyperties.");
+        return parsedHyperties;
+    }
 
-        public Hyperty() {
-            uuid = UUID.randomUUID().toString();
+    private rethinkInstance[] parseProtostubs() {
+        // 1. open file, 2. parse hyperties.json
+        Gson gson = new Gson();
+        InputStream in = getClass().getResourceAsStream("/protostubs.json");
+        String fileString = new Scanner(in, "UTF-8").useDelimiter("\\A").next();
+        JsonArray jsonArray = new JsonParser().parse(fileString).getAsJsonArray();
+
+        rethinkInstance[] parsedProtostubs = new rethinkInstance[jsonArray.size()];
+        int i = 0;
+        for (JsonElement obj : jsonArray) {
+            // make name:value map from json
+            LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
+            for (Map.Entry<String, JsonElement> entry : obj.getAsJsonObject().entrySet()) {
+                nameValueMap.put(entry.getKey(), entry.getValue().getAsString());
+            }
+
+            LOG.debug("name:value map for protostub #" + i + ": " + nameValueMap);
+
+            parsedProtostubs[i++] = new rethinkInstance(nameValueMap);
+
         }
 
+        LOG.debug("parsed " + i + " protostubs.");
+        return parsedProtostubs;
+    }
+
+    public static class rethinkInstance extends BaseInstanceEnabler {
+
+        public void setIdNameMap(Map<Integer, String> idNameMap) {
+            this.idNameMap = idNameMap;
+        }
+
+        private Map<Integer, String> idNameMap = null;
+        private final Map<String, String> nameValueMap;
+
+        public rethinkInstance() {
+            idNameMap = null;
+            nameValueMap = null;
+        }
+
+        public rethinkInstance(Map<Integer, String> idNameMap, Map<String, String> NameValueMap) {
+            this.idNameMap = idNameMap;
+            this.nameValueMap = NameValueMap;
+        }
+
+        public rethinkInstance(Map<String, String> nameValueMap) {
+            this.nameValueMap = nameValueMap;
+        }
 
         @Override
         public ValueResponse read(int resourceid) {
-            LOG.info("Read on Catalogue Resource " + resourceid);
-            switch (resourceid) {
-                case 0: // uuid
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid, Value.newStringValue(uuid)));
-                case 1: // name
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid, Value.newStringValue(name)));
-                case 2: // src_url
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid, Value.newStringValue(src_url)));
-                case 3: // code
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid, Value.newStringValue(code)));
-                default:
-                    return super.read(resourceid);
-            }
+            LOG.debug("Read on Catalogue Resource " + resourceid);
+            String resourceName = idNameMap.get(resourceid);
+            String resourceValue = nameValueMap.get(resourceName);
+            // TODO: get correct value type from resource description
 
+            if (resourceValue != null) {
+                LOG.debug("returning: " + resourceValue);
+                return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid, Value.newStringValue(resourceValue)));
+
+            } else
+                return super.read(resourceid);
         }
+
     }
 
     public static class Device extends BaseInstanceEnabler {
@@ -195,7 +292,7 @@ public class CatalogueDatabase {
 
         @Override
         public ValueResponse read(int resourceid) {
-            LOG.info("Read on Device Resource " + resourceid);
+            LOG.debug("Read on Device Resource " + resourceid);
             switch (resourceid) {
                 case 0:
                     return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
@@ -237,15 +334,15 @@ public class CatalogueDatabase {
 
         @Override
         public LwM2mResponse execute(int resourceid, byte[] params) {
-            LOG.info("Execute on Device resource " + resourceid);
+            LOG.debug("Execute on Device resource " + resourceid);
             if (params != null && params.length != 0)
-                LOG.info("\t params " + new String(params));
+                LOG.debug("\t params " + new String(params));
             return new LwM2mResponse(ResponseCode.CHANGED);
         }
 
         @Override
         public LwM2mResponse write(int resourceid, LwM2mResource value) {
-            LOG.info("Write on Device Resource " + resourceid + " value " + value);
+            LOG.debug("Write on Device Resource " + resourceid + " value " + value);
             switch (resourceid) {
                 case 13:
                     return new LwM2mResponse(ResponseCode.NOT_FOUND);

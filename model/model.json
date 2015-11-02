@@ -1,6 +1,6 @@
 [
   {
-    "name": "CatalogueTest",
+    "name": "Hyperty",
     "id": 1337,
     "instancetype": "multiple",
     "mandatory": false,
@@ -8,7 +8,7 @@
     "resourcedefs": [
       {
         "id": 0,
-        "name": "uuid",
+        "name": "guid",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
@@ -19,7 +19,7 @@
       },
       {
         "id": 1,
-        "name": "name",
+        "name": "id",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
@@ -30,7 +30,7 @@
       },
       {
         "id": 2,
-        "name": "src_url",
+        "name": "description",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
@@ -41,7 +41,311 @@
       },
       {
         "id": 3,
-        "name": "code",
+        "name": "kind",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 4,
+        "name": "catalogueURL",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 5,
+        "name": "sourceCode",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 6,
+        "name": "dataObject",
+        "operations": "RW",
+        "instancetype": "multiple",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 7,
+        "name": "type",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 8,
+        "name": "messageSchema",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 9,
+        "name": "configuration",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 10,
+        "name": "policies",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 11,
+        "name": "constraints",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      }
+    ]
+  },
+  {
+    "name": "ProtoStub",
+    "id": 1338,
+    "instancetype": "multiple",
+    "mandatory": false,
+    "description": "",
+    "resourcedefs": [
+      {
+        "id": 0,
+        "name": "guid",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 1,
+        "name": "id",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 2,
+        "name": "description",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 3,
+        "name": "kind",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 4,
+        "name": "catalogueURL",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 5,
+        "name": "sourceCode",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 8,
+        "name": "messageSchema",
+        "operations": "RW",
+        "instancetype": "multiple",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 9,
+        "name": "configuration",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 11,
+        "name": "constraints",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      }
+    ]
+  },
+  {
+    "name": "HypertyRuntime",
+    "id": 1339,
+    "instancetype": "multiple",
+    "mandatory": false,
+    "description": "",
+    "resourcedefs": [
+      {
+        "id": 0,
+        "name": "guid",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 1,
+        "name": "id",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 2,
+        "name": "description",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 3,
+        "name": "kind",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 4,
+        "name": "catalogueURL",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 5,
+        "name": "sourceCode",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 7,
+        "name": "type",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 13,
+        "name": "hypertyCapabilities",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 14,
+        "name": "protocolCapabilities",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,

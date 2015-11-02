@@ -19,7 +19,7 @@
     <p> Kind:
         <select name="singleSelect" ng-model="kind">
             <option value="hyperty">Hyperty</option>
-            <option value="protocolstub">Protocolstub</option>
+            <option value="protostub">Protostub</option>
         </select>
     </p>
     <div ng-show="kind != null">
@@ -27,15 +27,42 @@
     </div>
 
     <div ng-show="address != null && kind != null">
-        <div ng-show="name != null && kind == 'hyperty'">
+        <div ng-show="name != null">
             <p> (optional) resource of {{name}}:
                 <select name="singleSelect" ng-model="resourceName"
                         ng-change="resourceName = resourceName == '' ? null : resourceName">
+                    <!--0: "guid"-->
+                    <!--1: "id"-->
+                    <!--2: "description"-->
+                    <!--3: "kind"-->
+                    <!--4: "catalogueURL"-->
+                    <!--5: "sourceCode"-->
+                    <!--6: "dataObject"-->
+                    <!--7: "type"-->
+                    <!--8: "messageSchema"-->
+                    <!--9: "configuration"-->
+                    <!--10: "policies"-->
+                    <!--11: "constraints"-->
+                    <!--12: "configuration"-->
+                    <!--13: "hypertyCapabilities"-->
+                    <!--14: "protocolCapabilities"-->
+
                     <option></option>
-                    <option value="uurl">uurl</option>
-                    <option value="name">name</option>
-                    <option value="src_url">src_url</option>
-                    <option value="code">code</option>
+                    <option value="guid">guid</option>
+                    <option value="id">id</option>
+                    <option value="description">description</option>
+                    <option value="kind">kind</option>
+                    <option value="catalogueURL">catalogueURL</option>
+                    <option value="sourceCode">sourceCode</option>
+                    <option value="dataObject">dataObject</option>
+                    <option value="type">type</option>
+                    <option value="messageSchema">messageSchema</option>
+                    <option value="configuration">configuration</option>
+                    <option value="policies">policies</option>
+                    <option value="constraints">constraints</option>
+                    <option value="configuration">configuration</option>
+                    <option value="hypertyCapabilities">hypertyCapabilities</option>
+                    <option value="hypertyCapabilities">protocolCapabilities</option>
                 </select>
             </p>
         </div>
@@ -44,7 +71,7 @@
         <h3>Generated path:<br>
             {{"http://" + address + "/.well-known/" + kind + "/" + (name == null ? '' : name) + (resourceName != null ? "/" + resourceName : "")}}</h3>
         <button ng-click="response = getResource('http://' + address + '/.well-known/' + kind + '/' + (name == null ? '' : name) + (resourceName != null ? '/' + resourceName : ''))" ng-init="response = null">get {{name || kind}}</button>
-        <button ng-click="response = getAndExecCode('http://' + address + '/.well-known/' + kind + '/' + name + '/code')">get & execute code</button>
+        <button ng-click="response = getAndExecCode('http://' + address + '/.well-known/' + kind + '/' + name + '/sourceCode')">get & execute code</button>
 
 
         <div ng-show="response != null">
