@@ -1,0 +1,10 @@
+[
+  {
+    "id": "MyFirstProtostub",
+    "sourceCode": "console.log('hello world!')"
+  },
+  {
+    "id": "MySecondProtostub",
+    "sourceCode": "function foo() {alert('Hello! I am the MySecondProtostub protostub! You successfully executed my code! This alert window is created from my code.');}; foo();"
+  }
+]

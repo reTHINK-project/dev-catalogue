@@ -5,6 +5,7 @@ package eu.rethink.catalogue.broker.servlet;
 
 import eu.rethink.catalogue.broker.RequestHandler;
 import eu.rethink.catalogue.broker.coap.WellKnownCoapResource;
+import org.eclipse.leshan.core.response.ValueResponse;
 import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,9 +31,9 @@ public class WellKnownServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         LOG.info("GOT GET");
-        String response = requestHandler.handleGET(req.getRequestURI());
+        ValueResponse response = requestHandler.handleGET(req.getRequestURI());
         resp.setStatus(HttpServletResponse.SC_OK);
         resp.addHeader("Access-Control-Allow-Origin", "*");
-        resp.getWriter().format(response).flush();
+        resp.getWriter().format(requestHandler.gson.toJson(response)).flush();
     }
 }

@@ -48,6 +48,9 @@ import eu.rethink.catalogue.broker.json.ResponseSerializer;
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.leshan.LinkObject;
 import org.eclipse.leshan.ResponseCode;
+import org.eclipse.leshan.client.resource.ObjectEnabler;
+import org.eclipse.leshan.client.resource.ObjectsInitializer;
+import org.eclipse.leshan.core.model.ResourceModel;
 import org.eclipse.leshan.core.node.*;
 import org.eclipse.leshan.core.request.ReadRequest;
 import org.eclipse.leshan.core.response.LwM2mResponse;
@@ -58,29 +61,64 @@ import org.eclipse.leshan.server.client.ClientRegistryListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * reTHINK specific Request Handler for requests on /.well-known/*
  */
 public class RequestHandler {
-    private String WELLKNOWN_PREFIX = "/.well-known/";
-    private int HYPERTY_OBJ_ID = 1337;
-    private int PROTOCOLSTUB_OBJ_ID = 1338;
+    private final int HYPERTY_MODEL_ID = 1337;
+    private final int PROTOSTUB_MODEL_ID = 1338;
+    private final int HYPERTY_RUNTIME_MODEL_ID = 1339;
+
+    private final String WELLKNOWN_PREFIX = "/.well-known/";
+    private final String HYPERTY_TYPE_NAME = "hyperty";
+    private final String PROTOSTUB_TYPE_NAME = "protostub";
+
+    private LinkedHashMap<String, Integer> hypertyResourceNameToID = new LinkedHashMap<>();
+    private LinkedHashMap<String, String> hypertyToInstanceMap = new LinkedHashMap<>();
+
+    private LinkedHashMap<String, Integer> protostubResourceNameToID = new LinkedHashMap<>();
+    private LinkedHashMap<String, String> protostubToInstanceMap = new LinkedHashMap<>();
+
+    private LinkedHashMap<Client, String> clientToHypertyMap = new LinkedHashMap<>();
+    private LinkedHashMap<Client, String> clientToProtostubMap = new LinkedHashMap<>();
+
     private LeshanServer server;
-    private final Gson gson;
+    public final Gson gson;
     private static final Logger LOG = LoggerFactory.getLogger(RequestHandler.class);
-    private HashMap<String, Integer> hypertyResourceNameToID = new HashMap<>();
 
     public RequestHandler(LeshanServer server) {
         this.server = server;
 
-        // populate hypertyResourceNameToID
-        hypertyResourceNameToID.put("uuid", 0);
-        hypertyResourceNameToID.put("name", 1);
-        hypertyResourceNameToID.put("src_url", 2);
-        hypertyResourceNameToID.put("code", 3);
+        // name:id map for hyperties
+        {
+            // populate hypertyResourceNameToID
+            ObjectEnabler hypertyEnabler = new ObjectsInitializer().create(HYPERTY_MODEL_ID);
+            Map<Integer, ResourceModel> model = hypertyEnabler.getObjectModel().resources;
+
+            // populate id:name map from resources
+            for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
+                hypertyResourceNameToID.put(entry.getValue().name, entry.getKey());
+            }
+
+            LOG.debug("generated name:id map for hyperties: " + hypertyResourceNameToID);
+        }
+
+        // name:id map for protostubs
+        {
+            // populate protostubResourceNameToID
+            ObjectEnabler protostubEnabler = new ObjectsInitializer().create(PROTOSTUB_MODEL_ID);
+            Map<Integer, ResourceModel> model = protostubEnabler.getObjectModel().resources;
+
+            // populate id:name map from resources
+            for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
+                protostubResourceNameToID.put(entry.getValue().name, entry.getKey());
+            }
+
+            LOG.debug("generated name:id map for protostubs: " + protostubResourceNameToID);
+        }
 
         GsonBuilder gsonBuilder = new GsonBuilder();
         gsonBuilder.registerTypeHierarchyAdapter(Client.class, new ClientSerializer());
@@ -91,98 +129,110 @@ public class RequestHandler {
         this.gson = gsonBuilder.create();
 
 
-
         server.getClientRegistry().addListener(clientRegistryListener);
 
     }
 
 
-    public String handleGET(String path) {
+    public ValueResponse handleGET(String path) {
         LOG.info("Handling GET for: " + path);
         // remove /.well-known/ from path
         path = StringUtils.removeStart(path, WELLKNOWN_PREFIX);
-        LOG.info("adapted path: " + path);
+        LOG.debug("adapted path: " + path);
         // split path up
         String[] pathParts = StringUtils.split(path, '/');
 
-        // no endpoint given -> return all clients
+        // example path: <endpoint>/<objectID>/<instance>/<resourceID>
+
+        // TODO: no endpoint given -> return all clients or ask for more info?
         if (pathParts.length == 0) {
-//            Collection<Client> clients = server.getClientRegistry().allClients();
-//            String json = this.gson.toJson(clients.toArray(new Client[]{}));
-            return "Please provide resource type and name. Example: /hyperty/MyHyperty";
-        } else if (pathParts.length == 1) {
-            // hyperty | protocolstub only
+            String response = "Please provide resource type and (optional) name and (optional) resource name. Example: /hyperty/MyHyperty/sourceCode";
+            return createResponse(ResponseCode.BAD_REQUEST, response);
+        } else if (pathParts.length == 1) { // hyperty | protostub only
             String type = pathParts[0];
 
-            // TODO: return only hyperty clients or protocolstub clients
-
-            if (type.equals("hyperty")) {
-                String json = this.gson.toJson(clientToHypertyMap.keySet().toArray());
-                return json;
-            } else if (type.equals("protocolstub")) {
-                String json = this.gson.toJson(clientToProtocolstubMap.keySet().toArray());
-                return json;
-            } else {
-                    return "Invalid resource type. Please use: hyperty | protocolstub";
+            switch (type) {
+                case HYPERTY_TYPE_NAME: {
+                    return createResponse(this.gson.toJson(hypertyToInstanceMap.keySet().toArray()));
+                }
+                case PROTOSTUB_TYPE_NAME: {
+                    return createResponse(this.gson.toJson(protostubToInstanceMap.keySet().toArray()));
+                }
+                default:
+                    String response = "Invalid resource type. Please use: hyperty | protostub";
+                    return createResponse(ResponseCode.BAD_REQUEST, response);
             }
 
         } else {
-            String type = pathParts[0];
-            String hypertyName = pathParts[1];
+            String modelType = pathParts[0];
+            String instanceName = pathParts[1];
             String resourceName = null;
+
+            LOG.debug("modelType:    " + modelType);
+            LOG.debug("instanceName: " + instanceName);
 
             if (pathParts.length > 2) {
                 resourceName = pathParts[2];
+                LOG.debug("resourceName: " + resourceName);
             }
 
-            LOG.info("resourcetype: " + type);
-            LOG.info("hypertyname: " + hypertyName);
 
-            LOG.info("resourceName: " + resourceName);
             Integer resourceID = null;
             // check if resourceName is valid
-            if (type.equals("hyperty")) {
+            if (modelType.equals(HYPERTY_TYPE_NAME)) {
                 resourceID = hypertyResourceNameToID.get(resourceName);
-            } else if (type.equals("protocolstub")) {
-                // TODO: get ID for protocolstub resources
-            }
 
-            if (resourceName != null && resourceID == null) {
-                return String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, hypertyResourceNameToID.keySet());
+                // resource name was given, but not found in the name:id map
+                if (resourceName != null && resourceID == null) {
+                    String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, hypertyResourceNameToID.keySet());
+                    return createResponse(ResponseCode.BAD_REQUEST, response);
+                }
+            } else if (modelType.equals(PROTOSTUB_TYPE_NAME)) {
+                resourceID = protostubResourceNameToID.get(resourceName);
+
+                // resource name was given, but not found in the name:id map
+                if (resourceName != null && resourceID == null) {
+                    String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, protostubResourceNameToID.keySet());
+                    return createResponse(ResponseCode.BAD_REQUEST, response);
+                }
             }
 
             // target should be: /<endpoint>/<objectID>/<instance>
-            String target = hypertyToInstanceMap.get(hypertyName);
-            LOG.info(String.format("target for hyperty '%s': %s", hypertyName, target));
+            String target = null;
+            switch (modelType) {
+                case (HYPERTY_TYPE_NAME):
+                    target = hypertyToInstanceMap.get(instanceName);
+                    LOG.debug(String.format("target for hyperty '%s': %s", instanceName, target));
+                    break;
+                case (PROTOSTUB_TYPE_NAME):
+                    target = protostubToInstanceMap.get(instanceName);
+                    LOG.debug(String.format("target for protostub '%s': %s", instanceName, target));
+                    break;
+            }
 
             if (target != null) {
-
                 if (resourceID != null)
                     target += "/" + resourceID;
 
                 String[] targetPaths = StringUtils.split(target, "/");
-                LOG.info("checking endpoint: " + targetPaths[0]);
+                LOG.debug("checking endpoint: " + targetPaths[0]);
                 Client client = server.getClientRegistry().get(targetPaths[0]);
                 if (client != null) {
                     ReadRequest request = new ReadRequest(StringUtils.removeStart(target, "/" + targetPaths[0]));
-                    LwM2mResponse response = server.send(client, request);
-                    return this.gson.toJson(response);
+                    return server.send(client, request);
                 } else {
-                    String error = String.format("Found target for '%s', but endpoint is invalid. Redundany error? Requested endpoint: %s", hypertyName, targetPaths[0]);
+                    String error = String.format("Found target for '%s', but endpoint is invalid. Redundany error? Requested endpoint: %s", instanceName, targetPaths[0]);
                     LOG.warn(error);
-                    return error;
+                    return createResponse(ResponseCode.INTERNAL_SERVER_ERROR, error);
                 }
             } else {
-                return String.format("Could not find hyperty '%s'", hypertyName);
+                String response = String.format("Could not find instance '%s'", instanceName);
+                return createResponse(ResponseCode.NOT_FOUND, response);
             }
+
         }
 
     }
-
-    private HashMap<String, String> hypertyToInstanceMap = new HashMap<>();
-    private HashMap<String, String> protocolstubToInstanceMap = new HashMap<>();
-    private HashMap<Client, String> clientToHypertyMap = new HashMap<>();
-    private HashMap<Client, String> clientToProtocolstubMap = new HashMap<>();
 
     private ClientRegistryListener clientRegistryListener = new ClientRegistryListener() {
         @Override
@@ -230,112 +280,139 @@ public class RequestHandler {
 
         private void checkClient(final Client client) {
             boolean foundHypertyLink = false;
-            boolean foundProtocolstubLink = false;
-            LOG.info("checking object links of client: " + client);
+            boolean foundProtostubLink = false;
+            LOG.debug("checking object links of client: " + client);
             for (LinkObject link : client.getObjectLinks()) {
                 String linkUrl = link.getUrl();
                 LOG.debug("checking link: " + link.getUrl());
-                if (!foundHypertyLink && linkUrl.startsWith("/" + HYPERTY_OBJ_ID + "/")) {
-                    LOG.info("found hyperty link: " + linkUrl + "; skipping additional links");
+                if (!foundHypertyLink && linkUrl.startsWith("/" + HYPERTY_MODEL_ID + "/")) {
+                    LOG.debug("found hyperty link: " + linkUrl + "; skipping additional links");
                     foundHypertyLink = true;
-                } else if (!foundProtocolstubLink && linkUrl.startsWith("/" + PROTOCOLSTUB_OBJ_ID + "/")) {
-                    LOG.info("found found protocolstub link: " + linkUrl + "; skipping additional links");
-                    foundProtocolstubLink = true;
+                } else if (!foundProtostubLink && linkUrl.startsWith("/" + PROTOSTUB_MODEL_ID + "/")) {
+                    LOG.debug("found found protostub link: " + linkUrl + "; skipping additional links");
+                    foundProtostubLink = true;
                 }
                 // if both found, no need to keep checking
-                if (foundHypertyLink && foundProtocolstubLink)
+                if (foundHypertyLink && foundProtostubLink)
                     break;
             }
 
             if (foundHypertyLink) {
-                ReadRequest request = new ReadRequest(HYPERTY_OBJ_ID);
-                ValueResponse response = server.send(client, request);
+                Thread hypertyRunner = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ReadRequest request = new ReadRequest(HYPERTY_MODEL_ID);
+                        ValueResponse response = server.send(client, request);
 
-                if (response.getCode() == ResponseCode.CONTENT) {
-                    response.getContent().accept(new LwM2mNodeVisitor() {
-                        @Override
-                        public void visit(LwM2mObject object) {
-                            Map<Integer, LwM2mObjectInstance> instances = object.getInstances();
-                            int instanceID, resourceID;
-                            for (LwM2mObjectInstance instance : instances.values()) {
-                                instanceID = instance.getId();
-                                LOG.debug("checking resources of instance " + instanceID);
-                                Map<Integer, LwM2mResource> resources = instance.getResources();
-                                for (LwM2mResource resource : resources.values()) {
-                                    resourceID = resource.getId();
-                                    LOG.debug(String.format("#%d: %s", resourceID, resource.getValue().value));
-                                    // TODO: get value of correct field ('name' for now)
-                                    // TODO: mapping: {<value> : /endpoint/1337/<instanceID>}
-                                    if (resourceID == 1) { // current resource is name field
-                                        String hypertyName = resource.getValue().value.toString();
-                                        hypertyToInstanceMap.put(hypertyName, "/" + client.getEndpoint() + "/" + HYPERTY_OBJ_ID + "/" + instanceID);
-                                        LOG.info("Added to client map -> " + hypertyName + ": " + hypertyToInstanceMap.get(hypertyName));
-                                        // also map hyperty name to client, for easy removal in case of client disconnect
-                                        clientToHypertyMap.put(client, hypertyName);
+                        if (response.getCode() == ResponseCode.CONTENT) {
+                            response.getContent().accept(new LwM2mNodeVisitor() {
+                                @Override
+                                public void visit(LwM2mObject object) {
+                                    Map<Integer, LwM2mObjectInstance> instances = object.getInstances();
+                                    int instanceID, resourceID;
+                                    int idFieldID = hypertyResourceNameToID.get("id");
+                                    for (LwM2mObjectInstance instance : instances.values()) {
+                                        instanceID = instance.getId();
+                                        LOG.debug("checking resources of instance " + instanceID);
+                                        Map<Integer, LwM2mResource> resources = instance.getResources();
+                                        for (LwM2mResource resource : resources.values()) {
+                                            resourceID = resource.getId();
+                                            LOG.debug(String.format("#%d: %s", resourceID, resource.getValue().value));
+                                            // TODO: get value of correct field ('name' for now)
+                                            // TODO: mapping: {<value> : /endpoint/1337/<instanceID>}
+                                            if (resourceID == idFieldID) { // current resource is name field
+                                                String hypertyName = resource.getValue().value.toString();
+                                                hypertyToInstanceMap.put(hypertyName, "/" + client.getEndpoint() + "/" + HYPERTY_MODEL_ID + "/" + instanceID);
+                                                LOG.debug("Added to client map -> " + hypertyName + ": " + hypertyToInstanceMap.get(hypertyName));
+                                                // also map hyperty name to client, for easy removal in case of client disconnect
+                                                clientToHypertyMap.put(client, hypertyName);
+                                            }
+
+                                        }
                                     }
-
                                 }
-                            }
-                        }
 
-                        @Override
-                        public void visit(LwM2mObjectInstance instance) {
-                            LOG.warn("instance visit: " + instance);
-                        }
+                                @Override
+                                public void visit(LwM2mObjectInstance instance) {
+                                    LOG.warn("instance visit: " + instance);
+                                }
 
-                        @Override
-                        public void visit(LwM2mResource resource) {
-                            LOG.warn("resource visit: " + resource);
+                                @Override
+                                public void visit(LwM2mResource resource) {
+                                    LOG.warn("resource visit: " + resource);
+                                }
+                            });
+                        } else {
+                            LOG.warn("Client contained hyperty links on register, but requesting them failed with: " + gson.toJson(response));
                         }
-                    });
-                } else {
-                    LOG.warn("Client contained hyperty links on register, but requesting them failed with: " + gson.toJson(response));
+                    }
+                });
+                hypertyRunner.start();
+                try {
+                    hypertyRunner.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-            } else if (foundProtocolstubLink) {
-                ReadRequest request = new ReadRequest(PROTOCOLSTUB_OBJ_ID);
-                ValueResponse response = server.send(client, request);
+            }
+            if (foundProtostubLink) {
+                Thread protostubRunner = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ReadRequest request = new ReadRequest(PROTOSTUB_MODEL_ID);
+                        ValueResponse response = server.send(client, request);
 
-                if (response.getCode() == ResponseCode.CONTENT) {
-                    response.getContent().accept(new LwM2mNodeVisitor() {
-                        @Override
-                        public void visit(LwM2mObject object) {
-                            Map<Integer, LwM2mObjectInstance> instances = object.getInstances();
-                            int instanceID, resourceID;
-                            for (LwM2mObjectInstance instance : instances.values()) {
-                                instanceID = instance.getId();
-                                LOG.debug("checking resources of instance " + instanceID);
-                                Map<Integer, LwM2mResource> resources = instance.getResources();
-                                for (LwM2mResource resource : resources.values()) {
-                                    resourceID = resource.getId();
-                                    LOG.debug(String.format("#%d: %s", resourceID, resource.getValue().value));
-                                    // TODO: get resourceID for field 'name' dynamically from model
-                                    if (resourceID == 1) { // current resource is name field
-                                        String protocolstubName = resource.getValue().value.toString();
-                                        protocolstubToInstanceMap.put(protocolstubName, "/" + client.getEndpoint() + "/" + PROTOCOLSTUB_OBJ_ID + "/" + instanceID);
-                                        LOG.info("Added to client map -> " + protocolstubName + ": " + protocolstubToInstanceMap.get(protocolstubName));
-                                        // also map protocolstub name to client, for easy removal in case of client disconnect
-                                        clientToProtocolstubMap.put(client, protocolstubName);
+                        if (response.getCode() == ResponseCode.CONTENT) {
+                            response.getContent().accept(new LwM2mNodeVisitor() {
+                                @Override
+                                public void visit(LwM2mObject object) {
+                                    Map<Integer, LwM2mObjectInstance> instances = object.getInstances();
+                                    int instanceID, resourceID;
+                                    int idFieldID = protostubResourceNameToID.get("id");
+                                    for (LwM2mObjectInstance instance : instances.values()) {
+                                        instanceID = instance.getId();
+                                        LOG.debug("checking resources of instance " + instanceID);
+                                        Map<Integer, LwM2mResource> resources = instance.getResources();
+                                        for (LwM2mResource resource : resources.values()) {
+                                            resourceID = resource.getId();
+                                            LOG.debug(String.format("#%d: %s", resourceID, resource.getValue().value));
+                                            // TODO: get resourceID for field 'name' dynamically from model
+                                            if (resourceID == idFieldID) { // current resource is name field
+                                                String protostubName = resource.getValue().value.toString();
+                                                protostubToInstanceMap.put(protostubName, "/" + client.getEndpoint() + "/" + PROTOSTUB_MODEL_ID + "/" + instanceID);
+                                                LOG.debug("Added to client map -> " + protostubName + ": " + protostubToInstanceMap.get(protostubName));
+                                                // also map protostub name to client, for easy removal in case of client disconnect
+                                                clientToProtostubMap.put(client, protostubName);
+                                            }
+
+                                        }
                                     }
-
                                 }
-                            }
-                        }
 
-                        @Override
-                        public void visit(LwM2mObjectInstance instance) {
-                            LOG.warn("instance visit: " + instance);
-                        }
+                                @Override
+                                public void visit(LwM2mObjectInstance instance) {
+                                    LOG.warn("instance visit: " + instance);
+                                }
 
-                        @Override
-                        public void visit(LwM2mResource resource) {
-                            LOG.warn("resource visit: " + resource);
+                                @Override
+                                public void visit(LwM2mResource resource) {
+                                    LOG.warn("resource visit: " + resource);
+                                }
+                            });
+                        } else {
+                            LOG.warn("Client contained protostub links on register, but requesting them failed with: " + gson.toJson(response));
                         }
-                    });
-                } else {
-                    LOG.warn("Client contained protocolstub links on register, but requesting them failed with: " + gson.toJson(response));
+                    }
+                });
+                protostubRunner.start();
+                try {
+                    protostubRunner.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-            } else {
-                LOG.info("Client does not contain hyperties or protocolstubs");
+
+            }
+            if (!foundHypertyLink && !foundProtostubLink) {
+                LOG.debug("Client does not contain hyperties or protostubs");
             }
         }
 
@@ -346,16 +423,38 @@ public class RequestHandler {
                 LOG.debug("client contained hyperties, removing them from maps");
                 String retVal = hypertyToInstanceMap.remove(hypertyName);
                 if (retVal == null)
-                    LOG.warn("unable to remove hyperty " + hypertyName + "from hypertyToInstanceMap!") ;
+                    LOG.warn("unable to remove hyperty " + hypertyName + "from hypertyToInstanceMap!");
             }
 
-            String protocolstubName = clientToProtocolstubMap.remove(client);
-            if (protocolstubName != null) {
-                LOG.debug("client contained protocolstubs, removing them from maps");
-                protocolstubToInstanceMap.remove(protocolstubName);
+            String protostubName = clientToProtostubMap.remove(client);
+            if (protostubName != null) {
+                LOG.debug("client contained protostubs, removing them from maps");
+                String retVal = protostubToInstanceMap.remove(protostubName);
+                if (retVal == null)
+                    LOG.warn("unable to remove protostub " + protostubName + "from protostubToInstanceMap!");
             }
         }
     };
 
+    private static ValueResponse createResponse(ResponseCode code, final String content) {
+        LOG.debug("creating response. code: " + code + ", content: " + content);
+        ValueResponse response;
+        if (code == null) {
+            LOG.warn("no code for createResponse provided. Using ResponseCode.CONTENT");
+            code = ResponseCode.CONTENT;
+        }
 
+        if (content == null)
+            response = new ValueResponse(code);
+        else {
+            response = new ValueResponse(code, new LwM2mResource(0, Value.newStringValue(content)));
+        }
+
+        LOG.debug("created response: " + response);
+        return response;
+    }
+
+    private static ValueResponse createResponse(final String content) {
+        return createResponse(ResponseCode.CONTENT, content);
+    }
 }
