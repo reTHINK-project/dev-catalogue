@@ -8,3 +8,5 @@ RUN cd /opt/reTHINK && mkdir GitHubRepos
 # to pull a stable version out of the repo.
 RUN cd /opt/reTHINK/GitHubRepos && mkdir dev-catalogue
 COPY . /opt/reTHINK/GitHubRepos/dev-catalogue
+
+
