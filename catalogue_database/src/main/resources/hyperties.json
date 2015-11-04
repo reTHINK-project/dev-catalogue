@@ -1,5 +1,9 @@
 [
   {
+    "id": "KarmaTestHyperty",
+    "sourceCode": "console.log('hello world!')"
+  },
+  {
     "id": "MyFirstHyperty",
     "sourceCode": "console.log('hello world!')"
   },
