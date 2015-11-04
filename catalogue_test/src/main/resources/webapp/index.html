@@ -119,16 +119,21 @@
             console.log("trying to send a request to: " + url);
 
             var xmlHttp = new XMLHttpRequest();
-            xmlHttp.open("GET", url, false); // false for synchronous request
-            xmlHttp.send(null);
+            try {
+                xmlHttp.open("GET", url, false); // false for synchronous request
+                xmlHttp.send(null);
+            } catch (e) {
+                alert("Error while trying to get resource:\r\n" + e);
+                return;
+            }
             console.log("got response: " + xmlHttp.responseText);
             var resp = xmlHttp.responseText;
 
             try {
                 resp = JSON.parse(xmlHttp.responseText);
             } catch (e) {
-                // TODO: error messages will probably be in json in the future
-                resp = JSON.parse("{ \"error\": \"" + resp + "\"}")
+                alert("Error trying to parse json:\r\n" + resp + "\r\nerror: " + e);
+                return;
             }
             console.log("response json: ", resp);
 
@@ -138,11 +143,15 @@
 
 
         $scope.getAndExecCode = function(url) {
-            var respJson = getResource(url);
-            var code = respJson.content.value;
-            console.log("About to exec following code: " + code);
-            eval(code);
-            return respJson;
+            try {
+                var respJson = getResource(url);
+                var code = respJson.content.value;
+                console.log("About to exec following code: " + code);
+                eval(code);
+                return respJson;
+            } catch (e) {
+                alert("Error trying to execute code from url:\r\n" + url);
+            }
         };
 
         window.getResource = $scope.getResource;

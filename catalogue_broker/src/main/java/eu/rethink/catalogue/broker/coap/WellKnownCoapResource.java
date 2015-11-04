@@ -5,9 +5,9 @@ package eu.rethink.catalogue.broker.coap;
 
 import eu.rethink.catalogue.broker.RequestHandler;
 import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.leshan.core.response.ValueResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,8 +26,8 @@ public class WellKnownCoapResource extends CoapResource {
 
     @Override
     public void handleGET(CoapExchange exchange) {
-        // TODO: let RequestHandler handle it and respond with the string
-        exchange.respond(CoAP.ResponseCode.CONTENT, "Under Construction");
+        ValueResponse resp = requestHandler.handleGET(exchange.getRequestOptions().getUriPathString());
+        exchange.respond(requestHandler.encodeResponse(resp));
     }
 
     @Override

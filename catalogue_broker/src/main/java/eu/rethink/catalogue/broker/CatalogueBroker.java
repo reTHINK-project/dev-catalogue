@@ -63,20 +63,35 @@ public class CatalogueBroker {
     private Server server;
     private LeshanServer lwServer;
 
-    public void start() {
-        // Use those ENV variables for specifying the interface to be bound for coap and coaps
-        String iface = System.getenv("COAPIFACE");
-        String ifaces = System.getenv("COAPSIFACE");
+    public void start(String httpPort, String coapAddress, String coapsAddress) {
+        // Try to use ENV variables if coap/coaps address is not given
+        if (coapAddress == null)
+            coapAddress = System.getenv("COAPIFACE");
+
+        if (coapsAddress == null)
+            coapsAddress = System.getenv("COAPSIFACE");
 
         // Build LWM2M server
         LeshanServerBuilder builder = new LeshanServerBuilder();
-        if (iface != null && !iface.isEmpty()) {
-            builder.setLocalAddress(iface.substring(0, iface.lastIndexOf(':')),
-                    Integer.parseInt(iface.substring(iface.lastIndexOf(':') + 1, iface.length())));
+        if (coapAddress != null && !coapAddress.isEmpty()) {
+            // check if coapAddress is only port or host:port
+            if (!coapAddress.contains(":")) {
+                // only port -> prepend localhost
+                coapAddress = "localhost:" + coapAddress;
+            }
+
+            builder.setLocalAddress(coapAddress.substring(0, coapAddress.lastIndexOf(':')),
+                    Integer.parseInt(coapAddress.substring(coapAddress.lastIndexOf(':') + 1, coapAddress.length())));
         }
-        if (ifaces != null && !ifaces.isEmpty()) {
-            builder.setLocalAddressSecure(ifaces.substring(0, ifaces.lastIndexOf(':')),
-                    Integer.parseInt(ifaces.substring(ifaces.lastIndexOf(':') + 1, ifaces.length())));
+        if (coapsAddress != null && !coapsAddress.isEmpty()) {
+            // check if coapsAddress is only port or host:port
+            if (!coapsAddress.contains(":")) {
+                // only port -> prepend localhost
+                coapsAddress = "localhost:" + coapAddress;
+            }
+
+            builder.setLocalAddressSecure(coapsAddress.substring(0, coapsAddress.lastIndexOf(':')),
+                    Integer.parseInt(coapsAddress.substring(coapsAddress.lastIndexOf(':') + 1, coapsAddress.length())));
         }
 
         // Get public and private server key
@@ -114,14 +129,18 @@ public class CatalogueBroker {
         lwServer = builder.build();
         lwServer.start();
         // Now prepare and start jetty
-        String webPort = System.getenv("PORT");
-        if (webPort == null || webPort.isEmpty()) {
-            webPort = System.getProperty("PORT");
+
+        if (httpPort == null) {
+            httpPort = System.getenv("PORT");
+            if (httpPort == null || httpPort.isEmpty()) {
+                httpPort = System.getProperty("PORT");
+            }
+            if (httpPort == null || httpPort.isEmpty()) {
+                httpPort = "8080";
+            }
         }
-        if (webPort == null || webPort.isEmpty()) {
-            webPort = "8080";
-        }
-        server = new Server(Integer.valueOf(webPort));
+
+        server = new Server(Integer.valueOf(httpPort));
 
         // rethink request handler
         RequestHandler rethinkRequestHandler = new RequestHandler(lwServer);
@@ -148,6 +167,45 @@ public class CatalogueBroker {
     }
 
     public static void main(String[] args) {
-        new CatalogueBroker().start();
+        String httpPort = null, coapAddress = null, coapsAddress = null;
+
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
+            arg = arg.toLowerCase();
+
+            switch(arg) {
+                case "-h":
+                    // hand it down
+                case "-http":
+                    // hand it down
+                case "-httpport":
+                    httpPort = args[++i];
+
+                    // if http address was given (like for coap), extract only port part
+                    try {
+                        httpPort = httpPort.substring(httpPort.lastIndexOf(':') + 1, httpPort.length());
+                    } catch (IndexOutOfBoundsException e) {
+//                        e.printStackTrace();
+                    }
+                    break;
+                case "-c":
+                    // hand it down
+                case "-coap":
+                    // hand it down
+                case "-coapaddress":
+                    coapAddress = args[++i];
+                    break;
+                case "-cs":
+                    // hand it down
+                case "-coaps":
+                    // hand it down
+                case "-coapsaddress":
+                    coapsAddress = args[++i];
+                    break;
+            }
+        }
+
+
+        new CatalogueBroker().start(httpPort, coapAddress, coapsAddress);
     }
 }
