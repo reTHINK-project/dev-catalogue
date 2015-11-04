@@ -9,9 +9,10 @@ import org.eclipse.jetty.webapp.WebAppContext;
 
 public class WebApp {
 
-    public void start() {
+    private static int DEFAULT_PORT = 8080;
+
+    public void start(int port) {
         // Prepare jetty
-        int port = 8090;
         Server server = new Server(port);
         WebAppContext root = new WebAppContext();
         root.setContextPath("/");
@@ -33,7 +34,18 @@ public class WebApp {
 
 
     public static void main(String[] args) {
+        int port = DEFAULT_PORT;
+
+        if (args.length > 0 && !args[0].isEmpty())
+            try {
+                port = Integer.parseInt(args[0]);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Port could not be parsed. Please provide valid port", e);
+//                e.printStackTrace();
+            }
+
+
         WebApp webApp = new WebApp();
-        webApp.start();
+        webApp.start(port);
     }
 }
