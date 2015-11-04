@@ -133,9 +133,13 @@ public class RequestHandler {
 
     }
 
-
     public ValueResponse handleGET(String path) {
         LOG.info("Handling GET for: " + path);
+        // path should start with /.well-known/
+        // but coap has no slash at the start, so check for it and prepend it if necessary.
+        if (!path.startsWith("/"))
+            path = "/" + path;
+
         // remove /.well-known/ from path
         path = StringUtils.removeStart(path, WELLKNOWN_PREFIX);
         LOG.debug("adapted path: " + path);
@@ -318,7 +322,7 @@ public class RequestHandler {
                                         for (LwM2mResource resource : resources.values()) {
                                             resourceID = resource.getId();
                                             LOG.debug(String.format("#%d: %s", resourceID, resource.getValue().value));
-                                            // TODO: get value of correct field ('name' for now)
+                                            // TODO: get value of correct field ('id' for now)
                                             // TODO: mapping: {<value> : /endpoint/1337/<instanceID>}
                                             if (resourceID == idFieldID) { // current resource is name field
                                                 String hypertyName = resource.getValue().value.toString();
@@ -375,7 +379,8 @@ public class RequestHandler {
                                         for (LwM2mResource resource : resources.values()) {
                                             resourceID = resource.getId();
                                             LOG.debug(String.format("#%d: %s", resourceID, resource.getValue().value));
-                                            // TODO: get resourceID for field 'name' dynamically from model
+                                            // TODO: get value of correct field ('id' for now)
+                                            // TODO: mapping: {<value> : /endpoint/1337/<instanceID>}
                                             if (resourceID == idFieldID) { // current resource is name field
                                                 String protostubName = resource.getValue().value.toString();
                                                 protostubToInstanceMap.put(protostubName, "/" + client.getEndpoint() + "/" + PROTOSTUB_MODEL_ID + "/" + instanceID);
@@ -456,5 +461,9 @@ public class RequestHandler {
 
     private static ValueResponse createResponse(final String content) {
         return createResponse(ResponseCode.CONTENT, content);
+    }
+
+    public String encodeResponse(ValueResponse response) {
+        return this.gson.toJson(response);
     }
 }
