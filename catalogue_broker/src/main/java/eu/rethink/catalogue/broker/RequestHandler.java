@@ -42,14 +42,15 @@ package eu.rethink.catalogue.broker;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import eu.rethink.catalogue.broker.json.ClientSerializer;
-import eu.rethink.catalogue.broker.json.LwM2mNodeSerializer;
 import eu.rethink.catalogue.broker.json.LwM2mNodeDeserializer;
+import eu.rethink.catalogue.broker.json.LwM2mNodeSerializer;
 import eu.rethink.catalogue.broker.json.ResponseSerializer;
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.leshan.LinkObject;
 import org.eclipse.leshan.ResponseCode;
 import org.eclipse.leshan.client.resource.ObjectEnabler;
 import org.eclipse.leshan.client.resource.ObjectsInitializer;
+import org.eclipse.leshan.core.model.LwM2mModel;
 import org.eclipse.leshan.core.model.ResourceModel;
 import org.eclipse.leshan.core.node.*;
 import org.eclipse.leshan.core.request.ReadRequest;
@@ -92,33 +93,31 @@ public class RequestHandler {
     public RequestHandler(LeshanServer server) {
         this.server = server;
 
-        // name:id map for hyperties
-        {
-            // populate hypertyResourceNameToID
-            ObjectEnabler hypertyEnabler = new ObjectsInitializer().create(HYPERTY_MODEL_ID);
-            Map<Integer, ResourceModel> model = hypertyEnabler.getObjectModel().resources;
+        // get LwM2mModel from modelprovider
+        LwM2mModel customModel = server.getModelProvider().getObjectModel(null);
 
-            // populate id:name map from resources
-            for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
-                hypertyResourceNameToID.put(entry.getValue().name, entry.getKey());
-            }
 
-            LOG.debug("generated name:id map for hyperties: " + hypertyResourceNameToID);
+        // name:id map for
+        // populate hypertyResourceNameToID
+        ObjectEnabler hypertyEnabler = new ObjectsInitializer(customModel).create(HYPERTY_MODEL_ID);
+        Map<Integer, ResourceModel> hypertyModel = hypertyEnabler.getObjectModel().resources;
+        // populate id:name map from resources
+        for (Map.Entry<Integer, ResourceModel> entry : hypertyModel.entrySet()) {
+            hypertyResourceNameToID.put(entry.getValue().name, entry.getKey());
         }
+        LOG.debug("generated name:id map for hyperties: " + hypertyResourceNameToID);
+
 
         // name:id map for protostubs
-        {
-            // populate protostubResourceNameToID
-            ObjectEnabler protostubEnabler = new ObjectsInitializer().create(PROTOSTUB_MODEL_ID);
-            Map<Integer, ResourceModel> model = protostubEnabler.getObjectModel().resources;
-
-            // populate id:name map from resources
-            for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
-                protostubResourceNameToID.put(entry.getValue().name, entry.getKey());
-            }
-
-            LOG.debug("generated name:id map for protostubs: " + protostubResourceNameToID);
+        // populate protostubResourceNameToID
+        ObjectEnabler protostubEnabler = new ObjectsInitializer(customModel).create(PROTOSTUB_MODEL_ID);
+        Map<Integer, ResourceModel> protostubModel = protostubEnabler.getObjectModel().resources;
+        // populate id:name map from resources
+        for (Map.Entry<Integer, ResourceModel> entry : protostubModel.entrySet()) {
+            protostubResourceNameToID.put(entry.getValue().name, entry.getKey());
         }
+
+        LOG.debug("generated name:id map for protostubs: " + protostubResourceNameToID);
 
         GsonBuilder gsonBuilder = new GsonBuilder();
         gsonBuilder.registerTypeHierarchyAdapter(Client.class, new ClientSerializer());

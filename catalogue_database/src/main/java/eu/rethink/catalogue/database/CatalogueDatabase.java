@@ -49,6 +49,9 @@ import org.eclipse.leshan.client.resource.BaseInstanceEnabler;
 import org.eclipse.leshan.client.resource.LwM2mObjectEnabler;
 import org.eclipse.leshan.client.resource.ObjectEnabler;
 import org.eclipse.leshan.client.resource.ObjectsInitializer;
+import org.eclipse.leshan.core.model.LwM2mModel;
+import org.eclipse.leshan.core.model.ObjectLoader;
+import org.eclipse.leshan.core.model.ObjectModel;
 import org.eclipse.leshan.core.model.ResourceModel;
 import org.eclipse.leshan.core.node.LwM2mResource;
 import org.eclipse.leshan.core.node.Value;
@@ -95,9 +98,20 @@ public class CatalogueDatabase {
         rethinkInstance[] parsedHyperties = parseHyperties();
         rethinkInstance[] parsedProtostubs = parseProtostubs();
 
+        // get default models
+        List<ObjectModel> objectModels = ObjectLoader.loadDefault();
+
+        // add custom models from model.json
+        InputStream modelStream = getClass().getResourceAsStream("/model.json");
+        objectModels.addAll(ObjectLoader.loadJsonStream(modelStream));
+
+        HashMap<Integer, ObjectModel> map = new HashMap<>();
+        for (ObjectModel objectModel : objectModels) {
+            map.put(objectModel.id, objectModel);
+        }
 
         // Initialize object list
-        ObjectsInitializer initializer = new ObjectsInitializer();
+        ObjectsInitializer initializer = new ObjectsInitializer(new LwM2mModel(map));
         initializer.setClassForObject(3, Device.class);
         initializer.setInstancesForObject(HYPERTY_MODEL_ID, parsedHyperties);
         initializer.setInstancesForObject(PROTOSTUB_MODEL_ID, parsedProtostubs);
@@ -266,6 +280,10 @@ public class CatalogueDatabase {
             String resourceName = idNameMap.get(resourceid);
             String resourceValue = nameValueMap.get(resourceName);
             // TODO: get correct value type from resource description
+
+            LOG.debug("idNameMap returns: " + resourceName);
+            LOG.debug("nameValueMap returns: " + resourceValue);
+
 
             if (resourceValue != null) {
                 LOG.debug("returning: " + resourceValue);

@@ -39,6 +39,7 @@
  *******************************************************************************/
 package eu.rethink.catalogue.broker;
 
+import eu.rethink.catalogue.broker.model.RethinkModelProvider;
 import eu.rethink.catalogue.broker.servlet.WellKnownServlet;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -73,6 +74,7 @@ public class CatalogueBroker {
 
         // Build LWM2M server
         LeshanServerBuilder builder = new LeshanServerBuilder();
+        builder.setObjectModelProvider(new RethinkModelProvider());
         if (coapAddress != null && !coapAddress.isEmpty()) {
             // check if coapAddress is only port or host:port
             if (!coapAddress.contains(":")) {
