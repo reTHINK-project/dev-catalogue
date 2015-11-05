@@ -1,4 +1,8 @@
 [
+    {
+    "id": "KarmaTestProtostub",
+    "sourceCode": "console.log('hello world!')"
+  },
   {
     "id": "MyFirstProtostub",
     "sourceCode": "console.log('hello world!')"
