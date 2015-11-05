@@ -1,3 +1,6 @@
+/************************************************************************************
+ * Copyright (c) 2015 -- 2017 by Fraunhofer Fokus
+ ************************************************************************************/
 package eu.rethink.catalogue.broker.model;
 
 import org.eclipse.leshan.core.model.LwM2mModel;
