@@ -62,7 +62,7 @@
                     <option value="constraints">constraints</option>
                     <option value="configuration">configuration</option>
                     <option value="hypertyCapabilities">hypertyCapabilities</option>
-                    <option value="hypertyCapabilities">protocolCapabilities</option>
+                    <option value="protocolCapabilities">protocolCapabilities</option>
                 </select>
             </p>
         </div>
@@ -144,17 +144,26 @@
 
         $scope.getAndExecCode = function(url) {
             try {
-                var respJson = getResource(url);
+                var respJson = $scope.getResource(url);
                 var code = respJson.content.value;
                 console.log("About to exec following code: " + code);
                 eval(code);
                 return respJson;
             } catch (e) {
-                alert("Error trying to execute code from url:\r\n" + url);
+                alert("Error trying to execute code from url:\r\n" + url + "\r\n" + e);
             }
         };
 
-        window.getResource = $scope.getResource;
+//        window.getResource = $scope.getResource;
+
+        var rethink = {};
+        rethink.myalert = function(msg) {
+            alert(msg || "this is a test!");
+        };
+
+        window.rethink = rethink;
+
+
     });
 </script>
 </body>

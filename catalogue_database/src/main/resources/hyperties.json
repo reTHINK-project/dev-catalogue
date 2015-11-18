@@ -5,7 +5,7 @@
   },
   {
     "id": "MyFirstHyperty",
-    "sourceCode": "console.log('hello world!')"
+    "sourceCode": "rethink.myalert('Alerting with a custom message, using the globally available rethink object!')"
   },
   {
     "id": "MySecondHyperty",
