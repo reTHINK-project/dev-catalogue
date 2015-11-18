@@ -82,17 +82,17 @@ public class CatalogueDatabase {
     public static void main(final String[] args) {
         if (args.length != 4 && args.length != 2) {
             System.out
-                    .println("Usage:\njava -jar target/catalogue_database-*-jar-with-dependencies.jar [ClientIP] [ClientPort] ServerIP ServerPort");
+                    .println("Usage:\njava -jar target/catalogue_database-*-jar-with-dependencies.jar ServerIP ServerPort [ClientIP] [ClientPort] ");
         } else {
             if (args.length == 4)
                 new CatalogueDatabase(args[0], Integer.parseInt(args[1]), args[2], Integer.parseInt(args[3]));
             else
-                new CatalogueDatabase("0", 0, args[0], Integer.parseInt(args[1]));
+                new CatalogueDatabase(args[0], Integer.parseInt(args[1]), "0", 0);
         }
     }
 
-    public CatalogueDatabase(final String localHostName, final int localPort, final String serverHostName,
-                             final int serverPort) {
+    public CatalogueDatabase(final String serverHostName, final int serverPort,
+                             final String localHostName, final int localPort) {
 
         // parse files
         rethinkInstance[] parsedHyperties = parseHyperties();
@@ -226,7 +226,7 @@ public class CatalogueDatabase {
     }
 
     private rethinkInstance[] parseProtostubs() {
-        // 1. open file, 2. parse hyperties.json
+        // 1. open file, 2. parse protostubs.json
         Gson gson = new Gson();
         InputStream in = getClass().getResourceAsStream("/protostubs.json");
         String fileString = new Scanner(in, "UTF-8").useDelimiter("\\A").next();
@@ -251,8 +251,15 @@ public class CatalogueDatabase {
         return parsedProtostubs;
     }
 
+    /**
+     * InstanceEnabler for reTHINK resources.
+     */
     public static class rethinkInstance extends BaseInstanceEnabler {
 
+        /**
+         * Set id:name map so instance knows which id corresponds to the correct field. (based on model.json)
+         * @param idNameMap
+         */
         public void setIdNameMap(Map<Integer, String> idNameMap) {
             this.idNameMap = idNameMap;
         }
@@ -270,6 +277,10 @@ public class CatalogueDatabase {
             this.nameValueMap = NameValueMap;
         }
 
+        /**
+         * Create a reTHINK instance with name:value mapping from model.json
+         * @param nameValueMap
+         */
         public rethinkInstance(Map<String, String> nameValueMap) {
             this.nameValueMap = nameValueMap;
         }
@@ -295,6 +306,9 @@ public class CatalogueDatabase {
 
     }
 
+    /**
+     * Provides the default device description of a Database instance.
+     */
     public static class Device extends BaseInstanceEnabler {
 
         public Device() {

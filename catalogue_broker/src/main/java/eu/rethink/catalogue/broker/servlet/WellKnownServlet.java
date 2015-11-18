@@ -23,11 +23,21 @@ public class WellKnownServlet extends HttpServlet {
     private RequestHandler requestHandler;
     private static final Logger LOG = LoggerFactory.getLogger(WellKnownServlet.class);
 
+    /**
+     * Create proxy http servlet that takes all requests for /.well-known/ and its sub-resources.
+     * Does not handle requests itself.
+     * Pushes incoming requests into request handler and returns the result to the request source.
+     *
+     * @param requestHandler handles requests on /.well-known/*
+     */
     public WellKnownServlet(LeshanServer server, RequestHandler requestHandler) {
         this.requestHandler = requestHandler;
         server.getCoapServer().add(new WellKnownCoapResource(requestHandler));
     }
 
+    /**
+     * Handles incoming GET requests. Adds "Access-Control-Allow-Origin" header to response.
+     */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         LOG.info("GOT GET");

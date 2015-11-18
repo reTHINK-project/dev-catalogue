@@ -69,6 +69,7 @@ import java.util.Map;
  * reTHINK specific Request Handler for requests on /.well-known/*
  */
 public class RequestHandler {
+    // model IDs that define the custom models inside model.json
     private final int HYPERTY_MODEL_ID = 1337;
     private final int PROTOSTUB_MODEL_ID = 1338;
     private final int HYPERTY_RUNTIME_MODEL_ID = 1339;
@@ -119,6 +120,7 @@ public class RequestHandler {
 
         LOG.debug("generated name:id map for protostubs: " + protostubResourceNameToID);
 
+        // set up gson
         GsonBuilder gsonBuilder = new GsonBuilder();
         gsonBuilder.registerTypeHierarchyAdapter(Client.class, new ClientSerializer());
         gsonBuilder.registerTypeHierarchyAdapter(LwM2mResponse.class, new ResponseSerializer());
@@ -127,9 +129,7 @@ public class RequestHandler {
         gsonBuilder.setDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
         this.gson = gsonBuilder.create();
 
-
         server.getClientRegistry().addListener(clientRegistryListener);
-
     }
 
     public ValueResponse handleGET(String path) {
@@ -237,6 +237,9 @@ public class RequestHandler {
 
     }
 
+    /**
+     * Keeps track of currently registered clients.
+     */
     private ClientRegistryListener clientRegistryListener = new ClientRegistryListener() {
         @Override
         public void registered(final Client client) {
@@ -281,9 +284,13 @@ public class RequestHandler {
             }
         }
 
+        /**
+         * Checks if client has one of our custom resources.
+         */
         private void checkClient(final Client client) {
             boolean foundHypertyLink = false;
             boolean foundProtostubLink = false;
+
             LOG.debug("checking object links of client: " + client);
             for (LinkObject link : client.getObjectLinks()) {
                 String linkUrl = link.getUrl();
@@ -300,6 +307,13 @@ public class RequestHandler {
                     break;
             }
 
+            // exit condition
+            if (!foundHypertyLink && !foundProtostubLink) {
+                LOG.debug("Client does not contain hyperties or protostubs");
+                return;
+            }
+
+            // add hyperty to maps
             if (foundHypertyLink) {
                 Thread hypertyRunner = new Thread(new Runnable() {
                     @Override
@@ -357,6 +371,8 @@ public class RequestHandler {
                     e.printStackTrace();
                 }
             }
+
+            // add protostub to maps
             if (foundProtostubLink) {
                 Thread protostubRunner = new Thread(new Runnable() {
                     @Override
@@ -415,11 +431,11 @@ public class RequestHandler {
                 }
 
             }
-            if (!foundHypertyLink && !foundProtostubLink) {
-                LOG.debug("Client does not contain hyperties or protostubs");
-            }
         }
 
+        /**
+         * Tries to remove client and its resources from maps.
+         */
         private void removeClient(Client client) {
             // check maps
             String hypertyName = clientToHypertyMap.remove(client);
@@ -440,6 +456,13 @@ public class RequestHandler {
         }
     };
 
+    /**
+     * Returns a ValueResponse based on the given code and content.
+     * If no code is provided, ResponseCode.CONTENT will be used
+     * @param code response code of the response
+     * @param content payload of the response
+     * @return generated ValueResponse
+     */
     private static ValueResponse createResponse(ResponseCode code, final String content) {
         LOG.debug("creating response. code: " + code + ", content: " + content);
         ValueResponse response;
@@ -458,10 +481,20 @@ public class RequestHandler {
         return response;
     }
 
+    /**
+     * Returns ValueResponse with the provided content as payload. Response code is always ResponseCode.CONTENT.
+     * @param content payload of the response
+     * @return generated ValueResponse
+     */
     private static ValueResponse createResponse(final String content) {
         return createResponse(ResponseCode.CONTENT, content);
     }
 
+    /**
+     * Parses a response to a json string.
+     * @param response ValueResponse to be encoded to json
+     * @return response as json
+     */
     public String encodeResponse(ValueResponse response) {
         return this.gson.toJson(response);
     }

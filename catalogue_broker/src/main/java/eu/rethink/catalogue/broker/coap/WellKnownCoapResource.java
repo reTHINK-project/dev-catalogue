@@ -19,6 +19,12 @@ public class WellKnownCoapResource extends CoapResource {
     private static final Logger LOG = LoggerFactory.getLogger(WellKnownCoapResource.class);
     private RequestHandler requestHandler;
 
+    /**
+     * Create proxy coap resource that takes all requests for /.well-known/ and its sub-resources.
+     * Does not handle requests itself.
+     * Pushes incoming requests into request handler and returns the result to the request source.
+     * @param requestHandler handles requests on /.well-known/*
+     */
     public WellKnownCoapResource(RequestHandler requestHandler) {
         super(path);
         this.requestHandler = requestHandler;
@@ -30,9 +36,12 @@ public class WellKnownCoapResource extends CoapResource {
         exchange.respond(requestHandler.encodeResponse(resp));
     }
 
+    /**
+     * Always returns itself so the handle* methods are guaranteed to be called by this instance.
+     */
     @Override
     public Resource getChild(String name) {
-        LOG.info("REQUESTING CHILD: " + name);
+//        LOG.info("REQUESTING CHILD: " + name);
         return this;
     }
 }
