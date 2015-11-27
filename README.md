@@ -38,7 +38,7 @@ Example:
 `java -jar catalogue_test/target/rethink-catalogue-test-0.1-jar-with-dependencies.jar 9080` 
 
 
-## Attention -- Docker Images Ready
+##  ~~Attention -- Docker Images Ready~~ Docker Images are probably broken currently.
 
 The following components are dockerized to allow local testing without the need to install components:
 
