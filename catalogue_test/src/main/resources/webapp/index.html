@@ -31,38 +31,15 @@
             <p> (optional) resource of {{name}}:
                 <select name="singleSelect" ng-model="resourceName"
                         ng-change="resourceName = resourceName == '' ? null : resourceName">
-                    <!--0: "guid"-->
-                    <!--1: "id"-->
-                    <!--2: "description"-->
-                    <!--3: "kind"-->
-                    <!--4: "catalogueURL"-->
-                    <!--5: "sourceCode"-->
-                    <!--6: "dataObject"-->
-                    <!--7: "type"-->
-                    <!--8: "messageSchema"-->
-                    <!--9: "configuration"-->
-                    <!--10: "policies"-->
-                    <!--11: "constraints"-->
-                    <!--12: "configuration"-->
-                    <!--13: "hypertyCapabilities"-->
-                    <!--14: "protocolCapabilities"-->
 
                     <option></option>
                     <option value="guid">guid</option>
-                    <option value="id">id</option>
-                    <option value="description">description</option>
-                    <option value="kind">kind</option>
-                    <option value="catalogueURL">catalogueURL</option>
-                    <option value="sourceCode">sourceCode</option>
-                    <option value="dataObject">dataObject</option>
-                    <option value="type">type</option>
-                    <option value="messageSchema">messageSchema</option>
-                    <option value="configuration">configuration</option>
-                    <option value="policies">policies</option>
-                    <option value="constraints">constraints</option>
-                    <option value="configuration">configuration</option>
-                    <option value="hypertyCapabilities">hypertyCapabilities</option>
-                    <option value="protocolCapabilities">protocolCapabilities</option>
+                    <option value="objectName">objectName</option>
+                    <option value="sourcePackageURL">sourcePackageURL</option>
+                    <option value="sourcePackage">sourcePackage</option>
+                    <option value="language">language</option>
+                    <option value="dummy">dummy option to force error</option>
+
                 </select>
             </p>
         </div>
@@ -71,7 +48,7 @@
         <h3>Generated path:<br>
             {{"http://" + address + "/.well-known/" + kind + "/" + (name == null ? '' : name) + (resourceName != null ? "/" + resourceName : "")}}</h3>
         <button ng-click="response = getResource('http://' + address + '/.well-known/' + kind + '/' + (name == null ? '' : name) + (resourceName != null ? '/' + resourceName : ''))" ng-init="response = null">get {{name || kind}}</button>
-        <button ng-click="response = getAndExecCode('http://' + address + '/.well-known/' + kind + '/' + name + '/sourceCode')">get & execute code</button>
+        <button ng-click="response = getAndExecCode('http://' + address + '/.well-known/' + kind + '/' + name + '/sourcePackage')">get & execute code</button>
 
 
         <div ng-show="response != null">
@@ -133,7 +110,6 @@
                 resp = JSON.parse(xmlHttp.responseText);
             } catch (e) {
                 alert("Error trying to parse json:\r\n" + resp + "\r\nerror: " + e);
-                return;
             }
             console.log("response json: ", resp);
 
@@ -145,7 +121,9 @@
         $scope.getAndExecCode = function(url) {
             try {
                 var respJson = $scope.getResource(url);
-                var code = respJson.content.value;
+                var sourcePackage = respJson["sourcePackage"];
+                sourcePackage = JSON.parse(sourcePackage);
+                code = sourcePackage.sourceCode;
                 console.log("About to exec following code: " + code);
                 eval(code);
                 return respJson;

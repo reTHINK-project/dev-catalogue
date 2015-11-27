@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -22,13 +23,13 @@ import java.util.Map;
  */
 public class RethinkModelProvider extends StandardModelProvider {
 
-    private static final Logger LOG = LoggerFactory.getLogger(StandardModelProvider.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RethinkModelProvider.class);
 
     private final LwM2mModel model;
 
     public RethinkModelProvider() {
         // build a single model with default objects
-        List<ObjectModel> models = ObjectLoader.loadDefault();
+        List<ObjectModel> models = new LinkedList<>();
 
         // add custom models from model.json
         InputStream modelStream = getClass().getResourceAsStream("/model.json");
@@ -48,6 +49,6 @@ public class RethinkModelProvider extends StandardModelProvider {
     @Override
     public LwM2mModel getObjectModel(Client client) {
         // same model for all clients
-        return model;
+        return this.model;
     }
 }

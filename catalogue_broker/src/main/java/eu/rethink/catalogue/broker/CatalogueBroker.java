@@ -74,6 +74,7 @@ public class CatalogueBroker {
 
         // Build LWM2M server
         LeshanServerBuilder builder = new LeshanServerBuilder();
+        LOG.debug("setting objectmodelprovider...");
         builder.setObjectModelProvider(new RethinkModelProvider());
         if (coapAddress != null && !coapAddress.isEmpty()) {
             // check if coapAddress is only port or host:port

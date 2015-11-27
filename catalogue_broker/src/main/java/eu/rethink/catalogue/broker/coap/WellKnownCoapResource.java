@@ -7,7 +7,6 @@ import eu.rethink.catalogue.broker.RequestHandler;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.leshan.core.response.ValueResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,8 +31,8 @@ public class WellKnownCoapResource extends CoapResource {
 
     @Override
     public void handleGET(CoapExchange exchange) {
-        ValueResponse resp = requestHandler.handleGET(exchange.getRequestOptions().getUriPathString());
-        exchange.respond(requestHandler.encodeResponse(resp));
+        String resp = requestHandler.handleGET(exchange.getRequestOptions().getUriPathString());
+        exchange.respond(resp);
     }
 
     /**

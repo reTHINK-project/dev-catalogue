@@ -4,7 +4,7 @@
     "id": 1337,
     "instancetype": "multiple",
     "mandatory": false,
-    "description": "",
+    "description": "someHypertyDescription",
     "resourcedefs": [
       {
         "id": 0,
@@ -19,7 +19,7 @@
       },
       {
         "id": 1,
-        "name": "id",
+        "name": "type",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
@@ -30,7 +30,7 @@
       },
       {
         "id": 2,
-        "name": "description",
+        "name": "objectName",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
@@ -41,10 +41,10 @@
       },
       {
         "id": 3,
-        "name": "kind",
+        "name": "sourcePackageURL",
         "operations": "RW",
         "instancetype": "single",
-        "mandatory": true,
+        "mandatory": false,
         "type": "string",
         "range": "",
         "units": "",
@@ -52,10 +52,10 @@
       },
       {
         "id": 4,
-        "name": "catalogueURL",
+        "name": "sourcePackage",
         "operations": "RW",
         "instancetype": "single",
-        "mandatory": true,
+        "mandatory": false,
         "type": "string",
         "range": "",
         "units": "",
@@ -63,7 +63,7 @@
       },
       {
         "id": 5,
-        "name": "sourceCode",
+        "name": "language",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
@@ -74,10 +74,10 @@
       },
       {
         "id": 6,
-        "name": "dataObject",
+        "name": "signature",
         "operations": "RW",
-        "instancetype": "multiple",
-        "mandatory": true,
+        "instancetype": "single",
+        "mandatory": false,
         "type": "string",
         "range": "",
         "units": "",
@@ -85,10 +85,10 @@
       },
       {
         "id": 7,
-        "name": "type",
+        "name": "messageSchema",
         "operations": "RW",
         "instancetype": "single",
-        "mandatory": true,
+        "mandatory": false,
         "type": "string",
         "range": "",
         "units": "",
@@ -96,10 +96,10 @@
       },
       {
         "id": 8,
-        "name": "messageSchema",
+        "name": "configuration",
         "operations": "RW",
         "instancetype": "single",
-        "mandatory": true,
+        "mandatory": false,
         "type": "string",
         "range": "",
         "units": "",
@@ -107,10 +107,10 @@
       },
       {
         "id": 9,
-        "name": "configuration",
+        "name": "constraints",
         "operations": "RW",
         "instancetype": "single",
-        "mandatory": true,
+        "mandatory": false,
         "type": "string",
         "range": "",
         "units": "",
@@ -118,21 +118,21 @@
       },
       {
         "id": 10,
+        "name": "dataObjects",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 11,
         "name": "policies",
         "operations": "RW",
         "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 11,
-        "name": "constraints",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
+        "mandatory": false,
         "type": "string",
         "range": "",
         "units": "",
@@ -141,11 +141,11 @@
     ]
   },
   {
-    "name": "ProtoStub",
+    "name": "Protostub",
     "id": 1338,
     "instancetype": "multiple",
     "mandatory": false,
-    "description": "",
+    "description": "someProtostubDescription",
     "resourcedefs": [
       {
         "id": 0,
@@ -160,169 +160,6 @@
       },
       {
         "id": 1,
-        "name": "id",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 2,
-        "name": "description",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 3,
-        "name": "kind",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 4,
-        "name": "catalogueURL",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 5,
-        "name": "sourceCode",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 8,
-        "name": "messageSchema",
-        "operations": "RW",
-        "instancetype": "multiple",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 9,
-        "name": "configuration",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 11,
-        "name": "constraints",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      }
-    ]
-  },
-  {
-    "name": "HypertyRuntime",
-    "id": 1339,
-    "instancetype": "multiple",
-    "mandatory": false,
-    "description": "",
-    "resourcedefs": [
-      {
-        "id": 0,
-        "name": "guid",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 1,
-        "name": "id",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 2,
-        "name": "description",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 3,
-        "name": "kind",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 4,
-        "name": "catalogueURL",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 5,
-        "name": "sourceCode",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 7,
         "name": "type",
         "operations": "RW",
         "instancetype": "single",
@@ -333,8 +170,8 @@
         "description": ""
       },
       {
-        "id": 13,
-        "name": "hypertyCapabilities",
+        "id": 2,
+        "name": "objectName",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
@@ -344,11 +181,77 @@
         "description": ""
       },
       {
-        "id": 14,
-        "name": "protocolCapabilities",
+        "id": 3,
+        "name": "sourcePackageURL",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 4,
+        "name": "sourcePackage",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 5,
+        "name": "language",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 6,
+        "name": "signature",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 7,
+        "name": "messageSchema",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 8,
+        "name": "configuration",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 9,
+        "name": "constraints",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
         "type": "string",
         "range": "",
         "units": "",

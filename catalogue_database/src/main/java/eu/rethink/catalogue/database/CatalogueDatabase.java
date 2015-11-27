@@ -77,7 +77,6 @@ public class CatalogueDatabase {
 
     private final int HYPERTY_MODEL_ID          = 1337;
     private final int PROTOSTUB_MODEL_ID        = 1338;
-    private final int HYPERTY_RUNTIME_MODEL_ID  = 1339;
 
     public static void main(final String[] args) {
         if (args.length != 4 && args.length != 2) {
@@ -118,7 +117,6 @@ public class CatalogueDatabase {
 
         ObjectEnabler hypertyEnabler        = initializer.create(HYPERTY_MODEL_ID);
         ObjectEnabler protostubEnabler      = initializer.create(PROTOSTUB_MODEL_ID);
-//        ObjectEnabler hypertyRuntimeEnabler = initializer.create(HYPERTY_RUNTIME_MODEL_ID);
 
         List<ObjectEnabler> enablers = initializer.createMandatory();
         enablers.add(hypertyEnabler);
@@ -211,7 +209,10 @@ public class CatalogueDatabase {
             // make name:value map from json
             LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
             for (Map.Entry<String, JsonElement> entry : obj.getAsJsonObject().entrySet()) {
-                nameValueMap.put(entry.getKey(), entry.getValue().getAsString());
+                if (entry.getValue().isJsonPrimitive())
+                    nameValueMap.put(entry.getKey(), entry.getValue().getAsString());
+                else // stringify sourcePackage
+                    nameValueMap.put(entry.getKey(), entry.getValue().toString());
             }
 
             LOG.debug("name:value map for hyperty #" + i + ": " + nameValueMap);
@@ -238,7 +239,10 @@ public class CatalogueDatabase {
             // make name:value map from json
             LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
             for (Map.Entry<String, JsonElement> entry : obj.getAsJsonObject().entrySet()) {
-                nameValueMap.put(entry.getKey(), entry.getValue().getAsString());
+                if (entry.getValue().isJsonPrimitive())
+                    nameValueMap.put(entry.getKey(), entry.getValue().getAsString());
+                else // stringify sourcePackage
+                    nameValueMap.put(entry.getKey(), entry.getValue().toString());
             }
 
             LOG.debug("name:value map for protostub #" + i + ": " + nameValueMap);
