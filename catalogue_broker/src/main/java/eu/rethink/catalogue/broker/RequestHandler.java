@@ -62,9 +62,7 @@ import org.eclipse.leshan.server.client.ClientRegistryListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * reTHINK specific Request Handler for requests on /.well-known/*
@@ -88,8 +86,8 @@ public class RequestHandler {
     private LinkedHashMap<String, Integer> protostubResourceNameToID = new LinkedHashMap<>();
     private LinkedHashMap<String, String> protostubNameToInstanceMap = new LinkedHashMap<>();
 
-    private LinkedHashMap<Client, String> clientToHypertyMap = new LinkedHashMap<>();
-    private LinkedHashMap<Client, String> clientToProtostubMap = new LinkedHashMap<>();
+    private LinkedHashMap<Client, List<String>> clientToHypertyMap = new LinkedHashMap<>();
+    private LinkedHashMap<Client, List<String>> clientToProtostubMap = new LinkedHashMap<>();
 
     private LeshanServer server;
     public final Gson gson;
@@ -339,6 +337,7 @@ public class RequestHandler {
                                     LOG.debug("h");
 
                                     int idFieldID = hypertyResourceNameToID.get(NAME_FIELD_NAME);
+                                    LinkedList<String> hypertyNames = new LinkedList<String>();
                                     for (LwM2mObjectInstance instance : instances.values()) {
                                         instanceID = instance.getId();
                                         LOG.debug("checking resources of instance " + instanceID);
@@ -350,13 +349,15 @@ public class RequestHandler {
                                             if (resourceID == idFieldID) { // current resource is name field
                                                 String hypertyName = resource.getValue().value.toString();
                                                 hypertyNameToInstanceMap.put(hypertyName, "/" + client.getEndpoint() + "/" + HYPERTY_MODEL_ID + "/" + instanceID);
+                                                hypertyNames.add(hypertyName);
                                                 LOG.debug("Added to client map -> " + hypertyName + ": " + hypertyNameToInstanceMap.get(hypertyName));
-                                                // also map hyperty name to client, for easy removal in case of client disconnect
-                                                clientToHypertyMap.put(client, hypertyName);
                                             }
 
                                         }
                                     }
+                                    // map hyperty names to client, for easy removal in case of client disconnect
+                                    clientToHypertyMap.put(client, hypertyNames);
+
                                 }
 
                                 @Override
@@ -397,6 +398,7 @@ public class RequestHandler {
                                     Map<Integer, LwM2mObjectInstance> instances = object.getInstances();
                                     int instanceID, resourceID;
                                     int idFieldID = protostubResourceNameToID.get(NAME_FIELD_NAME);
+                                    LinkedList<String> protostubNames = new LinkedList<String>();
                                     for (LwM2mObjectInstance instance : instances.values()) {
                                         instanceID = instance.getId();
                                         LOG.debug("checking resources of instance " + instanceID);
@@ -409,12 +411,14 @@ public class RequestHandler {
                                                 String protostubName = resource.getValue().value.toString();
                                                 protostubNameToInstanceMap.put(protostubName, "/" + client.getEndpoint() + "/" + PROTOSTUB_MODEL_ID + "/" + instanceID);
                                                 LOG.debug("Added to client map -> " + protostubName + ": " + protostubNameToInstanceMap.get(protostubName));
-                                                // also map protostub name to client, for easy removal in case of client disconnect
-                                                clientToProtostubMap.put(client, protostubName);
+                                                protostubNames.add(protostubName);
                                             }
 
                                         }
                                     }
+                                    // map protostub name to client, for easy removal in case of client disconnect
+                                    clientToProtostubMap.put(client, protostubNames);
+
                                 }
 
                                 @Override
@@ -447,20 +451,27 @@ public class RequestHandler {
          */
         private void removeClient(Client client) {
             // check maps
-            String hypertyName = clientToHypertyMap.remove(client);
-            if (hypertyName != null) {
+            List<String> hypertyNames = clientToHypertyMap.remove(client);
+
+            if (hypertyNames != null && hypertyNames.size() > 0) {
                 LOG.debug("client contained hyperties, removing them from maps");
-                String retVal = hypertyNameToInstanceMap.remove(hypertyName);
-                if (retVal == null)
-                    LOG.warn("unable to remove hyperty " + hypertyName + "from hypertyNameToInstanceMap!");
+                for (String hypertyName : hypertyNames) {
+                    String retVal = hypertyNameToInstanceMap.remove(hypertyName);
+                    if (retVal == null)
+                        LOG.warn("unable to remove hyperty " + hypertyName + "from hypertyNameToInstanceMap!");
+                }
+
             }
 
-            String protostubName = clientToProtostubMap.remove(client);
-            if (protostubName != null) {
+            List<String> protostubNames = clientToProtostubMap.remove(client);
+
+            if (protostubNames != null && protostubNames.size() > 0) {
                 LOG.debug("client contained protostubs, removing them from maps");
-                String retVal = protostubNameToInstanceMap.remove(protostubName);
-                if (retVal == null)
-                    LOG.warn("unable to remove protostub " + protostubName + "from protostubNameToInstanceMap!");
+                for (String protostubName : protostubNames) {
+                    String retVal = protostubNameToInstanceMap.remove(protostubName);
+                    if (retVal == null)
+                        LOG.warn("unable to remove protostub " + protostubName + "from protostubNameToInstanceMap!");
+                }
             }
         }
     };
