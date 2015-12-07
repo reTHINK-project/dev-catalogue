@@ -1,7 +1,8 @@
 [
   {
-    "guid": "649815891651",
+    "cguid": "649815891651",
     "type": "0",
+    "version": "0.1",
     "objectName": "MyNewHyperty1",
     "sourcePackageURL": "/sourcePackage",
     "sourcePackage": {
@@ -13,8 +14,9 @@
     "dataObjects": []
   },
   {
-    "guid": "65498746516987",
+    "cguid": "65498746516987",
     "type": "0",
+    "version": "0.2",
     "objectName": "MyNewHyperty2",
     "sourcePackage": {
       "encoding": "UTF-8",
