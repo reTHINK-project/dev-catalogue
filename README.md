@@ -6,6 +6,9 @@ Simply execute "mvn install" inside the source directory, to build the jars for 
 
 The hyperties themselves are defined in the file "hyperties.json", located inside the resources folder of the reTHINK catalogue database. Protostubs are defined in the "protostubs.json" file, located in the same folder.
 
+
+## Catalogue Broker
+
 To run the catalogue broker, you simply have to run the generated jar.
 
 Synopsis:
@@ -17,15 +20,33 @@ Example:
 `java -jar catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependencies.jar -http 8090 -coap "localhost:6683" -coaps 6684`
 
 
+## Catalogue Database
+
 To run the catalogue database, you have to provide IP and port of the southbound coap interface of the catalogue broker (which is on port 5683 by default).
 
 Synopsis:
 
-`java -jar rethink-catalogue-database-*-jar-with-dependencies.jar serverIP serverPort [clientIP] [clientPort]`
+`java -jar rethink-catalogue-database-*-jar-with-dependencies.jar serverIP serverPort [ObjectsPath]`
 
 Example:
 
-`java -jar catalogue_database/target/rethink-catalogue-database-0.1-jar-with-dependencies.jar localhost 6683`
+`java -jar catalogue_database/target/rethink-catalogue-database-0.1-jar-with-dependencies.jar localhost 6683 catalogue_objects`
+
+### Using custom hyperties/protostubs
+
+In order to include your own hyperties/protostubs in the database, you can specify a folder path as an argument when running the database. The hyperties/protostubs inside that folder will be parsed on start. Please view the provided examples inside the catalogue_objects folder, to see the formatting.
+
+* A Hyperty descriptor is defined in a file with the ending ".hyperty", while protostubs have the ending ".stub".
+* If your javascript code is contained in a seperate file, it needs to have the same filename as the hyperty descriptor it belongs to (excluding file extension), in order to be included in the sourcePackage.
+
+Example:
+
+"SecondHyperty.hyperty" is the descriptor for a hyperty. It contains a sourcePackage, but that is missing the sourceCode field.
+The source code that belongs to it, is contained in a file called "SecondHyperty.js".
+If the hyperty descriptor file contains a sourcePackage, the contents of "SecondHyperty.js" is read and added as sourceCode to the sourcePackage.
+
+
+## Catalogue Test Website
 
 To start the webserver for the catalogue broker test website, simply run the corresponding jar.
 

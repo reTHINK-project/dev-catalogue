@@ -1,0 +1,1 @@
+alert("You successfully parsed and executed the code of SecondHyperty!");

@@ -1,0 +1,12 @@
+{
+  "guid": "98984461651",
+  "type": "0",
+  "objectName": "SecondHyperty",
+  "sourcePackageURL": "/sourcePackage",
+  "sourcePackage": {
+    "encoding": "UTF-8",
+    "sourceCodeClasname": "SecondHyperty"
+  },
+  "language": "Javascript ECMA5",
+  "dataObjects": []
+}

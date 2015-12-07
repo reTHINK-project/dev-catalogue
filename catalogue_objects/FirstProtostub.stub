@@ -1,0 +1,13 @@
+{
+  "guid": "654984163321",
+  "type": "0",
+  "objectName": "FirstProtostub",
+  "sourcePackageURL": "/sourcePackage",
+  "sourcePackage": {
+    "encoding": "UTF-8",
+    "sourceCodeClasname": "FirstProtostub",
+    "sourceCode": "alert('This alert code was provided by the sourcePackage')"
+  },
+  "language": "Javascript ECMA5",
+  "dataObjects": []
+}
