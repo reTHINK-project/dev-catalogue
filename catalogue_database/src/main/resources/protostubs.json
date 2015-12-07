@@ -1,6 +1,6 @@
 [
   {
-    "guid": "1451534646456",
+    "cguid": "1451534646456",
     "type": "0",
     "objectName": "MyProtostub1",
     "sourcePackageURL": "/sourcePackage",
@@ -12,7 +12,7 @@
     "language": "Javascript ECMA5"
   },
   {
-    "guid": "23543566787454654",
+    "cguid": "23543566787454654",
     "type": "0",
     "objectName": "MyProtostub2",
     "sourcePackageURL": "/sourcePackage",

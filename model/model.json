@@ -8,7 +8,7 @@
     "resourcedefs": [
       {
         "id": 0,
-        "name": "guid",
+        "name": "cguid",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
@@ -149,7 +149,7 @@
     "resourcedefs": [
       {
         "id": 0,
-        "name": "guid",
+        "name": "cguid",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
