@@ -4,6 +4,7 @@
     "type": "0",
     "version": "0.1",
     "objectName": "MyNewHyperty1",
+    "description": "This is an example hyperty that contains a source package",
     "sourcePackageURL": "/sourcePackage",
     "sourcePackage": {
       "encoding": "UTF-8",
@@ -18,6 +19,7 @@
     "type": "0",
     "version": "0.2",
     "objectName": "MyNewHyperty2",
+    "description": "This is an example hyperty that contains a source package",
     "sourcePackage": {
       "encoding": "UTF-8",
       "sourceCodeClasname": "MyNewHypertyCode2",

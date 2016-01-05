@@ -9,7 +9,8 @@
       "sourceCodeClasname": "MyProtostubCode1",
       "sourceCode": "alert('This alert code was provided by the sourcePackage')"
     },
-    "language": "Javascript ECMA5"
+    "language": "Javascript ECMA5",
+    "configuration": []
   },
   {
     "cguid": "23543566787454654",

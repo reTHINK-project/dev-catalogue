@@ -81,7 +81,7 @@ public class CatalogueDatabase {
                 // hand down
             case 1:
                 System.out
-                        .println("Usage:\njava -jar target/catalogue_database-*-jar-with-dependencies.jar ServerIP ServerPort [hypertiesPath]");
+                        .println("Usage:\njava -jar target/catalogue_database-*-jar-with-dependencies.jar ServerIP ServerPort [ObjectFolderPath]");
                 break;
             case 2:
                 new CatalogueDatabase(args[0], Integer.parseInt(args[1]), null);

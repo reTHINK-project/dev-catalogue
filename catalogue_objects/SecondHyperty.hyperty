@@ -2,6 +2,7 @@
   "cguid": "98984461651",
   "type": "0",
   "objectName": "SecondHyperty",
+  "description": "This is an example hyperty that has its source code in a seperate file",
   "sourcePackageURL": "/sourcePackage",
   "sourcePackage": {
     "encoding": "UTF-8",
