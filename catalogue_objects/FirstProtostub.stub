@@ -1,13 +1,16 @@
 {
-  "cguid": "654984163321",
   "type": "0",
   "objectName": "FirstProtostub",
+  "description": "This is a protostub",
   "sourcePackageURL": "/sourcePackage",
   "sourcePackage": {
     "encoding": "UTF-8",
-    "sourceCodeClasname": "FirstProtostub",
+    "sourceCodeClassname": "FirstProtostub",
     "sourceCode": "alert('This alert code was provided by the sourcePackage')"
   },
   "language": "Javascript ECMA5",
-  "dataObjects": []
+  "dataObjects": [],
+  "configuration": [],
+  "constraints": [],
+  "messageSchemas": []
 }

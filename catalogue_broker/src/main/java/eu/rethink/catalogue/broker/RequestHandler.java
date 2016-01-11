@@ -78,7 +78,8 @@ public class RequestHandler {
     private final String PROTOSTUB_TYPE_NAME = "protostub";
     private final String NAME_FIELD_NAME = "objectName";
 
-    Map<Integer, ResourceModel> hypertyModel;
+    private final Map<Integer, ResourceModel> HYPERTYMODEL;
+    private final Map<Integer, ResourceModel> PROTOSTUBMODEL;
 
     private LinkedHashMap<String, Integer> hypertyResourceNameToID = new LinkedHashMap<>();
     private LinkedHashMap<String, String> hypertyNameToInstanceMap = new LinkedHashMap<>();
@@ -103,9 +104,9 @@ public class RequestHandler {
         // name:id map for
         // populate hypertyResourceNameToID
         ObjectEnabler hypertyEnabler = new ObjectsInitializer(customModel).create(HYPERTY_MODEL_ID);
-        hypertyModel = hypertyEnabler.getObjectModel().resources;
+        HYPERTYMODEL = hypertyEnabler.getObjectModel().resources;
         // populate id:name map from resources
-        for (Map.Entry<Integer, ResourceModel> entry : hypertyModel.entrySet()) {
+        for (Map.Entry<Integer, ResourceModel> entry : HYPERTYMODEL.entrySet()) {
             hypertyResourceNameToID.put(entry.getValue().name, entry.getKey());
         }
         LOG.debug("generated name:id map for hyperties: " + hypertyResourceNameToID);
@@ -114,9 +115,9 @@ public class RequestHandler {
         // name:id map for protostubs
         // populate protostubResourceNameToID
         ObjectEnabler protostubEnabler = new ObjectsInitializer(customModel).create(PROTOSTUB_MODEL_ID);
-        Map<Integer, ResourceModel> protostubModel = protostubEnabler.getObjectModel().resources;
+        PROTOSTUBMODEL = protostubEnabler.getObjectModel().resources;
         // populate id:name map from resources
-        for (Map.Entry<Integer, ResourceModel> entry : protostubModel.entrySet()) {
+        for (Map.Entry<Integer, ResourceModel> entry : PROTOSTUBMODEL.entrySet()) {
             protostubResourceNameToID.put(entry.getValue().name, entry.getKey());
         }
         LOG.debug("generated name:id map for protostubs: " + protostubResourceNameToID);
@@ -227,7 +228,7 @@ public class RequestHandler {
                 Client client = server.getClientRegistry().get(targetPaths[0]);
                 if (client != null) {
                     ReadRequest request = new ReadRequest(StringUtils.removeStart(target, "/" + targetPaths[0]));
-                    return encodeResponse(server.send(client, request));
+                    return encodeResponse(server.send(client, request), modelType);
                 } else {
                     String response = String.format("Found target for '%s', but endpoint is invalid. Redundany error? Requested endpoint: %s", instanceName, targetPaths[0]);
                     LOG.warn(response);
@@ -512,11 +513,11 @@ public class RequestHandler {
 
 
     private String encodeErrorResponse(final ValueResponse response) {
-        return encodeResponse(response, true);
+        return encodeResponse(response, null, true);
     }
 
-    private String encodeResponse(final ValueResponse response) {
-        return encodeResponse(response, false);
+    private String encodeResponse(final ValueResponse response, final String modelType) {
+        return encodeResponse(response, modelType, false);
     }
 
 
@@ -525,10 +526,27 @@ public class RequestHandler {
      * @param response ValueResponse to be encoded to json
      * @return response as json
      */
-    private String encodeResponse(final ValueResponse response, final boolean isError) {
+    private String encodeResponse(final ValueResponse response, final String modelType, final boolean isError) {
         LOG.debug("encoding response: " + response);
 
-        final LinkedHashMap<String, String> resourceMap = new LinkedHashMap<String, String>();
+        Map<Integer, ResourceModel> model = null;
+        switch (modelType) {
+            case (HYPERTY_TYPE_NAME):
+                model = HYPERTYMODEL;
+                break;
+            case (PROTOSTUB_TYPE_NAME):
+                model = PROTOSTUBMODEL;
+                break;
+        }
+
+        final LinkedHashMap<String, String> instanceMap = new LinkedHashMap<String, String>();
+
+        final Map<Integer, ResourceModel> finalModel = model;
+
+        // TODO: use proper exception type
+        if (model == null) {
+            throw new NullPointerException("could not resolve model type " + modelType);
+        }
 
         Thread t = new Thread(new Runnable() {
             @Override
@@ -546,18 +564,17 @@ public class RequestHandler {
                             Map<Integer, LwM2mResource> resources = instance.getResources();
                             LOG.debug("resources: " + resources);
                             for (Map.Entry<Integer, LwM2mResource> entry : resources.entrySet()) {
-                                resourceMap.put(hypertyModel.get(entry.getKey()).name, (String) entry.getValue().getValue().value);
+                                instanceMap.put(finalModel.get(entry.getKey()).name, (String) entry.getValue().getValue().value);
                             }
                         }
 
                         @Override
                         public void visit(LwM2mResource resource) {
                             LOG.debug("visiting resource");
-
                             if (isError) {
-                                resourceMap.put(response.getCode().name(), (String) resource.getValue().value);
+                                instanceMap.put(response.getCode().name(), (String) resource.getValue().value);
                             } else {
-                                resourceMap.put(hypertyModel.get(resource.getId()).name, (String) resource.getValue().value);
+                                instanceMap.put(finalModel.get(resource.getId()).name, (String) resource.getValue().value);
                             }
 
                         }
@@ -578,10 +595,10 @@ public class RequestHandler {
         if (isError) {
             // wrap error resource map to "ERROR"
             HashMap<String, Map<String, String>> errorMap = new HashMap<>(1);
-            errorMap.put("ERROR", resourceMap);
+            errorMap.put("ERROR", instanceMap);
             return gson.toJson(errorMap);
         } else {
-            return gson.toJson(resourceMap);
+            return gson.toJson(instanceMap);
         }
     }
 
