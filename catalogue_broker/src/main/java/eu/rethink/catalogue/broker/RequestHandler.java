@@ -75,7 +75,7 @@ public class RequestHandler {
 
     private final String WELLKNOWN_PREFIX = "/.well-known/";
     private final String HYPERTY_TYPE_NAME = "hyperty";
-    private final String PROTOSTUB_TYPE_NAME = "protostub";
+    private final String PROTOSTUB_TYPE_NAME = "protocolstub";
     private final String NAME_FIELD_NAME = "objectName";
 
     private final Map<Integer, ResourceModel> HYPERTYMODEL;
@@ -210,12 +210,22 @@ public class RequestHandler {
             String target = null;
             switch (modelType) {
                 case (HYPERTY_TYPE_NAME):
-                    target = hypertyNameToInstanceMap.get(instanceName);
+                    if (instanceName.equals("default")) {
+                        LOG.debug("default hyperty requested, returning first in map");
+                        target = hypertyNameToInstanceMap.values().iterator().next();
+                    } else {
+                        target = hypertyNameToInstanceMap.get(instanceName);
+                    }
                     LOG.debug(String.format("target for hyperty '%s': %s", instanceName, target));
                     break;
                 case (PROTOSTUB_TYPE_NAME):
-                    target = protostubNameToInstanceMap.get(instanceName);
-                    LOG.debug(String.format("target for protostub '%s': %s", instanceName, target));
+                    if (instanceName.equals("default")) {
+                        LOG.debug("default stub requested, returning first in map");
+                        target = protostubNameToInstanceMap.values().iterator().next();
+                    } else {
+                        target = protostubNameToInstanceMap.get(instanceName);
+                    }
+                    LOG.debug(String.format("target for protocolstub '%s': %s", instanceName, target));
                     break;
             }
 
