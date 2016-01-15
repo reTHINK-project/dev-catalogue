@@ -16,10 +16,11 @@ The following components are dockerized to allow local testing without the need 
 
 To start the three components, run the following commands _in that order_ in separate terminal windows:
 
-1. docker run -it --net=host rethink/catalogue-broker:stable
-2. docker run -it --net=host rethink/catalogue-database:stable
-3. docker run -it --net=host rethink/catalogue-test-client:stable
+1. docker run -it --net=host rethink/catalogue-broker:v1.0
+2. docker run -it --net=host rethink/catalogue-database:v1.0
+3. docker run -it --net=host rethink/catalogue-test-client:v1.0
 
+Note: if you do not want the (stable) v1.0 Verison but the latest commit from the repository, just leave the ":v1.0" tag away.
 
 You may then open a web-browser and go to _http://localhost:8090_ to access the test client's GUI.  Note that right now, we only have two Hyperties in the Database, named _MyFirstHyperty_ and _MySecondHyperty_.
 
@@ -96,7 +97,7 @@ To start the three components, run the following commands _in that order_ in sep
 2. docker run -it --net=host rethink/catalogue-database
 3. docker run -it --net=host rethink/catalogue-test-client
 
-**Attention:** The above docker commands will get the the *latest* docker image, i.e. imagages based on the latest commit on the dev-catalgue master branch.  The latest *stable* version can be pulled by adding ":stable" to the name of the docker image.
+**Attention:** The above docker commands will get the the *latest* docker image, i.e. imagages based on the latest commit on the dev-catalgue master branch.  The latest *stable* version is currently **v1.0**.  It can be pulled by adding ":v1.0" to the name of the docker image.
 
 
 You may then open a web-browser and go to _http://localhost:8090_ to access the test client's GUI.  Note that right now, we only have two Hyperties in the Database, named _MyFirstHyperty_ and _MySecondHyperty_.
