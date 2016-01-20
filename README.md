@@ -10,18 +10,32 @@ Catalogue Data Objects are defined in the "catalogue_objects" folder. Please tak
 
 To run the catalogue broker, you simply have to run the generated jar.
 
+**Please note: by default, the Catalogue Broker uses port 80 for http, and 443 for https.
+Usually you are only permitted to use those ports when running the jar with sudo.**
+
 Synopsis:
 
-`java -jar rethink-catalogue-broker-*-jar-with-dependencies.jar [-http [hostname:]port] [-coap [hostname:]port] [-coaps [hostname:]port]`
+`java -jar rethink-catalogue-broker-*-jar-with-dependencies.jar [-http [hostname:]port] [-ssl port] [-coap [hostname:]port] [-coaps [hostname:]port]`
 
 Example:
 
 `java -jar catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependencies.jar -http 8090 -coap "localhost:6683" -coaps 6684`
 
+You can configure the Catalogue Broker using the following options:
+
+option      | description
+----------- | -----------
+-http, -h   | set http port
+-ssl, -s    | set https port
+-coap, -c   | set coap address (hostname + port, or just port)
+-coaps, -cs | set coap address (hostname + port, or just port)
+
 
 ## Catalogue Database
 
 To run the catalogue database, you have to provide the hostname of the catalogue broker, and the port of the southbound coap interface (which is on port 5683 by default).
+
+**Please be aware that the hostname will be used to generate the sourcePackageURL, if a sourcePackage is provided.**
 
 Synopsis:
 
@@ -33,24 +47,21 @@ Example:
 
 ### Using custom Catalogue Data Objects
 
-In order to include your own hyperties/protostubs in the database, you can specify a folder path as an argument when running the database. The hyperties/protostubs inside that folder will be parsed on start. Please view the provided examples inside the catalogue_objects folder, to see the formatting.
+To use custom Catalogue Data Objects, you have to comply with a certain folder structure. Please see the provided example objects contained in *catalogue_objects*.
 
-* All hyperties/protostubs/sourcePackages are in their respective folders
-* A Hyperty descriptor is defined in a file with the ending ".hyperty", while protostubs have the ending ".stub". SourcePackages have the ending ".sourcePackage".
-* If your javascript code is contained in a seperate file, it needs to have the same filename as the sourcePackage it belongs to (including file extension), in order to be included in the sourcePackage.
-* For now, SourcePackages have a "objectName" field, to easily reference a sourcePackage in hyperties/protostubs via sourcePackageURL.
-* SourcePackages can be requested from the server like this: "/.well-known/sourcepackage/<objectName>" 
-* The SourcePackageURL field of hyperties/protostubs has to be the path to the sourcePackage's objectName, without protocol, domain or ".well-known" (e.g. sourcePackageURL = "sourcepackage/MySourcePackage")
-
-Example:
-
-"SecondHyperty.hyperty" is the descriptor for a hyperty, located in catalogue_objects/hyperty. It contains a sourcePackageURL, that points to "sourcepackage/SecondHypertySourcePackage".
-
-The SourcePackage itself is defined by "SecondHyperty.sourcePackage", which is located in catalogue_objects/sourcepackage. It defines the name of the sourcePackage by using the "objectName" field, which in this case is "SecondHypertySourcePackage.
-
-Because the SourcePackage defined by SecondHyperty.sourcePackage is (intentionally) missing the sourceCode field, the source code can reside in a seperate file.
+1. the root folder for objects must contain the type as a subfolder, e.g. "protocolstub"
+2. all elements of a catalogue object are contained in a single folder.
+3. the type folders hold the catalogue object folders
+4. the catalogue data object is primarily defined in *description.json*
+5. the sourcePackage is defined in *sourcePackage.json*
+6. if a sourcePackage is provided, then a sourcePackageURL will be generated.
+7. providing a sourcePackage is optional. **If not provided, sourcePackageURL has to be defined in *description.json***
+7. the source code can either be included in the sourcePackage, or contained in *sourceCode.js*
+8. please avoid duplicate entries, e.g. sourceCode in *sourcePackage.json* **and** *sourceCode.js*
 
 ## Catalogue Test Website
+
+**Currently, the Catalogue Test Website is not 100% functional**
 
 To start the webserver for the catalogue broker test website, simply run the corresponding jar.
 
@@ -60,7 +71,7 @@ Synopsis:
 
 Example:
 
-`java -jar catalogue_test/target/rethink-catalogue-test-0.1-jar-with-dependencies.jar 9080` 
+`java -jar catalogue_test/target/rethink-catalogue-test-0.1-jar-with-dependencies.jar 9080`
 
 
 ##  ~~Attention -- Docker Images Ready~~ Docker Images are probably broken currently.
