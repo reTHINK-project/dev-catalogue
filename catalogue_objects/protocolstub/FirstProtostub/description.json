@@ -2,7 +2,6 @@
   "type": "0",
   "objectName": "FirstProtostub",
   "description": "This is a protostub",
-  "sourcePackageURL": "sourcepackage/FirstProtostubSourcePackage",
   "language": "Javascript ECMA6",
   "dataObjects": [],
   "configuration": [],

@@ -130,6 +130,7 @@ public class CatalogueDatabase {
 
         // Initialize object list
         ObjectsInitializer initializer = new ObjectsInitializer(new LwM2mModel(map));
+
         initializer.setClassForObject(3, Device.class);
         List<ObjectEnabler> enablers = initializer.createMandatory();
 
@@ -138,7 +139,7 @@ public class CatalogueDatabase {
             ObjectEnabler hypertyEnabler = initializer.create(HYPERTY_MODEL_ID);
             enablers.add(hypertyEnabler);
 
-            // create idNameMap for hypterties
+            // create idNameMap for hyperties
             LinkedHashMap<Integer, String> idNameMap = new LinkedHashMap<>();
             Map<Integer, ResourceModel> model = hypertyEnabler.getObjectModel().resources;
 
@@ -148,6 +149,7 @@ public class CatalogueDatabase {
             }
 
             // set id:name map on all hyperties
+            LOG.debug("hyperties get this idNameMap: " + idNameMap);
             for (RethinkInstance parsedHyperty : parsedHyperties) {
                 parsedHyperty.setIdNameMap(idNameMap);
             }
@@ -239,63 +241,29 @@ public class CatalogueDatabase {
 
     }
 
-    private RethinkInstance[] parseCatalogueObjects(File dir) {
+    JsonParser parser = new JsonParser();
 
-        JsonParser parser = new JsonParser();
-        File[] objFiles = dir.listFiles();
-        LinkedList<RethinkInstance> linkedInstances = new LinkedList<>();
-        for (File obj : objFiles) {
-            try {
-                LOG.debug("parsing: " + obj.getName());
-                // skip js files
-                if (obj.getName().endsWith(".js")) {
-                    LOG.debug("skipping it");
-                    continue;
-                }
+    private RethinkInstance parseCatalogueObject(File dir) throws FileNotFoundException {
+        File desc = new File(dir, "description.json");
+        File pkg = new File(dir, "sourcePackage.json");
+        File code = new File(dir, "sourceCode.json");
 
-                JsonObject descriptor = parser.parse(new FileReader(obj)).getAsJsonObject();
-                LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
-                for (Map.Entry<String, JsonElement> entry : descriptor.entrySet()) {
-                    String value = null;
-                    try {
-                        value = entry.getValue().getAsString();
-                        LOG.debug("adding " + entry.getKey() + " to nameValueMap");
-                        if (entry.getKey().equals("sourcePackageURL")) {
-                            value = accessURL + value;
-                        }
-                    } catch (IllegalStateException e) {
-//                        e.printStackTrace();
-                        value = entry.getValue().toString();
-                        LOG.debug("value " + value + " is not a primitive");
+        // 1. parse hyperty
+        RethinkInstance hyperty = createFromFile(desc);
 
-                        LOG.debug("adding " + entry.getKey() + " to nameValueMap");
-                        if (entry.getKey().equals("sourcePackageURL")) {
-                            value = accessURL + value;
-                        }
-                    }
+        // 2. parse sourcePackage
+        if (pkg.exists()) {
+            RethinkInstance sourcePackage = createFromFile(pkg);
 
-                    nameValueMap.put(entry.getKey(), value);
-
-                }
-
-                RethinkInstance instance = new RethinkInstance(nameValueMap);
-
-                LOG.debug("trying to attach sourceCodeFile");
-                // for sourcePackage files, check if there is js code and if so attach it to the RethinkInstance.
-                File jsFile = new File(dir, obj.getName() + ".js");
-
-                if (jsFile.exists()) {
-                    LOG.debug("file exists, adding to instance");
-                    instance.setSourceCodeFile(jsFile);
-                }
-
-                linkedInstances.add(instance);
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
+            // 3. attach code to sourcePackage
+            if (code.exists()) {
+                sourcePackage.setSourceCodeFile(code);
             }
-        }
 
-        return linkedInstances.toArray(new RethinkInstance[linkedInstances.size()]);
+            // 4. add sourcePackage to hyperty
+            hyperty.setSourcePackage(sourcePackage);
+        }
+        return hyperty;
     }
 
     private Map<Integer, RethinkInstance[]> parseFiles(String sourcePath) {
@@ -305,33 +273,84 @@ public class CatalogueDatabase {
 
         HashMap<Integer, RethinkInstance[]> resultMap = new HashMap<>();
         Gson gson = new Gson();
-        JsonParser parser = new JsonParser();
 
         File catObjsFolder = new File(sourcePath);
         assert catObjsFolder.isDirectory();
 
-        // 1. parse hyperties
         File hypertyFolder = new File(catObjsFolder, "hyperty");
-        if (hypertyFolder.exists() && hypertyFolder.isDirectory()) {
-            RethinkInstance[] parsedHyperties = parseCatalogueObjects(hypertyFolder);
-            resultMap.put(HYPERTY_MODEL_ID, parsedHyperties);
-        }
+        File stubFolder = new File(catObjsFolder, "protocolstub");
 
-        // 2. parse protostubs
-        File protostubFolder = new File(catObjsFolder, "protocolstub");
-        if (protostubFolder.exists() && protostubFolder.isDirectory()) {
-            RethinkInstance[] parsedProtostubs = parseCatalogueObjects(protostubFolder);
-            resultMap.put(PROTOSTUB_MODEL_ID, parsedProtostubs);
+        LinkedList<RethinkInstance> hypertyInstances = new LinkedList<>();
+        LinkedList<RethinkInstance> stubInstances = new LinkedList<>();
+        if (hypertyFolder.exists()) {
+            for (File dir : hypertyFolder.listFiles(dirFilter)) {
+                try {
+                    RethinkInstance hypertyInstance = parseCatalogueObject(dir);
+                    hypertyInstances.add(hypertyInstance);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
         }
+        resultMap.put(HYPERTY_MODEL_ID, hypertyInstances.toArray(new RethinkInstance[hypertyInstances.size()]));
 
-        // 3. parse sourcePackages
-        File sourcePackageFolder = new File(catObjsFolder, "sourcepackage");
-        if (sourcePackageFolder.exists() && sourcePackageFolder.isDirectory()) {
-            RethinkInstance[] parsedSourcePackages = parseCatalogueObjects(sourcePackageFolder);
-            resultMap.put(SOURCEPACKAGE_MODEL_ID, parsedSourcePackages);
+        if (stubFolder.exists()) {
+            for (File dir : stubFolder.listFiles(dirFilter)) {
+                try {
+                    RethinkInstance stubInstance = parseCatalogueObject(dir);
+                    stubInstances.add(stubInstance);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
         }
+        resultMap.put(PROTOSTUB_MODEL_ID, stubInstances.toArray(new RethinkInstance[stubInstances.size()]));
+
+        LinkedList<RethinkInstance> sourcePackageInstances = new LinkedList<>();
+        int i = 0;
+        for (RethinkInstance hypertyInstance : hypertyInstances) {
+            RethinkInstance sourcePackage = hypertyInstance.getSourcePackage();
+            if (sourcePackage != null) {
+                String hypertyName = hypertyInstance.nameValueMap.get("objectName");
+                sourcePackage.nameValueMap.put("objectName", hypertyName);
+                sourcePackageInstances.add(sourcePackage);
+                hypertyInstance.nameValueMap.put("sourcePackageURL", accessURL + "sourcepackage/" + hypertyName);
+            }
+        }
+        for (RethinkInstance stubInstance : stubInstances) {
+            RethinkInstance sourcePackage = stubInstance.getSourcePackage();
+            if (sourcePackage != null) {
+                String stubName = stubInstance.nameValueMap.get("objectName");
+                sourcePackage.nameValueMap.put("objectName", stubName);
+
+                sourcePackageInstances.add(sourcePackage);
+                stubInstance.nameValueMap.put("sourcePackageURL", accessURL + "sourcepackage/" + stubName);
+            }
+        }
+        resultMap.put(SOURCEPACKAGE_MODEL_ID, sourcePackageInstances.toArray(new RethinkInstance[sourcePackageInstances.size()]));
+
 
         return resultMap;
+    }
+
+
+    private RethinkInstance createFromFile(File f) throws FileNotFoundException {
+        JsonObject descriptor = parser.parse(new FileReader(f)).getAsJsonObject();
+        LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : descriptor.entrySet()) {
+            String value = null;
+            try {
+                value = entry.getValue().getAsString();
+
+            } catch (IllegalStateException e) {
+                value = entry.getValue().toString();
+            }
+
+            nameValueMap.put(entry.getKey(), value);
+        }
+
+        LOG.debug("instance gets this nameValueMap:\n" + nameValueMap);
+        return new RethinkInstance(nameValueMap);
     }
 
     /**
@@ -352,6 +371,16 @@ public class CatalogueDatabase {
         private String sourceCodeKeyName = "sourceCode";
         private File sourceCodeFile = null;
 
+        public RethinkInstance getSourcePackage() {
+            return sourcePackage;
+        }
+
+        public void setSourcePackage(RethinkInstance sourcePackage) {
+            this.sourcePackage = sourcePackage;
+        }
+
+        private RethinkInstance sourcePackage = null;
+
         public RethinkInstance() {
             idNameMap = null;
             nameValueMap = null;
@@ -369,6 +398,7 @@ public class CatalogueDatabase {
         public RethinkInstance(Map<String, String> nameValueMap) {
             this.nameValueMap = nameValueMap;
         }
+
 
         @Override
         public ValueResponse read(int resourceid) {
@@ -546,5 +576,12 @@ public class CatalogueDatabase {
             return "U";
         }
     }
+
+    private FileFilter dirFilter = new FileFilter() {
+        @Override
+        public boolean accept(File file) {
+            return file.isDirectory();
+        }
+    };
 
 }

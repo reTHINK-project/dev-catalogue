@@ -1,6 +1,5 @@
 {
   "encoding": "UTF-8",
-  "objectName": "FirstHypertySourcePackage",
-  "sourceCodeClassname": "FirstHyperty",
+  "sourceCodeClassname": "FirstProtostub",
   "sourceCode": "alert('This alert code was provided by the sourcePackage')"
 }

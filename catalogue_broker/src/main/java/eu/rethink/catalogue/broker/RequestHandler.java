@@ -701,6 +701,15 @@ public class RequestHandler {
                             for (Map.Entry<Integer, LwM2mResource> entry : resources.entrySet()) {
                                 instanceMap.put(finalModel.get(entry.getKey()).name, (String) entry.getValue().getValue().value);
                             }
+
+                            LOG.debug("final instanceMap: " + instanceMap);
+
+                            // modify sourcePackageURL
+                            String sourcePackageURL = instanceMap.get("sourcePackageURL");
+                            if (sourcePackageURL != null) {
+
+                            }
+
                             result[0] = gson.toJson(instanceMap);
                         }
 
