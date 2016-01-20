@@ -41,6 +41,7 @@ package eu.rethink.catalogue.broker;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParser;
 import eu.rethink.catalogue.broker.json.ClientSerializer;
 import eu.rethink.catalogue.broker.json.LwM2mNodeDeserializer;
 import eu.rethink.catalogue.broker.json.LwM2mNodeSerializer;
@@ -71,15 +72,17 @@ public class RequestHandler {
     // model IDs that define the custom models inside model.json
     private final int HYPERTY_MODEL_ID = 1337;
     private final int PROTOSTUB_MODEL_ID = 1338;
-    private final int HYPERTY_RUNTIME_MODEL_ID = 1339;
+    private final int SOURCEPACKAGE_MODEL_ID = 1339;
 
     private final String WELLKNOWN_PREFIX = "/.well-known/";
     private final String HYPERTY_TYPE_NAME = "hyperty";
     private final String PROTOSTUB_TYPE_NAME = "protocolstub";
+    private final String SOURCEPACKAGE_TYPE_NAME = "sourcepackage";
     private final String NAME_FIELD_NAME = "objectName";
 
     private final Map<Integer, ResourceModel> HYPERTYMODEL;
     private final Map<Integer, ResourceModel> PROTOSTUBMODEL;
+    private final Map<Integer, ResourceModel> SOURCEPACKAGEMODEL;
 
     private LinkedHashMap<String, Integer> hypertyResourceNameToID = new LinkedHashMap<>();
     private LinkedHashMap<String, String> hypertyNameToInstanceMap = new LinkedHashMap<>();
@@ -87,11 +90,16 @@ public class RequestHandler {
     private LinkedHashMap<String, Integer> protostubResourceNameToID = new LinkedHashMap<>();
     private LinkedHashMap<String, String> protostubNameToInstanceMap = new LinkedHashMap<>();
 
+    private LinkedHashMap<String, Integer> sourcepackageResourceNameToID = new LinkedHashMap<>();
+    private LinkedHashMap<String, String> sourcepackageNameToInstanceMap = new LinkedHashMap<>();
+
     private LinkedHashMap<Client, List<String>> clientToHypertyMap = new LinkedHashMap<>();
     private LinkedHashMap<Client, List<String>> clientToProtostubMap = new LinkedHashMap<>();
+    private LinkedHashMap<Client, List<String>> clientToSourcepackageMap = new LinkedHashMap<>();
 
     private LeshanServer server;
     public final Gson gson;
+    public final JsonParser parser;
     private static final Logger LOG = LoggerFactory.getLogger(RequestHandler.class);
 
     public RequestHandler(LeshanServer server) {
@@ -122,6 +130,16 @@ public class RequestHandler {
         }
         LOG.debug("generated name:id map for protostubs: " + protostubResourceNameToID);
 
+        // name:id map for
+        // populate sourcepackageResourceNameToID
+        ObjectEnabler sourcepackageEnabler = new ObjectsInitializer(customModel).create(SOURCEPACKAGE_MODEL_ID);
+        SOURCEPACKAGEMODEL = sourcepackageEnabler.getObjectModel().resources;
+        // populate id:name map from resources
+        for (Map.Entry<Integer, ResourceModel> entry : SOURCEPACKAGEMODEL.entrySet()) {
+            sourcepackageResourceNameToID.put(entry.getValue().name, entry.getKey());
+        }
+        LOG.debug("generated name:id map for sourcepackages: " + sourcepackageResourceNameToID);
+
         // set up gson
         GsonBuilder gsonBuilder = new GsonBuilder();
         gsonBuilder.registerTypeHierarchyAdapter(Client.class, new ClientSerializer());
@@ -130,6 +148,7 @@ public class RequestHandler {
         gsonBuilder.registerTypeHierarchyAdapter(LwM2mNode.class, new LwM2mNodeDeserializer());
         gsonBuilder.setDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
         this.gson = gsonBuilder.create();
+        this.parser = new JsonParser();
 
         server.getClientRegistry().addListener(clientRegistryListener);
     }
@@ -154,7 +173,7 @@ public class RequestHandler {
             String response = "Please provide resource type and (optional) name and (optional) resource name. Example: /hyperty/MyHyperty/sourceCode";
             ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
             return encodeErrorResponse(errorResp);
-        } else if (pathParts.length == 1) { // hyperty | protostub only
+        } else if (pathParts.length == 1) { // hyperty | protostub | sourcepackage only
             String type = pathParts[0];
 
             switch (type) {
@@ -164,8 +183,11 @@ public class RequestHandler {
                 case PROTOSTUB_TYPE_NAME: {
                     return this.gson.toJson(protostubNameToInstanceMap.keySet());
                 }
+                case SOURCEPACKAGE_TYPE_NAME: {
+                    return this.gson.toJson(sourcepackageNameToInstanceMap.keySet());
+                }
                 default:
-                    String response = "Invalid resource type. Please use: hyperty | protostub";
+                    String response = "Invalid resource type. Please use: hyperty | protostub | sourcepackage";
                     ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
                     return encodeErrorResponse(errorResp);
             }
@@ -195,15 +217,24 @@ public class RequestHandler {
                     ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
                     return encodeErrorResponse(errorResp);
                 }
-            }
-            else if (modelType.equals(PROTOSTUB_TYPE_NAME)) {
+            } else if (modelType.equals(PROTOSTUB_TYPE_NAME)) {
                 resourceID = protostubResourceNameToID.get(resourceName);
 
                 // resource name was given, but not found in the name:id map
                 if (resourceName != null && resourceID == null) {
                     String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, protostubResourceNameToID.keySet());
                     ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
-                    return encodeErrorResponse(errorResp);                }
+                    return encodeErrorResponse(errorResp);
+                }
+            } else if (modelType.equals(SOURCEPACKAGE_TYPE_NAME)) {
+                resourceID = sourcepackageResourceNameToID.get(resourceName);
+
+                // resource name was given, but not found in the name:id map
+                if (resourceName != null && resourceID == null) {
+                    String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, sourcepackageResourceNameToID.keySet());
+                    ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
+                    return encodeErrorResponse(errorResp);
+                }
             }
 
             // target should be: /<endpoint>/<objectID>/<instance>
@@ -227,6 +258,15 @@ public class RequestHandler {
                     }
                     LOG.debug(String.format("target for protocolstub '%s': %s", instanceName, target));
                     break;
+                case (SOURCEPACKAGE_TYPE_NAME):
+                    if (instanceName.equals("default")) {
+                        LOG.debug("default sourcepackage requested, returning first in map");
+                        target = sourcepackageNameToInstanceMap.values().iterator().next();
+                    } else {
+                        target = sourcepackageNameToInstanceMap.get(instanceName);
+                    }
+                    LOG.debug(String.format("target for sourcepackage '%s': %s", instanceName, target));
+                    break;
             }
 
             if (target != null) {
@@ -246,7 +286,7 @@ public class RequestHandler {
                     return encodeErrorResponse(errorResp);
                 }
             } else {
-                String response = String.format("Could not find instance '%s'", instanceName);
+                String response = String.format("Could not find instance: %s", instanceName);
                 ValueResponse errorResp = createResponse(ResponseCode.NOT_FOUND, response);
                 return encodeErrorResponse(errorResp);
             }
@@ -308,6 +348,7 @@ public class RequestHandler {
         private void checkClient(final Client client) {
             boolean foundHypertyLink = false;
             boolean foundProtostubLink = false;
+            boolean foundSourcepackageLink = false;
 
             LOG.debug("checking object links of client: " + client);
             for (LinkObject link : client.getObjectLinks()) {
@@ -319,15 +360,18 @@ public class RequestHandler {
                 } else if (!foundProtostubLink && linkUrl.startsWith("/" + PROTOSTUB_MODEL_ID + "/")) {
                     LOG.debug("found found protostub link: " + linkUrl + "; skipping additional links");
                     foundProtostubLink = true;
+                } else if (!foundSourcepackageLink && linkUrl.startsWith("/" + SOURCEPACKAGE_MODEL_ID + "/")) {
+                    LOG.debug("found found sourcepackage link: " + linkUrl + "; skipping additional links");
+                    foundSourcepackageLink = true;
                 }
                 // if both found, no need to keep checking
-                if (foundHypertyLink && foundProtostubLink)
+                if (foundHypertyLink && foundProtostubLink && foundSourcepackageLink)
                     break;
             }
 
             // exit condition
-            if (!foundHypertyLink && !foundProtostubLink) {
-                LOG.debug("Client does not contain hyperties or protostubs");
+            if (!foundHypertyLink && !foundProtostubLink && !foundSourcepackageLink) {
+                LOG.debug("Client does not contain hyperties, protostubs or sourcepackages");
                 return;
             }
 
@@ -345,8 +389,6 @@ public class RequestHandler {
                                 public void visit(LwM2mObject object) {
                                     Map<Integer, LwM2mObjectInstance> instances = object.getInstances();
                                     int instanceID, resourceID;
-                                    LOG.debug("h");
-
                                     int idFieldID = hypertyResourceNameToID.get(NAME_FIELD_NAME);
                                     LinkedList<String> hypertyNames = new LinkedList<String>();
                                     for (LwM2mObjectInstance instance : instances.values()) {
@@ -455,6 +497,70 @@ public class RequestHandler {
                 }
 
             }
+
+            // add sourcepackage to maps
+            if (foundSourcepackageLink) {
+                Thread sourcepackageRunner = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ReadRequest request = new ReadRequest(SOURCEPACKAGE_MODEL_ID);
+                        ValueResponse response = server.send(client, request);
+
+                        if (response.getCode() == ResponseCode.CONTENT) {
+                            response.getContent().accept(new LwM2mNodeVisitor() {
+                                @Override
+                                public void visit(LwM2mObject object) {
+                                    LOG.debug("exception here? object ->" + object);
+                                    LOG.debug("object.getInstances() ->" + object.getInstances());
+                                    Map<Integer, LwM2mObjectInstance> instances = object.getInstances();
+                                    int instanceID, resourceID;
+                                    int idFieldID = sourcepackageResourceNameToID.get(NAME_FIELD_NAME);
+                                    LinkedList<String> sourcepackageNames = new LinkedList<String>();
+                                    for (LwM2mObjectInstance instance : instances.values()) {
+                                        instanceID = instance.getId();
+                                        LOG.debug("checking resources of instance " + instanceID);
+                                        Map<Integer, LwM2mResource> resources = instance.getResources();
+                                        for (LwM2mResource resource : resources.values()) {
+                                            resourceID = resource.getId();
+                                            LOG.debug(String.format("#%d: %s", resourceID, resource.getValue().value));
+                                            // TODO: mapping: {<value> : /endpoint/1337/<instanceID>}
+                                            if (resourceID == idFieldID) { // current resource is name field
+                                                String sourcepackageName = resource.getValue().value.toString();
+                                                sourcepackageNameToInstanceMap.put(sourcepackageName, "/" + client.getEndpoint() + "/" + SOURCEPACKAGE_MODEL_ID + "/" + instanceID);
+                                                LOG.debug("Added to client map -> " + sourcepackageName + ": " + sourcepackageNameToInstanceMap.get(sourcepackageName));
+                                                sourcepackageNames.add(sourcepackageName);
+                                            }
+
+                                        }
+                                    }
+                                    // map sourcepackage name to client, for easy removal in case of client disconnect
+                                    clientToSourcepackageMap.put(client, sourcepackageNames);
+
+                                }
+
+                                @Override
+                                public void visit(LwM2mObjectInstance instance) {
+                                    LOG.warn("instance visit: " + instance);
+                                }
+
+                                @Override
+                                public void visit(LwM2mResource resource) {
+                                    LOG.warn("resource visit: " + resource);
+                                }
+                            });
+                        } else {
+                            LOG.warn("Client contained sourcepackage links on register, but requesting them failed with: " + gson.toJson(response));
+                        }
+                    }
+                });
+                sourcepackageRunner.start();
+                try {
+                    sourcepackageRunner.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+            }
         }
 
         /**
@@ -482,6 +588,17 @@ public class RequestHandler {
                     String retVal = protostubNameToInstanceMap.remove(protostubName);
                     if (retVal == null)
                         LOG.warn("unable to remove protostub " + protostubName + "from protostubNameToInstanceMap!");
+                }
+            }
+
+            List<String> sourcepackageNames = clientToSourcepackageMap.remove(client);
+
+            if (sourcepackageNames != null && sourcepackageNames.size() > 0) {
+                LOG.debug("client contained sourcepackages, removing them from maps");
+                for (String sourcepackageName : sourcepackageNames) {
+                    String retVal = sourcepackageNameToInstanceMap.remove(sourcepackageName);
+                    if (retVal == null)
+                        LOG.warn("unable to remove sourcepackage " + sourcepackageName + "from sourcepackageNameToInstanceMap!");
                 }
             }
         }
@@ -540,13 +657,18 @@ public class RequestHandler {
         LOG.debug("encoding response: " + response);
 
         Map<Integer, ResourceModel> model = null;
-        switch (modelType) {
-            case (HYPERTY_TYPE_NAME):
-                model = HYPERTYMODEL;
-                break;
-            case (PROTOSTUB_TYPE_NAME):
-                model = PROTOSTUBMODEL;
-                break;
+        if (modelType != null) {
+            switch (modelType) {
+                case (HYPERTY_TYPE_NAME):
+                    model = HYPERTYMODEL;
+                    break;
+                case (PROTOSTUB_TYPE_NAME):
+                    model = PROTOSTUBMODEL;
+                    break;
+                case (SOURCEPACKAGE_TYPE_NAME):
+                    model = SOURCEPACKAGEMODEL;
+                    break;
+            }
         }
 
         final LinkedHashMap<String, String> instanceMap = new LinkedHashMap<String, String>();
@@ -554,9 +676,12 @@ public class RequestHandler {
         final Map<Integer, ResourceModel> finalModel = model;
 
         // TODO: use proper exception type
-        if (model == null) {
+        LOG.debug("isError: " + isError + ", model: " + model);
+        if (!isError && model == null) {
             throw new NullPointerException("could not resolve model type " + modelType);
         }
+
+        final String[] result = {null};
 
         Thread t = new Thread(new Runnable() {
             @Override
@@ -576,6 +701,7 @@ public class RequestHandler {
                             for (Map.Entry<Integer, LwM2mResource> entry : resources.entrySet()) {
                                 instanceMap.put(finalModel.get(entry.getKey()).name, (String) entry.getValue().getValue().value);
                             }
+                            result[0] = gson.toJson(instanceMap);
                         }
 
                         @Override
@@ -583,8 +709,23 @@ public class RequestHandler {
                             LOG.debug("visiting resource");
                             if (isError) {
                                 instanceMap.put(response.getCode().name(), (String) resource.getValue().value);
+
+                                HashMap<String, Map<String, String>> errorMap = new HashMap<>(1);
+                                errorMap.put("ERROR", instanceMap);
+                                result[0] = gson.toJson(errorMap);
                             } else {
-                                instanceMap.put(finalModel.get(resource.getId()).name, (String) resource.getValue().value);
+//                                if (finalModel.get(resource.getId()).name.equals("sourcePackage")) {
+//                                    JsonElement obj = parser.parse((String) resource.getValue().value);
+//                                    Set<Map.Entry<String, JsonElement>> entries = obj.getAsJsonObject().entrySet();
+//                                    for (Map.Entry<String, JsonElement> entry : entries) {
+//                                        instanceMap.put(entry.getKey(), entry.getValue().getAsString());
+//                                    }
+//                                    result[0] = gson.toJson(instanceMap);
+//
+//                                } else {
+//                                    instanceMap.put(finalModel.get(resource.getId()).name, (String) resource.getValue().value);
+//                                }
+                                result[0] = (String) resource.getValue().value;
                             }
 
                         }
@@ -602,14 +743,8 @@ public class RequestHandler {
             e.printStackTrace();
         }
 
-        if (isError) {
-            // wrap error resource map to "ERROR"
-            HashMap<String, Map<String, String>> errorMap = new HashMap<>(1);
-            errorMap.put("ERROR", instanceMap);
-            return gson.toJson(errorMap);
-        } else {
-            return gson.toJson(instanceMap);
-        }
+
+        return result[0];
     }
 
 }
