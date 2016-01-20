@@ -75,28 +75,26 @@ public class CatalogueDatabase {
     private final int HYPERTY_MODEL_ID          = 1337;
     private final int PROTOSTUB_MODEL_ID        = 1338;
     private final int SOURCEPACKAGE_MODEL_ID    = 1339;
-    private String accessURL = "http://mydomain.com/.well-known/";
+    private String accessURL;
 
     public static void main(final String[] args) {
         switch (args.length) {
             case 0:
                 // hand down
             case 1:
-                // hand down
-            case 2:
                 System.out
-                        .println("Usage:\njava -jar target/catalogue_database-*-jar-with-dependencies.jar ServerCoapIP ServerCoapPort serverHttpHost [ObjectFolderPath]");
+                        .println("Usage:\njava -jar target/catalogue_database-*-jar-with-dependencies.jar ServerHost ServerCoapPort [ObjectFolderPath]");
+                break;
+            case 2:
+                new CatalogueDatabase(args[0], Integer.parseInt(args[1]), null);
                 break;
             case 3:
-                new CatalogueDatabase(args[0], Integer.parseInt(args[1]), args[2], null);
-                break;
-            case 4:
-                new CatalogueDatabase(args[0], Integer.parseInt(args[1]), args[2], args[3]);
+                new CatalogueDatabase(args[0], Integer.parseInt(args[1]), args[2]);
                 break;
         }
     }
 
-    public CatalogueDatabase(final String serverHostName, final int serverPort, String serverHttpHost, String catObjsPath) {
+    public CatalogueDatabase(final String serverHostName, final int serverPort, String catObjsPath) {
 
         // parse files
         RethinkInstance[] parsedHyperties;
@@ -107,10 +105,7 @@ public class CatalogueDatabase {
             catObjsPath = "./";
         }
 
-        if (serverHttpHost != null)
-            accessURL = "http://" + serverHttpHost + "/.well-known/";
-        else
-            accessURL = "http://" + serverHostName + "/.well-known/";
+        accessURL = "https://" + serverHostName + "/.well-known/";
 
         Map<Integer, RethinkInstance[]> resultMap = parseFiles(catObjsPath);
         parsedHyperties = resultMap.get(HYPERTY_MODEL_ID);

@@ -4,8 +4,7 @@ Development tree for the catalogue
 Installation:
 Simply execute "mvn install" inside the source directory, to build the jars for all components.
 
-The hyperties themselves are defined in the file "hyperties.json", located inside the resources folder of the reTHINK catalogue database. Protostubs are defined in the "protostubs.json" file, located in the same folder.
-
+Catalogue Data Objects are defined in the "catalogue_objects" folder. Please take a look at the examples provided.
 
 ## Catalogue Broker
 
@@ -22,29 +21,34 @@ Example:
 
 ## Catalogue Database
 
-To run the catalogue database, you have to provide IP and port of the southbound coap interface of the catalogue broker (which is on port 5683 by default).
+To run the catalogue database, you have to provide the hostname of the catalogue broker, and the port of the southbound coap interface (which is on port 5683 by default).
 
 Synopsis:
 
-`java -jar rethink-catalogue-database-*-jar-with-dependencies.jar serverIP serverPort [ObjectsPath]`
+`java -jar target/catalogue_database-*-jar-with-dependencies.jar ServerHost ServerCoapPort [ObjectFolderPath]`
 
 Example:
 
-`java -jar catalogue_database/target/rethink-catalogue-database-0.1-jar-with-dependencies.jar localhost 6683 catalogue_objects`
+`java -jar catalogue_database/target/rethink-catalogue-database-*-jar-with-dependencies.jar mydomain.com 6683 catalogue_objects`
 
-### Using custom hyperties/protostubs
+### Using custom Catalogue Data Objects
 
 In order to include your own hyperties/protostubs in the database, you can specify a folder path as an argument when running the database. The hyperties/protostubs inside that folder will be parsed on start. Please view the provided examples inside the catalogue_objects folder, to see the formatting.
 
-* A Hyperty descriptor is defined in a file with the ending ".hyperty", while protostubs have the ending ".stub".
-* If your javascript code is contained in a seperate file, it needs to have the same filename as the hyperty descriptor it belongs to (excluding file extension), in order to be included in the sourcePackage.
+* All hyperties/protostubs/sourcePackages are in their respective folders
+* A Hyperty descriptor is defined in a file with the ending ".hyperty", while protostubs have the ending ".stub". SourcePackages have the ending ".sourcePackage".
+* If your javascript code is contained in a seperate file, it needs to have the same filename as the sourcePackage it belongs to (including file extension), in order to be included in the sourcePackage.
+* For now, SourcePackages have a "objectName" field, to easily reference a sourcePackage in hyperties/protostubs via sourcePackageURL.
+* SourcePackages can be requested from the server like this: "/.well-known/sourcepackage/<objectName>" 
+* The SourcePackageURL field of hyperties/protostubs has to be the path to the sourcePackage's objectName, without protocol, domain or ".well-known" (e.g. sourcePackageURL = "sourcepackage/MySourcePackage")
 
 Example:
 
-"SecondHyperty.hyperty" is the descriptor for a hyperty. It contains a sourcePackage, but that is missing the sourceCode field.
-The source code that belongs to it, is contained in a file called "SecondHyperty.js".
-If the hyperty descriptor file contains a sourcePackage, the contents of "SecondHyperty.js" is read and added as sourceCode to the sourcePackage.
+"SecondHyperty.hyperty" is the descriptor for a hyperty, located in catalogue_objects/hyperty. It contains a sourcePackageURL, that points to "sourcepackage/SecondHypertySourcePackage".
 
+The SourcePackage itself is defined by "SecondHyperty.sourcePackage", which is located in catalogue_objects/sourcepackage. It defines the name of the sourcePackage by using the "objectName" field, which in this case is "SecondHypertySourcePackage.
+
+Because the SourcePackage defined by SecondHyperty.sourcePackage is (intentionally) missing the sourceCode field, the source code can reside in a seperate file.
 
 ## Catalogue Test Website
 
