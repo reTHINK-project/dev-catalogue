@@ -704,7 +704,7 @@ public class RequestHandler {
 
                             LOG.debug("final instanceMap: " + instanceMap);
 
-                            // modify sourcePackageURL
+                            // TODO: modify sourcePackageURL here?
                             String sourcePackageURL = instanceMap.get("sourcePackageURL");
                             if (sourcePackageURL != null) {
 

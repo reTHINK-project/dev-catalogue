@@ -192,7 +192,6 @@ public class CatalogueBroker {
         sslConnector.setPort(sslPort);
         server.addConnector(sslConnector);
 
-
         // rethink request handler
         RequestHandler rethinkRequestHandler = new RequestHandler(lwServer);
 
