@@ -1,6 +1,7 @@
 {
   "cguid": 984919876451321,
   "type": "0",
+  "version": "1.0",
   "objectName": "FirstHyperty",
   "description": "This is an example hyperty that is written in an external file and contains a source package",
   "language": "Javascript ECMA6",

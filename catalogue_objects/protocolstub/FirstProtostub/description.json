@@ -1,6 +1,7 @@
 {
   "cguid": 32065498481198,
   "type": "0",
+  "version": "1.0",
   "objectName": "FirstProtostub",
   "description": "This is a protostub",
   "language": "Javascript ECMA6",
