@@ -297,7 +297,7 @@ public class CatalogueDatabase {
     private RethinkInstance parseCatalogueObject(File dir) throws FileNotFoundException {
         File desc = new File(dir, "description.json");
         File pkg = new File(dir, "sourcePackage.json");
-        File code = new File(dir, "sourceCode.json");
+        File code = new File(dir, "sourceCode.js");
 
         // 1. parse hyperty
         RethinkInstance hyperty = createFromFile(desc);
