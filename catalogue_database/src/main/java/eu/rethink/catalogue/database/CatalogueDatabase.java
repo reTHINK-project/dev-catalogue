@@ -74,7 +74,10 @@ public class CatalogueDatabase {
 
     private final int HYPERTY_MODEL_ID          = 1337;
     private final int PROTOSTUB_MODEL_ID        = 1338;
-    private final int SOURCEPACKAGE_MODEL_ID    = 1339;
+    private final int RUNTIME_MODEL_ID          = 1339;
+    private final int SCHEMA_MODEL_ID           = 1340;
+    private final int SOURCEPACKAGE_MODEL_ID    = 1350;
+
     private String accessURL;
 
     public static void main(final String[] args) {
@@ -99,6 +102,8 @@ public class CatalogueDatabase {
         // parse files
         RethinkInstance[] parsedHyperties;
         RethinkInstance[] parsedProtostubs;
+        RethinkInstance[] parsedRuntimes;
+        RethinkInstance[] parsedSchemas;
         RethinkInstance[] parsedSourcePackages;
 
         if (catObjsPath == null) {
@@ -110,11 +115,15 @@ public class CatalogueDatabase {
         Map<Integer, RethinkInstance[]> resultMap = parseFiles(catObjsPath);
         parsedHyperties = resultMap.get(HYPERTY_MODEL_ID);
         parsedProtostubs = resultMap.get(PROTOSTUB_MODEL_ID);
+        parsedRuntimes = resultMap.get(RUNTIME_MODEL_ID);
+        parsedSchemas = resultMap.get(SCHEMA_MODEL_ID);
         parsedSourcePackages = resultMap.get(SOURCEPACKAGE_MODEL_ID);
 
-        LOG.debug("parsedHyperties" + Arrays.toString(resultMap.get(HYPERTY_MODEL_ID)));
-        LOG.debug("parsedProtostubs" + Arrays.toString(resultMap.get(PROTOSTUB_MODEL_ID)));
-        LOG.debug("parsedSourcePackages" + Arrays.toString(resultMap.get(SOURCEPACKAGE_MODEL_ID)));
+        LOG.debug("parsedHyperties:      " + Arrays.toString(parsedHyperties));
+        LOG.debug("parsedProtostubs:     " + Arrays.toString(parsedProtostubs));
+        LOG.debug("parsedRuntimes:       " + Arrays.toString(parsedRuntimes));
+        LOG.debug("parsedSchemas:        " + Arrays.toString(parsedSchemas));
+        LOG.debug("parsedSourcePackages: " + Arrays.toString(parsedSourcePackages));
 
         // get default models
         List<ObjectModel> objectModels = ObjectLoader.loadDefault();
@@ -172,6 +181,48 @@ public class CatalogueDatabase {
             // set id:name map on all protostubs
             for (RethinkInstance parsedProtostub : parsedProtostubs) {
                 parsedProtostub.setIdNameMap(idNameMap);
+            }
+
+        }
+
+        if (parsedRuntimes.length > 0) {
+            initializer.setInstancesForObject(RUNTIME_MODEL_ID, parsedRuntimes);
+            ObjectEnabler runtimeEnabler = initializer.create(RUNTIME_MODEL_ID);
+            enablers.add(runtimeEnabler);
+
+            // create idNameMap for hyperty runtimes
+            LinkedHashMap<Integer, String> idNameMap = new LinkedHashMap<>();
+            Map<Integer, ResourceModel> model = runtimeEnabler.getObjectModel().resources;
+
+            // populate id:name map from resources
+            for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
+                idNameMap.put(entry.getKey(), entry.getValue().name);
+            }
+
+            // set id:name map on all hyperty runtimes
+            for (RethinkInstance parsedRuntime : parsedRuntimes) {
+                parsedRuntime.setIdNameMap(idNameMap);
+            }
+
+        }
+
+        if (parsedSchemas.length > 0) {
+            initializer.setInstancesForObject(SCHEMA_MODEL_ID, parsedSchemas);
+            ObjectEnabler schemaEnabler = initializer.create(SCHEMA_MODEL_ID);
+            enablers.add(schemaEnabler);
+
+            // create idNameMap for schemas
+            LinkedHashMap<Integer, String> idNameMap = new LinkedHashMap<>();
+            Map<Integer, ResourceModel> model = schemaEnabler.getObjectModel().resources;
+
+            // populate id:name map from resources
+            for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
+                idNameMap.put(entry.getKey(), entry.getValue().name);
+            }
+
+            // set id:name map on all schemas
+            for (RethinkInstance parsedSchema : parsedSchemas) {
+                parsedSchema.setIdNameMap(idNameMap);
             }
 
         }
@@ -267,7 +318,6 @@ public class CatalogueDatabase {
     }
 
     private Map<Integer, RethinkInstance[]> parseFiles(String sourcePath) {
-        // 1. open file, 2. parse hyperties.json
         if (sourcePath == null)
             sourcePath = "./";
 
@@ -279,9 +329,14 @@ public class CatalogueDatabase {
 
         File hypertyFolder = new File(catObjsFolder, "hyperty");
         File stubFolder = new File(catObjsFolder, "protocolstub");
+        File runtimeFolder = new File(catObjsFolder, "runtime");
+        File schemaFolder = new File(catObjsFolder, "dataschema");
 
         LinkedList<RethinkInstance> hypertyInstances = new LinkedList<>();
         LinkedList<RethinkInstance> stubInstances = new LinkedList<>();
+        LinkedList<RethinkInstance> runtimeInstances = new LinkedList<>();
+        LinkedList<RethinkInstance> schemaInstances = new LinkedList<>();
+
         if (hypertyFolder.exists()) {
             for (File dir : hypertyFolder.listFiles(dirFilter)) {
                 try {
@@ -306,6 +361,30 @@ public class CatalogueDatabase {
         }
         resultMap.put(PROTOSTUB_MODEL_ID, stubInstances.toArray(new RethinkInstance[stubInstances.size()]));
 
+        if (runtimeFolder.exists()) {
+            for (File dir : runtimeFolder.listFiles(dirFilter)) {
+                try {
+                    RethinkInstance runtimeInstance = parseCatalogueObject(dir);
+                    runtimeInstances.add(runtimeInstance);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        resultMap.put(RUNTIME_MODEL_ID, runtimeInstances.toArray(new RethinkInstance[runtimeInstances.size()]));
+
+        if (schemaFolder.exists()) {
+            for (File dir : schemaFolder.listFiles(dirFilter)) {
+                try {
+                    RethinkInstance schemaInstance = parseCatalogueObject(dir);
+                    schemaInstances.add(schemaInstance);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        resultMap.put(SCHEMA_MODEL_ID, schemaInstances.toArray(new RethinkInstance[schemaInstances.size()]));
+
         LinkedList<RethinkInstance> sourcePackageInstances = new LinkedList<>();
         int i = 0;
         for (RethinkInstance hypertyInstance : hypertyInstances) {
@@ -327,6 +406,26 @@ public class CatalogueDatabase {
                 stubInstance.nameValueMap.put("sourcePackageURL", accessURL + "sourcepackage/" + stubName);
             }
         }
+        for (RethinkInstance runtimeInstance : runtimeInstances) {
+            RethinkInstance sourcePackage = runtimeInstance.getSourcePackage();
+            if (sourcePackage != null) {
+                String runtimeName = runtimeInstance.nameValueMap.get("objectName");
+                sourcePackage.nameValueMap.put("objectName", runtimeName);
+
+                sourcePackageInstances.add(sourcePackage);
+                runtimeInstance.nameValueMap.put("sourcePackageURL", accessURL + "sourcepackage/" + runtimeName);
+            }
+        }
+        for (RethinkInstance schemaInstance : schemaInstances) {
+            RethinkInstance sourcePackage = schemaInstance.getSourcePackage();
+            if (sourcePackage != null) {
+                String schemaName = schemaInstance.nameValueMap.get("objectName");
+                sourcePackage.nameValueMap.put("objectName", schemaName);
+
+                sourcePackageInstances.add(sourcePackage);
+                schemaInstance.nameValueMap.put("sourcePackageURL", accessURL + "sourcepackage/" + schemaName);
+            }
+        }
         resultMap.put(SOURCEPACKAGE_MODEL_ID, sourcePackageInstances.toArray(new RethinkInstance[sourcePackageInstances.size()]));
 
 
@@ -342,7 +441,7 @@ public class CatalogueDatabase {
             try {
                 value = entry.getValue().getAsString();
 
-            } catch (IllegalStateException e) {
+            } catch (Exception e) {
                 value = entry.getValue().toString();
             }
 
@@ -431,6 +530,10 @@ public class CatalogueDatabase {
             sourceCodeFile = sourceFile;
         }
 
+        @Override
+        public String toString() {
+            return nameValueMap.toString();
+        }
     }
 
     /**

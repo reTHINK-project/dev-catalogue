@@ -41,6 +41,17 @@
       },
       {
         "id": 3,
+        "name": "description",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 4,
         "name": "sourcePackageURL",
         "operations": "RW",
         "instancetype": "single",
@@ -51,7 +62,7 @@
         "description": ""
       },
       {
-        "id": 4,
+        "id": 5,
         "name": "sourcePackage",
         "operations": "RW",
         "instancetype": "single",
@@ -62,7 +73,7 @@
         "description": ""
       },
       {
-        "id": 5,
+        "id": 6,
         "name": "language",
         "operations": "RW",
         "instancetype": "single",
@@ -73,7 +84,7 @@
         "description": ""
       },
       {
-        "id": 6,
+        "id": 7,
         "name": "signature",
         "operations": "RW",
         "instancetype": "single",
@@ -84,7 +95,7 @@
         "description": ""
       },
       {
-        "id": 7,
+        "id": 8,
         "name": "messageSchema",
         "operations": "RW",
         "instancetype": "single",
@@ -95,7 +106,7 @@
         "description": ""
       },
       {
-        "id": 8,
+        "id": 9,
         "name": "configuration",
         "operations": "RW",
         "instancetype": "single",
@@ -106,7 +117,7 @@
         "description": ""
       },
       {
-        "id": 9,
+        "id": 10,
         "name": "constraints",
         "operations": "RW",
         "instancetype": "single",
@@ -117,7 +128,7 @@
         "description": ""
       },
       {
-        "id": 10,
+        "id": 11,
         "name": "dataObjects",
         "operations": "RW",
         "instancetype": "single",
@@ -128,22 +139,11 @@
         "description": ""
       },
       {
-        "id": 11,
+        "id": 12,
         "name": "policies",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": false,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
-        "id": 12,
-        "name": "description",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
         "type": "string",
         "range": "",
         "units": "",
@@ -193,6 +193,17 @@
       },
       {
         "id": 3,
+        "name": "description",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 4,
         "name": "sourcePackageURL",
         "operations": "RW",
         "instancetype": "single",
@@ -203,7 +214,7 @@
         "description": ""
       },
       {
-        "id": 4,
+        "id": 5,
         "name": "sourcePackage",
         "operations": "RW",
         "instancetype": "single",
@@ -214,7 +225,7 @@
         "description": ""
       },
       {
-        "id": 5,
+        "id": 6,
         "name": "language",
         "operations": "RW",
         "instancetype": "single",
@@ -225,7 +236,7 @@
         "description": ""
       },
       {
-        "id": 6,
+        "id": 7,
         "name": "signature",
         "operations": "RW",
         "instancetype": "single",
@@ -236,7 +247,7 @@
         "description": ""
       },
       {
-        "id": 7,
+        "id": 8,
         "name": "messageSchemas",
         "operations": "RW",
         "instancetype": "single",
@@ -247,7 +258,7 @@
         "description": ""
       },
       {
-        "id": 8,
+        "id": 9,
         "name": "configuration",
         "operations": "RW",
         "instancetype": "single",
@@ -258,8 +269,72 @@
         "description": ""
       },
       {
-        "id": 9,
+        "id": 10,
         "name": "constraints",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      }
+    ]
+  },
+  {
+    "name": "HypertyRuntime",
+    "id": 1339,
+    "instancetype": "multiple",
+    "mandatory": false,
+    "description": "someRuntimeDescription",
+    "resourcedefs": [
+      {
+        "id": 0,
+        "name": "cguid",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 1,
+        "name": "type",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 2,
+        "name": "objectName",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 3,
+        "name": "description",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 4,
+        "name": "sourcePackageURL",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": false,
@@ -269,8 +344,160 @@
         "description": ""
       },
       {
-        "id": 10,
+        "id": 5,
+        "name": "sourcePackage",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 6,
+        "name": "language",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 7,
+        "name": "signature",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 8,
+        "name": "hypertyCapabilities",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 9,
+        "name": "protocolCapabilities",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      }
+    ]
+  },
+  {
+    "name": "DataSchema",
+    "id": 1340,
+    "instancetype": "multiple",
+    "mandatory": false,
+    "description": "someDataSchemaDescription",
+    "resourcedefs": [
+      {
+        "id": 0,
+        "name": "cguid",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 1,
+        "name": "type",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 2,
+        "name": "objectName",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 3,
         "name": "description",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 4,
+        "name": "sourcePackageURL",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 5,
+        "name": "sourcePackage",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 6,
+        "name": "language",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 7,
+        "name": "signature",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 8,
+        "name": "accessControlPolicy",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
@@ -283,7 +510,7 @@
   },
   {
     "name": "SourcePackage",
-    "id": 1339,
+    "id": 1350,
     "instancetype": "multiple",
     "mandatory": false,
     "description": "some description",

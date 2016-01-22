@@ -1,5 +1,5 @@
 {
-  "encoding": "UTF-8",
+  "encoding": "base64",
   "sourceCodeClassname": "FirstProtostub",
-  "sourceCode": "alert('This alert code was provided by the sourcePackage')"
+  "sourceCode": "YWxlcnQoJ1RoaXMgYWxlcnQgY29kZSB3YXMgcHJvdmlkZWQgYnkgdGhlIHNvdXJjZVBhY2thZ2UnKQ=="
 }

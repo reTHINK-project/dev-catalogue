@@ -1,0 +1,13 @@
+{
+  "cguid": "49816518489165",
+  "type": "browser",
+  "objectName": "FirstRuntime",
+  "description": "This is a hyperty runtime descriptor",
+  "language": "Javascript ECMA6",
+  "hypertyCapabilities": {
+    "mic": false
+  },
+  "protocolCapabilities": {
+    "http": true
+  }
+}

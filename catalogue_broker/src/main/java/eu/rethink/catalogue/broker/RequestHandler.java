@@ -72,16 +72,22 @@ public class RequestHandler {
     // model IDs that define the custom models inside model.json
     private final int HYPERTY_MODEL_ID = 1337;
     private final int PROTOSTUB_MODEL_ID = 1338;
-    private final int SOURCEPACKAGE_MODEL_ID = 1339;
+    private final int RUNTIME_MODEL_ID = 1339;
+    private final int SCHEMA_MODEL_ID = 1340;
+    private final int SOURCEPACKAGE_MODEL_ID = 1350;
 
     private final String WELLKNOWN_PREFIX = "/.well-known/";
     private final String HYPERTY_TYPE_NAME = "hyperty";
     private final String PROTOSTUB_TYPE_NAME = "protocolstub";
+    private final String RUNTIME_TYPE_NAME = "runtime";
+    private final String SCHEMA_TYPE_NAME = "dataschema";
     private final String SOURCEPACKAGE_TYPE_NAME = "sourcepackage";
     private final String NAME_FIELD_NAME = "objectName";
 
     private final Map<Integer, ResourceModel> HYPERTYMODEL;
     private final Map<Integer, ResourceModel> PROTOSTUBMODEL;
+    private final Map<Integer, ResourceModel> RUNTIMEMODEL;
+    private final Map<Integer, ResourceModel> SCHEMAMODEL;
     private final Map<Integer, ResourceModel> SOURCEPACKAGEMODEL;
 
     private LinkedHashMap<String, Integer> hypertyResourceNameToID = new LinkedHashMap<>();
@@ -90,11 +96,19 @@ public class RequestHandler {
     private LinkedHashMap<String, Integer> protostubResourceNameToID = new LinkedHashMap<>();
     private LinkedHashMap<String, String> protostubNameToInstanceMap = new LinkedHashMap<>();
 
+    private LinkedHashMap<String, Integer> runtimeResourceNameToID = new LinkedHashMap<>();
+    private LinkedHashMap<String, String> runtimeNameToInstanceMap = new LinkedHashMap<>();
+
+    private LinkedHashMap<String, Integer> schemaResourceNameToID = new LinkedHashMap<>();
+    private LinkedHashMap<String, String> schemaNameToInstanceMap = new LinkedHashMap<>();
+
     private LinkedHashMap<String, Integer> sourcepackageResourceNameToID = new LinkedHashMap<>();
     private LinkedHashMap<String, String> sourcepackageNameToInstanceMap = new LinkedHashMap<>();
 
     private LinkedHashMap<Client, List<String>> clientToHypertyMap = new LinkedHashMap<>();
     private LinkedHashMap<Client, List<String>> clientToProtostubMap = new LinkedHashMap<>();
+    private LinkedHashMap<Client, List<String>> clientToRuntimeMap = new LinkedHashMap<>();
+    private LinkedHashMap<Client, List<String>> clientToSchemaMap = new LinkedHashMap<>();
     private LinkedHashMap<Client, List<String>> clientToSourcepackageMap = new LinkedHashMap<>();
 
     private LeshanServer server;
@@ -129,6 +143,26 @@ public class RequestHandler {
             protostubResourceNameToID.put(entry.getValue().name, entry.getKey());
         }
         LOG.debug("generated name:id map for protostubs: " + protostubResourceNameToID);
+
+        // name:id map for runtimes
+        // populate runtimeResourceNameToID
+        ObjectEnabler runtimeEnabler = new ObjectsInitializer(customModel).create(RUNTIME_MODEL_ID);
+        RUNTIMEMODEL = runtimeEnabler.getObjectModel().resources;
+        // populate id:name map from resources
+        for (Map.Entry<Integer, ResourceModel> entry : RUNTIMEMODEL.entrySet()) {
+            runtimeResourceNameToID.put(entry.getValue().name, entry.getKey());
+        }
+        LOG.debug("generated name:id map for runtimes: " + runtimeResourceNameToID);
+
+        // name:id map for schemas
+        // populate schemaResourceNameToID
+        ObjectEnabler schemaEnabler = new ObjectsInitializer(customModel).create(SCHEMA_MODEL_ID);
+        SCHEMAMODEL = schemaEnabler.getObjectModel().resources;
+        // populate id:name map from resources
+        for (Map.Entry<Integer, ResourceModel> entry : SCHEMAMODEL.entrySet()) {
+            schemaResourceNameToID.put(entry.getValue().name, entry.getKey());
+        }
+        LOG.debug("generated name:id map for schemas: " + schemaResourceNameToID);
 
         // name:id map for
         // populate sourcepackageResourceNameToID
@@ -183,11 +217,17 @@ public class RequestHandler {
                 case PROTOSTUB_TYPE_NAME: {
                     return this.gson.toJson(protostubNameToInstanceMap.keySet());
                 }
+                case RUNTIME_TYPE_NAME: {
+                    return this.gson.toJson(runtimeNameToInstanceMap.keySet());
+                }
+                case SCHEMA_TYPE_NAME: {
+                    return this.gson.toJson(schemaNameToInstanceMap.keySet());
+                }
                 case SOURCEPACKAGE_TYPE_NAME: {
                     return this.gson.toJson(sourcepackageNameToInstanceMap.keySet());
                 }
                 default:
-                    String response = "Invalid resource type. Please use: hyperty | protostub | sourcepackage";
+                    String response = "Invalid resource type. Please use: hyperty | protostub | runtime | sourcepackage";
                     ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
                     return encodeErrorResponse(errorResp);
             }
@@ -226,6 +266,24 @@ public class RequestHandler {
                     ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
                     return encodeErrorResponse(errorResp);
                 }
+            } else if (modelType.equals(RUNTIME_TYPE_NAME)) {
+                resourceID = runtimeResourceNameToID.get(resourceName);
+
+                // resource name was given, but not found in the name:id map
+                if (resourceName != null && resourceID == null) {
+                    String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, runtimeResourceNameToID.keySet());
+                    ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
+                    return encodeErrorResponse(errorResp);
+                }
+            } else if (modelType.equals(SCHEMA_TYPE_NAME)) {
+                resourceID = schemaResourceNameToID.get(resourceName);
+
+                // resource name was given, but not found in the name:id map
+                if (resourceName != null && resourceID == null) {
+                    String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, schemaResourceNameToID.keySet());
+                    ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
+                    return encodeErrorResponse(errorResp);
+                }
             } else if (modelType.equals(SOURCEPACKAGE_TYPE_NAME)) {
                 resourceID = sourcepackageResourceNameToID.get(resourceName);
 
@@ -257,6 +315,24 @@ public class RequestHandler {
                         target = protostubNameToInstanceMap.get(instanceName);
                     }
                     LOG.debug(String.format("target for protocolstub '%s': %s", instanceName, target));
+                    break;
+                case (RUNTIME_TYPE_NAME):
+                    if (instanceName.equals("default")) {
+                        LOG.debug("default stub requested, returning first in map");
+                        target = runtimeNameToInstanceMap.values().iterator().next();
+                    } else {
+                        target = runtimeNameToInstanceMap.get(instanceName);
+                    }
+                    LOG.debug(String.format("target for runtime '%s': %s", instanceName, target));
+                    break;
+                case (SCHEMA_TYPE_NAME):
+                    if (instanceName.equals("default")) {
+                        LOG.debug("default stub requested, returning first in map");
+                        target = schemaNameToInstanceMap.values().iterator().next();
+                    } else {
+                        target = schemaNameToInstanceMap.get(instanceName);
+                    }
+                    LOG.debug(String.format("target for schema '%s': %s", instanceName, target));
                     break;
                 case (SOURCEPACKAGE_TYPE_NAME):
                     if (instanceName.equals("default")) {
@@ -348,6 +424,8 @@ public class RequestHandler {
         private void checkClient(final Client client) {
             boolean foundHypertyLink = false;
             boolean foundProtostubLink = false;
+            boolean foundRuntimeLink = false;
+            boolean foundSchemaLink = false;
             boolean foundSourcepackageLink = false;
 
             LOG.debug("checking object links of client: " + client);
@@ -360,18 +438,24 @@ public class RequestHandler {
                 } else if (!foundProtostubLink && linkUrl.startsWith("/" + PROTOSTUB_MODEL_ID + "/")) {
                     LOG.debug("found found protostub link: " + linkUrl + "; skipping additional links");
                     foundProtostubLink = true;
+                } else if (!foundRuntimeLink && linkUrl.startsWith("/" + RUNTIME_MODEL_ID + "/")) {
+                    LOG.debug("found found runtime link: " + linkUrl + "; skipping additional links");
+                    foundRuntimeLink = true;
+                } else if (!foundSchemaLink && linkUrl.startsWith("/" + SCHEMA_MODEL_ID + "/")) {
+                    LOG.debug("found found schema link: " + linkUrl + "; skipping additional links");
+                    foundSchemaLink = true;
                 } else if (!foundSourcepackageLink && linkUrl.startsWith("/" + SOURCEPACKAGE_MODEL_ID + "/")) {
                     LOG.debug("found found sourcepackage link: " + linkUrl + "; skipping additional links");
                     foundSourcepackageLink = true;
                 }
-                // if both found, no need to keep checking
-                if (foundHypertyLink && foundProtostubLink && foundSourcepackageLink)
+                // if all found, no need to keep checking
+                if (foundHypertyLink && foundProtostubLink && foundRuntimeLink && foundSchemaLink && foundSourcepackageLink)
                     break;
             }
 
             // exit condition
-            if (!foundHypertyLink && !foundProtostubLink && !foundSourcepackageLink) {
-                LOG.debug("Client does not contain hyperties, protostubs or sourcepackages");
+            if (!foundHypertyLink && !foundProtostubLink && !foundRuntimeLink && !foundSchemaLink && !foundSourcepackageLink) {
+                LOG.debug("Client does not contain hyperties, protostubs, hyperty runtimes, data schemas or sourcepackages");
                 return;
             }
 
@@ -498,6 +582,130 @@ public class RequestHandler {
 
             }
 
+            // add runtime to maps
+            if (foundRuntimeLink) {
+                Thread runtimeRunner = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ReadRequest request = new ReadRequest(RUNTIME_MODEL_ID);
+                        ValueResponse response = server.send(client, request);
+
+                        if (response.getCode() == ResponseCode.CONTENT) {
+                            response.getContent().accept(new LwM2mNodeVisitor() {
+                                @Override
+                                public void visit(LwM2mObject object) {
+                                    Map<Integer, LwM2mObjectInstance> instances = object.getInstances();
+                                    int instanceID, resourceID;
+                                    int idFieldID = runtimeResourceNameToID.get(NAME_FIELD_NAME);
+                                    LinkedList<String> runtimeNames = new LinkedList<String>();
+                                    for (LwM2mObjectInstance instance : instances.values()) {
+                                        instanceID = instance.getId();
+                                        LOG.debug("checking resources of instance " + instanceID);
+                                        Map<Integer, LwM2mResource> resources = instance.getResources();
+                                        for (LwM2mResource resource : resources.values()) {
+                                            resourceID = resource.getId();
+                                            LOG.debug(String.format("#%d: %s", resourceID, resource.getValue().value));
+                                            // TODO: mapping: {<value> : /endpoint/1337/<instanceID>}
+                                            if (resourceID == idFieldID) { // current resource is name field
+                                                String runtimeName = resource.getValue().value.toString();
+                                                runtimeNameToInstanceMap.put(runtimeName, "/" + client.getEndpoint() + "/" + RUNTIME_MODEL_ID + "/" + instanceID);
+                                                LOG.debug("Added to client map -> " + runtimeName + ": " + runtimeNameToInstanceMap.get(runtimeName));
+                                                runtimeNames.add(runtimeName);
+                                            }
+
+                                        }
+                                    }
+                                    // map runtime name to client, for easy removal in case of client disconnect
+                                    clientToRuntimeMap.put(client, runtimeNames);
+
+                                }
+
+                                @Override
+                                public void visit(LwM2mObjectInstance instance) {
+                                    LOG.warn("instance visit: " + instance);
+                                }
+
+                                @Override
+                                public void visit(LwM2mResource resource) {
+                                    LOG.warn("resource visit: " + resource);
+                                }
+                            });
+                        } else {
+                            LOG.warn("Client contained runtime links on register, but requesting them failed with: " + gson.toJson(response));
+                        }
+                    }
+                });
+                runtimeRunner.start();
+                try {
+                    runtimeRunner.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+            }
+
+            // add schema to maps
+            if (foundSchemaLink) {
+                Thread schemaRunner = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ReadRequest request = new ReadRequest(SCHEMA_MODEL_ID);
+                        ValueResponse response = server.send(client, request);
+
+                        if (response.getCode() == ResponseCode.CONTENT) {
+                            response.getContent().accept(new LwM2mNodeVisitor() {
+                                @Override
+                                public void visit(LwM2mObject object) {
+                                    Map<Integer, LwM2mObjectInstance> instances = object.getInstances();
+                                    int instanceID, resourceID;
+                                    int idFieldID = schemaResourceNameToID.get(NAME_FIELD_NAME);
+                                    LinkedList<String> schemaNames = new LinkedList<String>();
+                                    for (LwM2mObjectInstance instance : instances.values()) {
+                                        instanceID = instance.getId();
+                                        LOG.debug("checking resources of instance " + instanceID);
+                                        Map<Integer, LwM2mResource> resources = instance.getResources();
+                                        for (LwM2mResource resource : resources.values()) {
+                                            resourceID = resource.getId();
+                                            LOG.debug(String.format("#%d: %s", resourceID, resource.getValue().value));
+                                            // TODO: mapping: {<value> : /endpoint/1337/<instanceID>}
+                                            if (resourceID == idFieldID) { // current resource is name field
+                                                String schemaName = resource.getValue().value.toString();
+                                                schemaNameToInstanceMap.put(schemaName, "/" + client.getEndpoint() + "/" + SCHEMA_MODEL_ID + "/" + instanceID);
+                                                LOG.debug("Added to client map -> " + schemaName + ": " + schemaNameToInstanceMap.get(schemaName));
+                                                schemaNames.add(schemaName);
+                                            }
+
+                                        }
+                                    }
+                                    // map schema name to client, for easy removal in case of client disconnect
+                                    clientToSchemaMap.put(client, schemaNames);
+
+                                }
+
+                                @Override
+                                public void visit(LwM2mObjectInstance instance) {
+                                    LOG.warn("instance visit: " + instance);
+                                }
+
+                                @Override
+                                public void visit(LwM2mResource resource) {
+                                    LOG.warn("resource visit: " + resource);
+                                }
+                            });
+                        } else {
+                            LOG.warn("Client contained schema links on register, but requesting them failed with: " + gson.toJson(response));
+                        }
+                    }
+                });
+                schemaRunner.start();
+                try {
+                    schemaRunner.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+            }
+
             // add sourcepackage to maps
             if (foundSourcepackageLink) {
                 Thread sourcepackageRunner = new Thread(new Runnable() {
@@ -591,6 +799,28 @@ public class RequestHandler {
                 }
             }
 
+            List<String> runtimeNames = clientToRuntimeMap.remove(client);
+
+            if (runtimeNames != null && runtimeNames.size() > 0) {
+                LOG.debug("client contained runtimes, removing them from maps");
+                for (String runtimeName : runtimeNames) {
+                    String retVal = runtimeNameToInstanceMap.remove(runtimeName);
+                    if (retVal == null)
+                        LOG.warn("unable to remove runtime " + runtimeName + "from runtimeNameToInstanceMap!");
+                }
+            }
+
+            List<String> schemaNames = clientToSchemaMap.remove(client);
+
+            if (schemaNames != null && schemaNames.size() > 0) {
+                LOG.debug("client contained schemas, removing them from maps");
+                for (String schemaName : schemaNames) {
+                    String retVal = schemaNameToInstanceMap.remove(schemaName);
+                    if (retVal == null)
+                        LOG.warn("unable to remove schema " + schemaName + "from schemaNameToInstanceMap!");
+                }
+            }
+
             List<String> sourcepackageNames = clientToSourcepackageMap.remove(client);
 
             if (sourcepackageNames != null && sourcepackageNames.size() > 0) {
@@ -664,6 +894,12 @@ public class RequestHandler {
                     break;
                 case (PROTOSTUB_TYPE_NAME):
                     model = PROTOSTUBMODEL;
+                    break;
+                case (RUNTIME_TYPE_NAME):
+                    model = RUNTIMEMODEL;
+                    break;
+                case (SCHEMA_TYPE_NAME):
+                    model = SCHEMAMODEL;
                     break;
                 case (SOURCEPACKAGE_TYPE_NAME):
                     model = SOURCEPACKAGEMODEL;
