@@ -10,8 +10,11 @@ Catalogue Data Objects are defined in the "catalogue_objects" folder. Please tak
 
 To run the catalogue broker, you simply have to run the generated jar.
 
-**Please note: by default, the Catalogue Broker uses port 80 for http, and 443 for https.
-Usually you are only permitted to use those ports when running the jar with sudo.**
+**Please note:
+The Catalogue Browker now uses https for everything. if not configured with the options mentioned below, it runs on port 80 for http, and 443 for https.
+Usually you are only permitted to use those ports when running the jar with sudo.
+If testing in a browser, please also make sure your browser accepts self-signed certificates for it.**
+
 
 Synopsis:
 
