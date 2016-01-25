@@ -67,10 +67,58 @@ public class CatalogueBroker {
     private LeshanServer lwServer;
     private final int DEFAULT_HTTP_PORT = 80;
     private final int DEFAULT_SSL_PORT = 443;
+    private int httpPort = DEFAULT_HTTP_PORT;
+    private int sslPort = DEFAULT_SSL_PORT;
+    private String coapAddress = null;
+
+    public void setCoapsAddress(String coapsAddress) {
+        this.coapsAddress = coapsAddress;
+    }
+
+    public void setCoapAddress(String coapAddress) {
+        this.coapAddress = coapAddress;
+    }
+
+    public void setSslPort(int sslPort) {
+        this.sslPort = sslPort;
+    }
+
+    public void setHttpPort(int httpPort) {
+        this.httpPort = httpPort;
+    }
+
+    private String coapsAddress = null;
+
+    public void setKeystorePath(String keystorePath) {
+        this.keystorePath = keystorePath;
+    }
+
+    public void setKeystorePassword(String keystorePassword) {
+        this.keystorePassword = keystorePassword;
+    }
+
+    public void setKeystoreManagerPassword(String keystoreManagerPassword) {
+        this.keystoreManagerPassword = keystoreManagerPassword;
+    }
+
+    public void setTruststorePath(String truststorePath) {
+        this.truststorePath = truststorePath;
+    }
+
+    public void setTruststorePassword(String truststorePassword) {
+        this.truststorePassword = truststorePassword;
+    }
+
+    private String keystorePath = "ssl/keystore";
+    private String keystorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
+
+    private String keystoreManagerPassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
+
+    private String truststorePath = "ssl/keystore";
+    private String truststorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
 
 
-    public void start(int httpPort, int sslPort, String coapAddress, String coapsAddress) {
-
+    public void start() {
         // check http ports
         if (httpPort < 0) {
             httpPort = DEFAULT_HTTP_PORT;
@@ -169,11 +217,11 @@ public class CatalogueBroker {
         // SSL Context Factory
 
         SslContextFactory sslContextFactory = new SslContextFactory();
-        sslContextFactory.setKeyStorePath("ssl/keystore");
-        sslContextFactory.setKeyStorePassword("OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz");
-        sslContextFactory.setKeyManagerPassword("OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz");
-        sslContextFactory.setTrustStorePath("ssl/keystore");
-        sslContextFactory.setTrustStorePassword("OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz");
+        sslContextFactory.setKeyStorePath(keystorePath);
+        sslContextFactory.setKeyStorePassword(keystorePassword);
+        sslContextFactory.setKeyManagerPassword(keystoreManagerPassword);
+        sslContextFactory.setTrustStorePath(truststorePath);
+        sslContextFactory.setTrustStorePassword(truststorePassword);
         sslContextFactory.setExcludeCipherSuites("SSL_RSA_WITH_DES_CBC_SHA",
                 "SSL_DHE_RSA_WITH_DES_CBC_SHA", "SSL_DHE_DSS_WITH_DES_CBC_SHA",
                 "SSL_RSA_EXPORT_WITH_RC4_40_MD5",
@@ -219,53 +267,65 @@ public class CatalogueBroker {
     }
 
     public static void main(String[] args) {
-        String coapAddress = null, coapsAddress = null;
-        int httpPort = -1, sslPort = -1;
+        CatalogueBroker broker = new CatalogueBroker();
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             arg = arg.toLowerCase();
 
             switch(arg) {
-                case "-h":
-                    // hand it down
-                case "-http":
-                    // hand it down
                 case "-httpport":
+                case "-http":
+                case "-h":
                     String rawHttpPort = args[++i];
-
+                    int httpPort = -1;
                     // if http address was given (like for coap), extract only port part
                     try {
                         httpPort = Integer.parseInt(rawHttpPort.substring(rawHttpPort.lastIndexOf(':') + 1, rawHttpPort.length()));
                     } catch (IndexOutOfBoundsException e) {
 //                        e.printStackTrace();
                     }
+                    broker.setHttpPort(httpPort);
                     break;
-                case "-s":
-                    // hand it down
-                case "-ssl":
-                    // hand it down
                 case "-sslport":
-                    sslPort = Integer.parseInt(args[++i]);
+                case "-ssl":
+                case "-s":
+                    broker.setSslPort(Integer.parseInt(args[++i]));
                     break;
-                case "-c":
-                    // hand it down
-                case "-coap":
-                    // hand it down
                 case "-coapaddress":
-                    coapAddress = args[++i];
+                case "-coap":
+                case "-c":
+                    broker.setCoapAddress(args[++i]);
                     break;
-                case "-cs":
-                    // hand it down
-                case "-coaps":
-                    // hand it down
                 case "-coapsaddress":
-                    coapsAddress = args[++i];
+                case "-coaps":
+                case "-cs":
+                    broker.setCoapsAddress(args[++i]);
+                    break;
+                case "-keystorePath":
+                case "-kp":
+                    broker.setKeystorePath(args[++i]);
+                    break;
+                case "-truststorePath":
+                case "-tp":
+                    broker.setTruststorePath(args[++i]);
+                    break;
+                case "-keystorePassword":
+                case "-kpw":
+                    broker.setKeystorePassword(args[++i]);
+                    break;
+                case "-keyManagerPassword":
+                case "-kmpw":
+                    broker.setKeystoreManagerPassword(args[++i]);
+                    break;
+                case "-truststorePassword":
+                case "-tpw":
+                    broker.setTruststorePassword(args[++i]);
                     break;
             }
         }
 
 
-        new CatalogueBroker().start(httpPort, sslPort, coapAddress, coapsAddress);
+        broker.start();
     }
 }
