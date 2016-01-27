@@ -717,8 +717,6 @@ public class RequestHandler {
                             response.getContent().accept(new LwM2mNodeVisitor() {
                                 @Override
                                 public void visit(LwM2mObject object) {
-                                    LOG.debug("exception here? object ->" + object);
-                                    LOG.debug("object.getInstances() ->" + object.getInstances());
                                     Map<Integer, LwM2mObjectInstance> instances = object.getInstances();
                                     int instanceID, resourceID;
                                     int idFieldID = sourcepackageResourceNameToID.get(NAME_FIELD_NAME);
@@ -883,7 +881,7 @@ public class RequestHandler {
      * @return response as json
      */
     private String encodeResponse(final ValueResponse response, final String modelType, final boolean isError) {
-        LOG.debug("encoding response: " + response);
+//        LOG.debug("encoding response: " + response);
 
         Map<Integer, ResourceModel> model = null;
         if (modelType != null) {
@@ -911,7 +909,7 @@ public class RequestHandler {
         final Map<Integer, ResourceModel> finalModel = model;
 
         // TODO: use proper exception type
-        LOG.debug("isError: " + isError + ", model: " + model);
+//        LOG.debug("isError: " + isError + ", model: " + model);
         if (!isError && model == null) {
             throw new NullPointerException("could not resolve model type " + modelType);
         }
@@ -930,14 +928,14 @@ public class RequestHandler {
 
                         @Override
                         public void visit(LwM2mObjectInstance instance) {
-                            LOG.debug("visiting instance: " + instance);
+//                            LOG.debug("visiting instance: " + instance);
                             Map<Integer, LwM2mResource> resources = instance.getResources();
-                            LOG.debug("resources: " + resources);
+//                            LOG.debug("resources: " + resources);
                             for (Map.Entry<Integer, LwM2mResource> entry : resources.entrySet()) {
                                 instanceMap.put(finalModel.get(entry.getKey()).name, (String) entry.getValue().getValue().value);
                             }
 
-                            LOG.debug("final instanceMap: " + instanceMap);
+//                            LOG.debug("final instanceMap: " + instanceMap);
 
                             // TODO: modify sourcePackageURL here?
                             String sourcePackageURL = instanceMap.get("sourcePackageURL");
@@ -950,7 +948,7 @@ public class RequestHandler {
 
                         @Override
                         public void visit(LwM2mResource resource) {
-                            LOG.debug("visiting resource");
+//                            LOG.debug("visiting resource: " + resource);
                             if (isError) {
                                 instanceMap.put(response.getCode().name(), (String) resource.getValue().value);
 
