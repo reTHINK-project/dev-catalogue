@@ -303,15 +303,15 @@ public class CatalogueDatabase {
         RethinkInstance instance = createFromFile(desc);
 
         // 2. parse sourcePackage
-        if (pkg.exists()) {
+        if (instance.nameValueMap.get("sourcePackage") == null && pkg.exists()) {
             RethinkInstance sourcePackage = createFromFile(pkg);
 
             // 3. attach code to sourcePackage
-            if (instance.nameValueMap.get("sourcePackage") == null && code.exists()) {
+            if (code.exists()) {
                 sourcePackage.setSourceCodeFile(code);
-                // 4. add sourcePackage to hyperty
-                instance.setSourcePackage(sourcePackage);
             }
+            // 4. add sourcePackage to hyperty
+            instance.setSourcePackage(sourcePackage);
         }
         return instance;
     }
