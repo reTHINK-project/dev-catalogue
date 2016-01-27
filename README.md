@@ -26,12 +26,17 @@ Example:
 
 You can configure the Catalogue Broker using the following options:
 
-option      | description
------------ | -----------
--http, -h   | set http port
--ssl, -s    | set https port
--coap, -c   | set coap address (hostname + port, or just port)
--coaps, -cs | set coap address (hostname + port, or just port)
+option                      | description
+--------------------------- | ---------------------------
+-http, -h                   | set http port
+-ssl, -s                    | set https port
+-coap, -c                   | set coap address (hostname + port, or just port)
+-coaps, -cs                 | set coap address (hostname + port, or just port)
+-keystorePath, -kp          | set keystore path
+-truststorePath, -tp        | set truststore path
+-keystorePassword, -kpw     | set keystore password
+-keyManagerPassword, -kmpw  | set keystore manager password
+-truststorePassword, -tpw   | set truststore password
 
 
 ## Catalogue Database
