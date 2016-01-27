@@ -300,21 +300,20 @@ public class CatalogueDatabase {
         File code = new File(dir, "sourceCode.js");
 
         // 1. parse hyperty
-        RethinkInstance hyperty = createFromFile(desc);
+        RethinkInstance instance = createFromFile(desc);
 
         // 2. parse sourcePackage
         if (pkg.exists()) {
             RethinkInstance sourcePackage = createFromFile(pkg);
 
             // 3. attach code to sourcePackage
-            if (code.exists()) {
+            if (instance.nameValueMap.get("sourcePackage") == null && code.exists()) {
                 sourcePackage.setSourceCodeFile(code);
+                // 4. add sourcePackage to hyperty
+                instance.setSourcePackage(sourcePackage);
             }
-
-            // 4. add sourcePackage to hyperty
-            hyperty.setSourcePackage(sourcePackage);
         }
-        return hyperty;
+        return instance;
     }
 
     private Map<Integer, RethinkInstance[]> parseFiles(String sourcePath) {
@@ -386,11 +385,12 @@ public class CatalogueDatabase {
         resultMap.put(SCHEMA_MODEL_ID, schemaInstances.toArray(new RethinkInstance[schemaInstances.size()]));
 
         LinkedList<RethinkInstance> sourcePackageInstances = new LinkedList<>();
-        int i = 0;
         for (RethinkInstance hypertyInstance : hypertyInstances) {
             RethinkInstance sourcePackage = hypertyInstance.getSourcePackage();
-            if (sourcePackage != null) {
-                String hypertyName = hypertyInstance.nameValueMap.get("objectName");
+            String hypertyName = hypertyInstance.nameValueMap.get("objectName");
+            if (hypertyInstance.nameValueMap.get("sourcePackage") != null) {
+                hypertyInstance.nameValueMap.put("sourcePackageURL", accessURL + "hyperty/" + hypertyName + "/sourcePackage");
+            } else if (sourcePackage != null) {
                 sourcePackage.nameValueMap.put("objectName", hypertyName);
                 sourcePackageInstances.add(sourcePackage);
                 hypertyInstance.nameValueMap.put("sourcePackageURL", accessURL + "sourcepackage/" + hypertyName);
@@ -398,8 +398,10 @@ public class CatalogueDatabase {
         }
         for (RethinkInstance stubInstance : stubInstances) {
             RethinkInstance sourcePackage = stubInstance.getSourcePackage();
-            if (sourcePackage != null) {
-                String stubName = stubInstance.nameValueMap.get("objectName");
+            String stubName = stubInstance.nameValueMap.get("objectName");
+            if (stubInstance.nameValueMap.get("sourcePackage") != null) {
+                stubInstance.nameValueMap.put("sourcePackageURL", accessURL + "protocolstub/" + stubName + "/sourcePackage");
+            } else if (sourcePackage != null) {
                 sourcePackage.nameValueMap.put("objectName", stubName);
 
                 sourcePackageInstances.add(sourcePackage);
@@ -408,8 +410,10 @@ public class CatalogueDatabase {
         }
         for (RethinkInstance runtimeInstance : runtimeInstances) {
             RethinkInstance sourcePackage = runtimeInstance.getSourcePackage();
-            if (sourcePackage != null) {
-                String runtimeName = runtimeInstance.nameValueMap.get("objectName");
+            String runtimeName = runtimeInstance.nameValueMap.get("objectName");
+            if (runtimeInstance.nameValueMap.get("sourcePackage") != null) {
+                runtimeInstance.nameValueMap.put("sourcePackageURL", accessURL + "runtime/" + runtimeName + "/sourcePackage");
+            } else if (sourcePackage != null) {
                 sourcePackage.nameValueMap.put("objectName", runtimeName);
 
                 sourcePackageInstances.add(sourcePackage);
@@ -418,8 +422,10 @@ public class CatalogueDatabase {
         }
         for (RethinkInstance schemaInstance : schemaInstances) {
             RethinkInstance sourcePackage = schemaInstance.getSourcePackage();
-            if (sourcePackage != null) {
-                String schemaName = schemaInstance.nameValueMap.get("objectName");
+            String schemaName = schemaInstance.nameValueMap.get("objectName");
+            if (schemaInstance.nameValueMap.get("sourcePackage") != null) {
+                schemaInstance.nameValueMap.put("sourcePackageURL", accessURL + "dataschema/" + schemaName + "/sourcePackage");
+            } else if (sourcePackage != null) {
                 sourcePackage.nameValueMap.put("objectName", schemaName);
 
                 sourcePackageInstances.add(sourcePackage);

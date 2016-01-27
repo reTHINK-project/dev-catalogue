@@ -8,5 +8,10 @@
   "dataObjects": [],
   "configuration": [],
   "constraints": [],
-  "messageSchemas": []
+  "messageSchemas": [],
+  "sourcePackage": {
+    "encoding": "UTF8",
+    "sourceCodeClassname": "defaultStub",
+    "sourceCode": "alert('hello world!')"
+  }
 }
