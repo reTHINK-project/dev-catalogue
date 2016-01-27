@@ -1,4 +1,4 @@
-FROM rethink/dev-catalogue
+FROM rethink/dev-catalogue:v2.0
 MAINTAINER marc.emmelmann@fokus.fraunhofer.de
 
 RUN cd /opt/reTHINK && mkdir catalogue
