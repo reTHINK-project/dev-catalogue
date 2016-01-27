@@ -1,4 +1,4 @@
-FROM rethink/catalogue-baseline
+FROM rethink/catalogue-baseline:v2.0
 MAINTAINER marc.emmelmann@fokus.fraunhofer.de
 
 
@@ -14,6 +14,6 @@ MAINTAINER marc.emmelmann@fokus.fraunhofer.de
 #
 #		docker  run  -it  --net=host 
 #
-ENTRYPOINT ["java", "-jar", "/opt/reTHINK/catalogue/catalogue_test/target/rethink-catalogue-test-0.1-jar-with-dependencies.jar"]
+ENTRYPOINT ["java", "-jar", "/opt/reTHINK/catalogue/catalogue_test/target/rethink-catalogue-test-2.0-jar-with-dependencies.jar"]
 # default port used is 8090
 CMD ["8090"]
