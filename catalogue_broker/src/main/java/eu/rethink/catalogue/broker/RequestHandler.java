@@ -299,47 +299,46 @@ public class RequestHandler {
             String target = null;
             switch (modelType) {
                 case (HYPERTY_TYPE_NAME):
-                    if (instanceName.equals("default")) {
+                    target = hypertyNameToInstanceMap.get(instanceName);
+                    if (target == null && instanceName.equals("default")) {
                         LOG.debug("default hyperty requested, returning first in map");
                         target = hypertyNameToInstanceMap.values().iterator().next();
-                    } else {
-                        target = hypertyNameToInstanceMap.get(instanceName);
                     }
                     LOG.debug(String.format("target for hyperty '%s': %s", instanceName, target));
                     break;
                 case (PROTOSTUB_TYPE_NAME):
-                    if (instanceName.equals("default")) {
+                    target = protostubNameToInstanceMap.get(instanceName);
+                    if (target == null && instanceName.equals("default")) {
                         LOG.debug("default stub requested, returning first in map");
                         target = protostubNameToInstanceMap.values().iterator().next();
-                    } else {
-                        target = protostubNameToInstanceMap.get(instanceName);
                     }
                     LOG.debug(String.format("target for protocolstub '%s': %s", instanceName, target));
                     break;
                 case (RUNTIME_TYPE_NAME):
-                    if (instanceName.equals("default")) {
+                    target = runtimeNameToInstanceMap.get(instanceName);
+                    if (target == null && instanceName.equals("default")) {
                         LOG.debug("default stub requested, returning first in map");
                         target = runtimeNameToInstanceMap.values().iterator().next();
                     } else {
-                        target = runtimeNameToInstanceMap.get(instanceName);
+
                     }
                     LOG.debug(String.format("target for runtime '%s': %s", instanceName, target));
                     break;
                 case (SCHEMA_TYPE_NAME):
-                    if (instanceName.equals("default")) {
+                    target = schemaNameToInstanceMap.get(instanceName);
+
+                    if (target == null && instanceName.equals("default")) {
                         LOG.debug("default stub requested, returning first in map");
                         target = schemaNameToInstanceMap.values().iterator().next();
-                    } else {
-                        target = schemaNameToInstanceMap.get(instanceName);
                     }
                     LOG.debug(String.format("target for schema '%s': %s", instanceName, target));
                     break;
                 case (SOURCEPACKAGE_TYPE_NAME):
-                    if (instanceName.equals("default")) {
+                    target = sourcepackageNameToInstanceMap.get(instanceName);
+
+                    if (target == null && instanceName.equals("default")) {
                         LOG.debug("default sourcepackage requested, returning first in map");
                         target = sourcepackageNameToInstanceMap.values().iterator().next();
-                    } else {
-                        target = sourcepackageNameToInstanceMap.get(instanceName);
                     }
                     LOG.debug(String.format("target for sourcepackage '%s': %s", instanceName, target));
                     break;

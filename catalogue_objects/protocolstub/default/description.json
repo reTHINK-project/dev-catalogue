@@ -1,0 +1,12 @@
+{
+  "cguid": 44432065498481198,
+  "type": "0",
+  "version": "1.0",
+  "objectName": "default",
+  "description": "This is a protostub",
+  "language": "Javascript ECMA6",
+  "dataObjects": [],
+  "configuration": [],
+  "constraints": [],
+  "messageSchemas": []
+}
