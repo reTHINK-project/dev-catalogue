@@ -11,9 +11,9 @@ Catalogue Data Objects are defined in the "catalogue_objects" folder. Please tak
 To run the catalogue broker, you simply have to run the generated jar.
 
 **Please note:
-The Catalogue Browker now uses https for everything. if not configured with the options mentioned below, it runs on port 80 for http, and 443 for https.
+The Catalogue Broker now uses https for everything. If not configured with the options mentioned below, it runs on port 80 for http, and 443 for https.
 Usually you are only permitted to use those ports when running the jar with sudo.
-If testing in a browser, please also make sure your browser accepts self-signed certificates for it.**
+If testing in a browser, please also make sure your browser accepts the provided self-signed certificates.**
 
 
 Synopsis:
@@ -65,11 +65,12 @@ To use custom Catalogue Data Objects, you have to comply with a certain folder s
 6. if a sourcePackage is provided, then a sourcePackageURL will be generated.
 7. providing a sourcePackage is optional. **If not provided, sourcePackageURL has to be defined in *description.json***
 7. the source code can either be included in the sourcePackage, or contained in *sourceCode.js*
-8. please avoid duplicate entries, e.g. sourceCode in *sourcePackage.json* **and** *sourceCode.js*
+8. a sourcePackage can also be included in description.json
+9. you cannot have a sourcePackage defined in description.json and have the sourceCode in a separate file
+10. please avoid duplicate entries, e.g. sourceCode in *sourcePackage.json* **and** *sourceCode.js*
+
 
 ## Catalogue Test Website
-
-**Currently, the Catalogue Test Website is not 100% functional**
 
 To start the webserver for the catalogue broker test website, simply run the corresponding jar.
 
