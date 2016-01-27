@@ -21,4 +21,4 @@ RUN chmod +x /opt/reTHINK/catalogue/catalogue_database/runner.sh
 # ENTRYPOINT is the command that is always run.
 ENTRYPOINT ["/opt/reTHINK/catalogue/catalogue_database/runner.sh"]
 # Default Parameters; may be easily overwritten upon runtime
-CMD ["localhost", "5683"] 
+CMD ["localhost", "5683", "/opt/reTHINK/catalogue/catalogue_objects"] 
