@@ -19,7 +19,7 @@
       },
       {
         "id": 1,
-        "name": "type",
+        "name": "hypertyType",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
@@ -181,17 +181,6 @@
         "description": ""
       },
       {
-        "id": 1,
-        "name": "type",
-        "operations": "RW",
-        "instancetype": "single",
-        "mandatory": true,
-        "type": "string",
-        "range": "",
-        "units": "",
-        "description": ""
-      },
-      {
         "id": 2,
         "name": "version",
         "operations": "RW",
@@ -323,7 +312,7 @@
       },
       {
         "id": 1,
-        "name": "type",
+        "name": "runtimeType",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
