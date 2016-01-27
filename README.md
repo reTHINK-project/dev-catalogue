@@ -22,7 +22,7 @@ Synopsis:
 
 Example:
 
-`java -jar catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependencies.jar -http 8090 -coap "localhost:6683" -coaps 6684`
+`java -jar catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependencies.jar -http 8090 -coap "localhost:5683" -coaps 5684`
 
 You can configure the Catalogue Broker using the following options:
 
@@ -51,7 +51,7 @@ Synopsis:
 
 Example:
 
-`java -jar catalogue_database/target/rethink-catalogue-database-*-jar-with-dependencies.jar mydomain.com 6683 catalogue_objects`
+`java -jar catalogue_database/target/rethink-catalogue-database-*-jar-with-dependencies.jar mydomain.com 5683 catalogue_objects`
 
 ### Using custom Catalogue Data Objects
 
@@ -80,10 +80,10 @@ Synopsis:
 
 Example:
 
-`java -jar catalogue_test/target/rethink-catalogue-test-0.1-jar-with-dependencies.jar 9080`
+`java -jar catalogue_test/target/rethink-catalogue-test-*-jar-with-dependencies.jar 8090`
 
 
-##  ~~Attention -- Docker Images Ready~~ Docker Images are probably broken currently.
+## Attention -- Docker Images Ready
 
 The following components are dockerized to allow local testing without the need to install components:
 
@@ -93,13 +93,9 @@ The following components are dockerized to allow local testing without the need 
 
 To start the three components, run the following commands _in that order_ in separate terminal windows:
 
-1. docker run -it --net=host rethink/catalogue-broker
-2. docker run -it --net=host rethink/catalogue-database
-3. docker run -it --net=host rethink/catalogue-test-client
+1. docker run -it --net=host rethink/catalogue-broker:v2.0
+2. docker run -it --net=host rethink/catalogue-database:v2.0
+3. docker run -it --net=host rethink/catalogue-test-client:v2.0
 
 
-You may then open a web-browser and go to _http://localhost:8090_ to access the test client's GUI.  Note that right now, we only have two Hyperties in the Database, named _MyFirstHyperty_ and _MySecondHyperty_.
-
-For some fun, load _MySecondHyperty_ and execute the Hyperties code :-)
-
-
+You may then open a web-browser and go to _http://localhost:8090_ to access the test client's GUI.
