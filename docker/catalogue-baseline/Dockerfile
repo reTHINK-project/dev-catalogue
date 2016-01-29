@@ -14,6 +14,7 @@ RUN cd /opt/reTHINK/catalogue && cp -r ../GitHubRepos/dev-catalogue/catalogue_te
 RUN cd /opt/reTHINK/catalogue && cp -r ../GitHubRepos/dev-catalogue/model .
 RUN cd /opt/reTHINK/catalogue && cp -r ../GitHubRepos/dev-catalogue/data .
 RUN cd /opt/reTHINK/catalogue && cp -r ../GitHubRepos/dev-catalogue/pom.xml .
+RUN cd /opt/reTHINK/catalogue && cp -r ../GitHubRepos/dev-catalogue/ssl .
 
 RUN cd /opt/reTHINK/catalogue && mvn install
 
