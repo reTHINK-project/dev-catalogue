@@ -9,8 +9,11 @@ MAINTAINER marc.emmelmann@fokus.fraunhofer.de
 # into this dockerfile.
 
 
-ADD ./runner.sh /opt/reTHINK/catalogue/catalogue_broker/runner.sh
-RUN chmod +x /opt/reTHINK/catalogue/catalogue_broker/runner.sh
+# Note: v2.0 of the catalogue does not require the MODELS env to be set any more.
+# No need any more to have a runner.sh
+#
+# ADD ./runner.sh /opt/reTHINK/catalogue/catalogue_broker/runner.sh
+# RUN chmod +x /opt/reTHINK/catalogue/catalogue_broker/runner.sh
 
 
 # Attention:  run with
@@ -19,4 +22,6 @@ RUN chmod +x /opt/reTHINK/catalogue/catalogue_broker/runner.sh
 #
 
 # ENTRYPOINT is the command that is always run.
-ENTRYPOINT ["/opt/reTHINK/catalogue/catalogue_broker/runner.sh"]
+#ENTRYPOINT ["/opt/reTHINK/catalogue/catalogue_broker/runner.sh"]
+ENTRYPOINT ["java -jar /opt/reTHINK/catalogue/catalogue_broker/target/rethink-catalogue-broker-2.0-jar-with-dependencies.jar -kp /opt/reTHINK/catalogue/ssl -tp /opt/reTHINK/catalogue/ssl "]
+
