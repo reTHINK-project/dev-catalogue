@@ -10,6 +10,7 @@ RUN apt-get update -y && apt-get install -y maven git default-jre default-jdk op
 # Right now, we include a static snapshot
 RUN cd /opt/reTHINK/catalogue && cp -r ../GitHubRepos/dev-catalogue/catalogue_broker . 
 RUN cd /opt/reTHINK/catalogue && cp -r ../GitHubRepos/dev-catalogue/catalogue_database .
+RUN cd /opt/reTHINK/catalogue && cp -r ../GitHubRepos/dev-catalogue/catalogue_objects .
 RUN cd /opt/reTHINK/catalogue && cp -r ../GitHubRepos/dev-catalogue/catalogue_test .
 RUN cd /opt/reTHINK/catalogue && cp -r ../GitHubRepos/dev-catalogue/model .
 RUN cd /opt/reTHINK/catalogue && cp -r ../GitHubRepos/dev-catalogue/data .
