@@ -3,7 +3,7 @@ MAINTAINER marc.emmelmann@fokus.fraunhofer.de
 
 RUN cd /opt/reTHINK && mkdir catalogue
 
-RUN apt-get update -y && apt-get install -y maven git default-jre default-jdk openjdk-7-jre openjdk-7-jdk
+RUN apt-get install -y maven git default-jre default-jdk openjdk-7-jre openjdk-7-jdk
 
 
 # Note, we should directly pull from github, but this requires that the repo becomes publically visible
