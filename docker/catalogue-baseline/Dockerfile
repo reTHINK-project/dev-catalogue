@@ -20,6 +20,6 @@ RUN cd /opt/reTHINK/catalogue && cp -r ../GitHubRepos/dev-catalogue/ssl .
 RUN cd /opt/reTHINK/catalogue && mvn install
 
 
-CMD echo "Baseline installation for reTHINK Catalogue; All code is under /opt/reTHINK/catalogue" && echo && echo "ls of reTHINK" && ls -l /opt/reTHINK && echo "Installed components in .../reTHINK/catalogue" && ls -l /opt/reTHINK/catalogue 
+ENTRYPOINT ["echo", "This image (rethink/catalogue-baseline) is not intended to be invoked directly.  If you derived your own image, you will need to specify a docker ENTRYPOINT."]
 
 
