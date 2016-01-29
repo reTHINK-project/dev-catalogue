@@ -4,6 +4,6 @@
 MODELS_FOLDER="/opt/reTHINK/catalogue/model"
 export MODELS_FOLDER
 
-java -jar /opt/reTHINK/catalogue/catalogue_database/target/rethink-catalogue-database-0.1-jar-with-dependencies.jar $*
+java -jar /opt/reTHINK/catalogue/catalogue_database/target/rethink-catalogue-database-2.0-jar-with-dependencies.jar $*
 
 

@@ -1,0 +1,9 @@
+{
+  "cguid": "9819113587321",
+  "type": "DataSchema",
+  "version": "1.0",
+  "objectName": "FirstDataSchema",
+  "description": "This is a Data Schema",
+  "language": "Javascript ECMA6",
+  "accessControlPolicy": "somePolicy"
+}

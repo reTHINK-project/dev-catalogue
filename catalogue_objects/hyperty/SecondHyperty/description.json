@@ -1,0 +1,8 @@
+{
+  "cguid": 841631691891,
+  "hypertyType": "COMMUNICATOR",
+  "version": "1.0",
+  "objectName": "SecondHyperty",
+  "description": "This is an example hyperty that has its source code in a separate file",
+  "dataObjects": []
+}

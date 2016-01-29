@@ -74,6 +74,11 @@ public class CatalogueDatabase {
 
     private final int HYPERTY_MODEL_ID          = 1337;
     private final int PROTOSTUB_MODEL_ID        = 1338;
+    private final int RUNTIME_MODEL_ID          = 1339;
+    private final int SCHEMA_MODEL_ID           = 1340;
+    private final int SOURCEPACKAGE_MODEL_ID    = 1350;
+
+    private String accessURL;
 
     public static void main(final String[] args) {
         switch (args.length) {
@@ -81,7 +86,7 @@ public class CatalogueDatabase {
                 // hand down
             case 1:
                 System.out
-                        .println("Usage:\njava -jar target/catalogue_database-*-jar-with-dependencies.jar ServerIP ServerPort [ObjectFolderPath]");
+                        .println("Usage:\njava -jar target/catalogue_database-*-jar-with-dependencies.jar ServerHost ServerCoapPort [ObjectFolderPath]");
                 break;
             case 2:
                 new CatalogueDatabase(args[0], Integer.parseInt(args[1]), null);
@@ -92,20 +97,33 @@ public class CatalogueDatabase {
         }
     }
 
-    public CatalogueDatabase(final String serverHostName, final int serverPort, String hypertiesPath) {
+    public CatalogueDatabase(final String serverHostName, final int serverPort, String catObjsPath) {
 
         // parse files
-        rethinkInstance[] parsedHyperties;
-        rethinkInstance[] parsedProtostubs;
-        if (hypertiesPath != null) {
-            Map<Integer, rethinkInstance[]> instanceMap = parseFiles(hypertiesPath);
-            parsedHyperties = instanceMap.get(HYPERTY_MODEL_ID);
-            parsedProtostubs = instanceMap.get(PROTOSTUB_MODEL_ID);
-        } else {
-            parsedHyperties = parseHyperties();
-            parsedProtostubs = parseProtostubs();
+        RethinkInstance[] parsedHyperties;
+        RethinkInstance[] parsedProtostubs;
+        RethinkInstance[] parsedRuntimes;
+        RethinkInstance[] parsedSchemas;
+        RethinkInstance[] parsedSourcePackages;
+
+        if (catObjsPath == null) {
+            catObjsPath = "./";
         }
 
+        accessURL = "https://" + serverHostName + "/.well-known/";
+
+        Map<Integer, RethinkInstance[]> resultMap = parseFiles(catObjsPath);
+        parsedHyperties = resultMap.get(HYPERTY_MODEL_ID);
+        parsedProtostubs = resultMap.get(PROTOSTUB_MODEL_ID);
+        parsedRuntimes = resultMap.get(RUNTIME_MODEL_ID);
+        parsedSchemas = resultMap.get(SCHEMA_MODEL_ID);
+        parsedSourcePackages = resultMap.get(SOURCEPACKAGE_MODEL_ID);
+
+        LOG.debug("parsedHyperties:      " + Arrays.toString(parsedHyperties));
+        LOG.debug("parsedProtostubs:     " + Arrays.toString(parsedProtostubs));
+        LOG.debug("parsedRuntimes:       " + Arrays.toString(parsedRuntimes));
+        LOG.debug("parsedSchemas:        " + Arrays.toString(parsedSchemas));
+        LOG.debug("parsedSourcePackages: " + Arrays.toString(parsedSourcePackages));
 
         // get default models
         List<ObjectModel> objectModels = ObjectLoader.loadDefault();
@@ -121,6 +139,7 @@ public class CatalogueDatabase {
 
         // Initialize object list
         ObjectsInitializer initializer = new ObjectsInitializer(new LwM2mModel(map));
+
         initializer.setClassForObject(3, Device.class);
         List<ObjectEnabler> enablers = initializer.createMandatory();
 
@@ -129,7 +148,7 @@ public class CatalogueDatabase {
             ObjectEnabler hypertyEnabler = initializer.create(HYPERTY_MODEL_ID);
             enablers.add(hypertyEnabler);
 
-            // create idNameMap for hypterties
+            // create idNameMap for hyperties
             LinkedHashMap<Integer, String> idNameMap = new LinkedHashMap<>();
             Map<Integer, ResourceModel> model = hypertyEnabler.getObjectModel().resources;
 
@@ -139,7 +158,8 @@ public class CatalogueDatabase {
             }
 
             // set id:name map on all hyperties
-            for (rethinkInstance parsedHyperty : parsedHyperties) {
+            LOG.debug("hyperties get this idNameMap: " + idNameMap);
+            for (RethinkInstance parsedHyperty : parsedHyperties) {
                 parsedHyperty.setIdNameMap(idNameMap);
             }
         }
@@ -159,13 +179,74 @@ public class CatalogueDatabase {
             }
 
             // set id:name map on all protostubs
-            for (rethinkInstance parsedProtostub : parsedProtostubs) {
+            for (RethinkInstance parsedProtostub : parsedProtostubs) {
                 parsedProtostub.setIdNameMap(idNameMap);
             }
 
         }
 
+        if (parsedRuntimes.length > 0) {
+            initializer.setInstancesForObject(RUNTIME_MODEL_ID, parsedRuntimes);
+            ObjectEnabler runtimeEnabler = initializer.create(RUNTIME_MODEL_ID);
+            enablers.add(runtimeEnabler);
 
+            // create idNameMap for hyperty runtimes
+            LinkedHashMap<Integer, String> idNameMap = new LinkedHashMap<>();
+            Map<Integer, ResourceModel> model = runtimeEnabler.getObjectModel().resources;
+
+            // populate id:name map from resources
+            for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
+                idNameMap.put(entry.getKey(), entry.getValue().name);
+            }
+
+            // set id:name map on all hyperty runtimes
+            for (RethinkInstance parsedRuntime : parsedRuntimes) {
+                parsedRuntime.setIdNameMap(idNameMap);
+            }
+
+        }
+
+        if (parsedSchemas.length > 0) {
+            initializer.setInstancesForObject(SCHEMA_MODEL_ID, parsedSchemas);
+            ObjectEnabler schemaEnabler = initializer.create(SCHEMA_MODEL_ID);
+            enablers.add(schemaEnabler);
+
+            // create idNameMap for schemas
+            LinkedHashMap<Integer, String> idNameMap = new LinkedHashMap<>();
+            Map<Integer, ResourceModel> model = schemaEnabler.getObjectModel().resources;
+
+            // populate id:name map from resources
+            for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
+                idNameMap.put(entry.getKey(), entry.getValue().name);
+            }
+
+            // set id:name map on all schemas
+            for (RethinkInstance parsedSchema : parsedSchemas) {
+                parsedSchema.setIdNameMap(idNameMap);
+            }
+
+        }
+
+        if (parsedSourcePackages.length > 0) {
+            initializer.setInstancesForObject(SOURCEPACKAGE_MODEL_ID, parsedSourcePackages);
+            ObjectEnabler sourcePackageEnabler = initializer.create(SOURCEPACKAGE_MODEL_ID);
+            enablers.add(sourcePackageEnabler);
+
+            // create idNameMap for protostubs
+            LinkedHashMap<Integer, String> idNameMap = new LinkedHashMap<>();
+            Map<Integer, ResourceModel> model = sourcePackageEnabler.getObjectModel().resources;
+
+            // populate id:name map from resources
+            for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
+                idNameMap.put(entry.getKey(), entry.getValue().name);
+            }
+
+            // set id:name map on all protostubs
+            for (RethinkInstance parcedSourcePackage : parsedSourcePackages) {
+                parcedSourcePackage.setIdNameMap(idNameMap);
+            }
+
+        }
 
 
         // Create client
@@ -211,200 +292,176 @@ public class CatalogueDatabase {
 
     }
 
-    private Map<Integer, rethinkInstance[]> parseFiles(String sourcePath) {
-        // 1. open file, 2. parse hyperties.json
+    JsonParser parser = new JsonParser();
+
+    private RethinkInstance parseCatalogueObject(File dir) throws FileNotFoundException {
+        File desc = new File(dir, "description.json");
+        File pkg = new File(dir, "sourcePackage.json");
+        File code = new File(dir, "sourceCode.js");
+
+        // 1. parse hyperty
+        RethinkInstance instance = createFromFile(desc);
+
+        // 2. parse sourcePackage
+        if (instance.nameValueMap.get("sourcePackage") == null && pkg.exists()) {
+            RethinkInstance sourcePackage = createFromFile(pkg);
+
+            // 3. attach code to sourcePackage
+            if (code.exists()) {
+                sourcePackage.setSourceCodeFile(code);
+            }
+            // 4. add sourcePackage to hyperty
+            instance.setSourcePackage(sourcePackage);
+        }
+        return instance;
+    }
+
+    private Map<Integer, RethinkInstance[]> parseFiles(String sourcePath) {
         if (sourcePath == null)
             sourcePath = "./";
 
-        HashMap<Integer, rethinkInstance[]> resultMap = new HashMap<>();
+        HashMap<Integer, RethinkInstance[]> resultMap = new HashMap<>();
         Gson gson = new Gson();
-        JsonParser parser = new JsonParser();
 
-        File hypertiesFolder = new File(sourcePath);
-        assert hypertiesFolder.isDirectory();
-        File[] files = hypertiesFolder.listFiles();
-        LOG.debug("files to be processed: " + Arrays.toString(files));
-        assert files != null;
-        LinkedList<File> hypertyFiles = new LinkedList<>();
-        LinkedList<File> stubFiles = new LinkedList<>();
+        File catObjsFolder = new File(sourcePath);
+        assert catObjsFolder.isDirectory();
 
-        HashMap<String, File> jsFiles = new HashMap<>();
+        File hypertyFolder = new File(catObjsFolder, "hyperty");
+        File stubFolder = new File(catObjsFolder, "protocolstub");
+        File runtimeFolder = new File(catObjsFolder, "runtime");
+        File schemaFolder = new File(catObjsFolder, "dataschema");
 
-        // fill lists
-        for (File f : files) {
-            String ending = "";
-            try {
-                ending = f.getName().substring(f.getName().lastIndexOf('.'));
-            } catch (StringIndexOutOfBoundsException e) {
-//                e.printStackTrace();
-            }
+        LinkedList<RethinkInstance> hypertyInstances = new LinkedList<>();
+        LinkedList<RethinkInstance> stubInstances = new LinkedList<>();
+        LinkedList<RethinkInstance> runtimeInstances = new LinkedList<>();
+        LinkedList<RethinkInstance> schemaInstances = new LinkedList<>();
 
-            LOG.debug("checking: " + f.getName());
-            LOG.debug("has ending: " + ending);
-
-            switch(ending) {
-                case ".hyperty":
-                    hypertyFiles.add(f);
-                    break;
-                case ".stub":
-                    stubFiles.add(f);
-                    break;
-                case ".js":
-                    jsFiles.put(f.getName(), f);
-                    break;
-            }
-
-        }
-
-        LOG.debug("set-up lists complete");
-        LOG.debug("hyperty files: " + hypertyFiles);
-        LOG.debug("stub files:" + stubFiles);
-        LOG.debug("javscript files:" + jsFiles.values());
-
-        // parse hyperties
-        rethinkInstance[] parsedHyperties = new rethinkInstance[hypertyFiles.size()];
-        for (int i = 0; i < hypertyFiles.size(); i++) {
-            File hyperty = hypertyFiles.get(i);
-            try {
-                // found hyperty descriptor file
-                JsonObject descriptor = parser.parse(new FileReader(hyperty)).getAsJsonObject();
-                // make name:value map from json
-                LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
-                for (Map.Entry<String, JsonElement> entry : descriptor.entrySet()) {
-                    if (entry.getValue().isJsonPrimitive())
-                        nameValueMap.put(entry.getKey(), entry.getValue().getAsString());
-                    else if (entry.getKey().equals("sourcePackage")) {
-                        JsonObject sourcePackage = entry.getValue().getAsJsonObject();
-
-                        if (!sourcePackage.has("sourceCode")) {
-                            // 1. get file
-                            String jsName = hyperty.getName().substring(0, hyperty.getName().lastIndexOf('.')) + ".js";
-                            File jsFile = jsFiles.get(jsName);
-                            // 2. read file
-                            String fileString = new Scanner(new FileInputStream(jsFile), "UTF-8").useDelimiter("\\A").next();
-                            // 3. add js code as sourceCode field
-                            sourcePackage.addProperty("sourceCode", fileString);
-                        }
-
-                        // stringify sourcePackage
-                        nameValueMap.put(entry.getKey(), sourcePackage.toString());
-                    } else {
-                        nameValueMap.put(entry.getKey(), entry.getValue().toString());
-                    }
+        if (hypertyFolder.exists()) {
+            for (File dir : hypertyFolder.listFiles(dirFilter)) {
+                try {
+                    RethinkInstance hypertyInstance = parseCatalogueObject(dir);
+                    hypertyInstances.add(hypertyInstance);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
                 }
-                parsedHyperties[i] = new rethinkInstance(nameValueMap);
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
             }
         }
+        resultMap.put(HYPERTY_MODEL_ID, hypertyInstances.toArray(new RethinkInstance[hypertyInstances.size()]));
 
-        resultMap.put(HYPERTY_MODEL_ID, parsedHyperties);
-
-        // parse protoStubs
-        rethinkInstance[] parsedStubs = new rethinkInstance[stubFiles.size()];
-        for (int i = 0; i < stubFiles.size(); i++) {
-            File stub = stubFiles.get(i);
-            try {
-                // found hyperty descriptor file
-                JsonObject descriptor = parser.parse(new FileReader(stub)).getAsJsonObject();
-                // make name:value map from json
-                LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
-                for (Map.Entry<String, JsonElement> entry : descriptor.entrySet()) {
-                    if (entry.getValue().isJsonPrimitive())
-                        nameValueMap.put(entry.getKey(), entry.getValue().getAsString());
-                    else if (entry.getKey().equals("sourcePackage")) {
-                        JsonObject sourcePackage = entry.getValue().getAsJsonObject();
-
-                        if (!sourcePackage.has("sourceCode")) {
-                            // 1. get file
-                            String jsName = stub.getName().substring(0, stub.getName().lastIndexOf('.')) + ".js";
-                            File jsFile = jsFiles.get(jsName);
-                            // 2. read file
-                            String fileString = new Scanner(new FileInputStream(jsFile), "UTF-8").useDelimiter("\\A").next();
-                            // 3. add js code as sourceCode field
-                            sourcePackage.addProperty("sourceCode", fileString);
-                        }
-
-                        // stringify sourcePackage
-                        nameValueMap.put(entry.getKey(), sourcePackage.toString());
-                    } else {
-                        nameValueMap.put(entry.getKey(), entry.getValue().toString());
-                    }
+        if (stubFolder.exists()) {
+            for (File dir : stubFolder.listFiles(dirFilter)) {
+                try {
+                    RethinkInstance stubInstance = parseCatalogueObject(dir);
+                    stubInstances.add(stubInstance);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
                 }
-                parsedStubs[i] = new rethinkInstance(nameValueMap);
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
             }
         }
+        resultMap.put(PROTOSTUB_MODEL_ID, stubInstances.toArray(new RethinkInstance[stubInstances.size()]));
 
-        resultMap.put(PROTOSTUB_MODEL_ID, parsedStubs);
+        if (runtimeFolder.exists()) {
+            for (File dir : runtimeFolder.listFiles(dirFilter)) {
+                try {
+                    RethinkInstance runtimeInstance = parseCatalogueObject(dir);
+                    runtimeInstances.add(runtimeInstance);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        resultMap.put(RUNTIME_MODEL_ID, runtimeInstances.toArray(new RethinkInstance[runtimeInstances.size()]));
+
+        if (schemaFolder.exists()) {
+            for (File dir : schemaFolder.listFiles(dirFilter)) {
+                try {
+                    RethinkInstance schemaInstance = parseCatalogueObject(dir);
+                    schemaInstances.add(schemaInstance);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        resultMap.put(SCHEMA_MODEL_ID, schemaInstances.toArray(new RethinkInstance[schemaInstances.size()]));
+
+        LinkedList<RethinkInstance> sourcePackageInstances = new LinkedList<>();
+        for (RethinkInstance hypertyInstance : hypertyInstances) {
+            RethinkInstance sourcePackage = hypertyInstance.getSourcePackage();
+            String hypertyName = hypertyInstance.nameValueMap.get("objectName");
+            if (hypertyInstance.nameValueMap.get("sourcePackage") != null) {
+                hypertyInstance.nameValueMap.put("sourcePackageURL", accessURL + "hyperty/" + hypertyName + "/sourcePackage");
+            } else if (sourcePackage != null) {
+                sourcePackage.nameValueMap.put("objectName", hypertyName);
+                sourcePackageInstances.add(sourcePackage);
+                hypertyInstance.nameValueMap.put("sourcePackageURL", accessURL + "sourcepackage/" + hypertyName);
+            }
+        }
+        for (RethinkInstance stubInstance : stubInstances) {
+            RethinkInstance sourcePackage = stubInstance.getSourcePackage();
+            String stubName = stubInstance.nameValueMap.get("objectName");
+            if (stubInstance.nameValueMap.get("sourcePackage") != null) {
+                stubInstance.nameValueMap.put("sourcePackageURL", accessURL + "protocolstub/" + stubName + "/sourcePackage");
+            } else if (sourcePackage != null) {
+                sourcePackage.nameValueMap.put("objectName", stubName);
+
+                sourcePackageInstances.add(sourcePackage);
+                stubInstance.nameValueMap.put("sourcePackageURL", accessURL + "sourcepackage/" + stubName);
+            }
+        }
+        for (RethinkInstance runtimeInstance : runtimeInstances) {
+            RethinkInstance sourcePackage = runtimeInstance.getSourcePackage();
+            String runtimeName = runtimeInstance.nameValueMap.get("objectName");
+            if (runtimeInstance.nameValueMap.get("sourcePackage") != null) {
+                runtimeInstance.nameValueMap.put("sourcePackageURL", accessURL + "runtime/" + runtimeName + "/sourcePackage");
+            } else if (sourcePackage != null) {
+                sourcePackage.nameValueMap.put("objectName", runtimeName);
+
+                sourcePackageInstances.add(sourcePackage);
+                runtimeInstance.nameValueMap.put("sourcePackageURL", accessURL + "sourcepackage/" + runtimeName);
+            }
+        }
+        for (RethinkInstance schemaInstance : schemaInstances) {
+            RethinkInstance sourcePackage = schemaInstance.getSourcePackage();
+            String schemaName = schemaInstance.nameValueMap.get("objectName");
+            if (schemaInstance.nameValueMap.get("sourcePackage") != null) {
+                schemaInstance.nameValueMap.put("sourcePackageURL", accessURL + "dataschema/" + schemaName + "/sourcePackage");
+            } else if (sourcePackage != null) {
+                sourcePackage.nameValueMap.put("objectName", schemaName);
+
+                sourcePackageInstances.add(sourcePackage);
+                schemaInstance.nameValueMap.put("sourcePackageURL", accessURL + "sourcepackage/" + schemaName);
+            }
+        }
+        resultMap.put(SOURCEPACKAGE_MODEL_ID, sourcePackageInstances.toArray(new RethinkInstance[sourcePackageInstances.size()]));
+
 
         return resultMap;
     }
 
-    private rethinkInstance[] parseHyperties() {
-        // 1. open file, 2. parse hyperties.json
-        Gson gson = new Gson();
-        InputStream in = getClass().getResourceAsStream("/hyperties.json");
-        String fileString = new Scanner(in, "UTF-8").useDelimiter("\\A").next();
-        JsonArray jsonArray = new JsonParser().parse(fileString).getAsJsonArray();
 
-        rethinkInstance[] parsedHyperties = new rethinkInstance[jsonArray.size()];
-        int i = 0;
-        for (JsonElement obj : jsonArray) {
-            // make name:value map from json
-            LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
-            for (Map.Entry<String, JsonElement> entry : obj.getAsJsonObject().entrySet()) {
-                if (entry.getValue().isJsonPrimitive())
-                    nameValueMap.put(entry.getKey(), entry.getValue().getAsString());
-                else // stringify sourcePackage
-                    nameValueMap.put(entry.getKey(), entry.getValue().toString());
+    private RethinkInstance createFromFile(File f) throws FileNotFoundException {
+        JsonObject descriptor = parser.parse(new FileReader(f)).getAsJsonObject();
+        LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : descriptor.entrySet()) {
+            String value = null;
+            try {
+                value = entry.getValue().getAsString();
+
+            } catch (Exception e) {
+                value = entry.getValue().toString();
             }
 
-            LOG.debug("name:value map for hyperty #" + i + ": " + nameValueMap);
-
-            parsedHyperties[i++] = new rethinkInstance(nameValueMap);
-
-
+            nameValueMap.put(entry.getKey(), value);
         }
 
-        LOG.debug("parsed " + i + " hyperties.");
-        return parsedHyperties;
-    }
-
-    private rethinkInstance[] parseProtostubs() {
-        // 1. open file, 2. parse protostubs.json
-        Gson gson = new Gson();
-        InputStream in = getClass().getResourceAsStream("/protostubs.json");
-        String fileString = new Scanner(in, "UTF-8").useDelimiter("\\A").next();
-        JsonArray jsonArray = new JsonParser().parse(fileString).getAsJsonArray();
-
-        rethinkInstance[] parsedProtostubs = new rethinkInstance[jsonArray.size()];
-        int i = 0;
-        for (JsonElement obj : jsonArray) {
-            // make name:value map from json
-            LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
-            for (Map.Entry<String, JsonElement> entry : obj.getAsJsonObject().entrySet()) {
-                if (entry.getValue().isJsonPrimitive())
-                    nameValueMap.put(entry.getKey(), entry.getValue().getAsString());
-                else // stringify sourcePackage
-                    nameValueMap.put(entry.getKey(), entry.getValue().toString());
-            }
-
-            LOG.debug("name:value map for protostub #" + i + ": " + nameValueMap);
-
-            parsedProtostubs[i++] = new rethinkInstance(nameValueMap);
-
-        }
-
-        LOG.debug("parsed " + i + " protostubs.");
-        return parsedProtostubs;
+        LOG.debug("instance gets this nameValueMap:\n" + nameValueMap);
+        return new RethinkInstance(nameValueMap);
     }
 
     /**
      * InstanceEnabler for reTHINK resources.
      */
-    public static class rethinkInstance extends BaseInstanceEnabler {
+    public static class RethinkInstance extends BaseInstanceEnabler {
 
         /**
          * Set id:name map so instance knows which id corresponds to the correct field. (based on model.json)
@@ -416,13 +473,25 @@ public class CatalogueDatabase {
 
         private Map<Integer, String> idNameMap = null;
         private final Map<String, String> nameValueMap;
+        private String sourceCodeKeyName = "sourceCode";
+        private File sourceCodeFile = null;
 
-        public rethinkInstance() {
+        public RethinkInstance getSourcePackage() {
+            return sourcePackage;
+        }
+
+        public void setSourcePackage(RethinkInstance sourcePackage) {
+            this.sourcePackage = sourcePackage;
+        }
+
+        private RethinkInstance sourcePackage = null;
+
+        public RethinkInstance() {
             idNameMap = null;
             nameValueMap = null;
         }
 
-        public rethinkInstance(Map<Integer, String> idNameMap, Map<String, String> NameValueMap) {
+        public RethinkInstance(Map<Integer, String> idNameMap, Map<String, String> NameValueMap) {
             this.idNameMap = idNameMap;
             this.nameValueMap = NameValueMap;
         }
@@ -431,29 +500,46 @@ public class CatalogueDatabase {
          * Create a reTHINK instance with name:value mapping from model.json
          * @param nameValueMap
          */
-        public rethinkInstance(Map<String, String> nameValueMap) {
+        public RethinkInstance(Map<String, String> nameValueMap) {
             this.nameValueMap = nameValueMap;
         }
+
 
         @Override
         public ValueResponse read(int resourceid) {
             LOG.debug("Read on Catalogue Resource " + resourceid);
             String resourceName = idNameMap.get(resourceid);
-            String resourceValue = nameValueMap.get(resourceName);
-            // TODO: get correct value type from resource description
-
+            String resourceValue = null;
             LOG.debug("idNameMap returns: " + resourceName);
-            LOG.debug("nameValueMap returns: " + resourceValue);
 
+            try {
+                if (sourceCodeFile != null && resourceName.equals(sourceCodeKeyName)) {
+                    LOG.debug("getting sourceCode from file: " + sourceCodeFile);
+                    resourceValue = new Scanner(new FileInputStream(sourceCodeFile), "UTF-8").useDelimiter("\\A").next();
+                } else {
+                    resourceValue = nameValueMap.get(resourceName);
+                }
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            LOG.debug("nameValueMap returns: " + resourceValue);
 
             if (resourceValue != null) {
                 LOG.debug("returning: " + resourceValue);
                 return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid, Value.newStringValue(resourceValue)));
-
             } else
                 return super.read(resourceid);
         }
 
+        public void setSourceCodeFile(File sourceFile) {
+            sourceCodeFile = sourceFile;
+        }
+
+        @Override
+        public String toString() {
+            return nameValueMap.toString();
+        }
     }
 
     /**
@@ -599,5 +685,12 @@ public class CatalogueDatabase {
             return "U";
         }
     }
+
+    private FileFilter dirFilter = new FileFilter() {
+        @Override
+        public boolean accept(File file) {
+            return file.isDirectory();
+        }
+    };
 
 }

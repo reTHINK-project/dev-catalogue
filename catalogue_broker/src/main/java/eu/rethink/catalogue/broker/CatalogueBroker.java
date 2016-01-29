@@ -41,9 +41,11 @@ package eu.rethink.catalogue.broker;
 
 import eu.rethink.catalogue.broker.model.RethinkModelProvider;
 import eu.rethink.catalogue.broker.servlet.WellKnownServlet;
-import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.http.HttpVersion;
+import org.eclipse.jetty.server.*;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.leshan.server.californium.LeshanServerBuilder;
 import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.slf4j.Logger;
@@ -63,18 +65,75 @@ public class CatalogueBroker {
 
     private Server server;
     private LeshanServer lwServer;
+    private final int DEFAULT_HTTP_PORT = 80;
+    private final int DEFAULT_SSL_PORT = 443;
+    private int httpPort = DEFAULT_HTTP_PORT;
+    private int sslPort = DEFAULT_SSL_PORT;
+    private String coapAddress = null;
 
-    public void start(String httpPort, String coapAddress, String coapsAddress) {
-        // Try to use ENV variables if coap/coaps address is not given
-        if (coapAddress == null)
-            coapAddress = System.getenv("COAPIFACE");
+    public void setCoapsAddress(String coapsAddress) {
+        this.coapsAddress = coapsAddress;
+    }
 
-        if (coapsAddress == null)
-            coapsAddress = System.getenv("COAPSIFACE");
+    public void setCoapAddress(String coapAddress) {
+        this.coapAddress = coapAddress;
+    }
+
+    public void setSslPort(int sslPort) {
+        this.sslPort = sslPort;
+    }
+
+    public void setHttpPort(int httpPort) {
+        this.httpPort = httpPort;
+    }
+
+    private String coapsAddress = null;
+
+    public void setKeystorePath(String keystorePath) {
+        this.keystorePath = keystorePath;
+    }
+
+    public void setKeystorePassword(String keystorePassword) {
+        this.keystorePassword = keystorePassword;
+    }
+
+    public void setKeystoreManagerPassword(String keystoreManagerPassword) {
+        this.keystoreManagerPassword = keystoreManagerPassword;
+    }
+
+    public void setTruststorePath(String truststorePath) {
+        this.truststorePath = truststorePath;
+    }
+
+    public void setTruststorePassword(String truststorePassword) {
+        this.truststorePassword = truststorePassword;
+    }
+
+    private String keystorePath = "ssl/keystore";
+    private String keystorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
+
+    private String keystoreManagerPassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
+
+    private String truststorePath = "ssl/keystore";
+    private String truststorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
+
+
+    public void start() {
+        // check http ports
+        if (httpPort < 0) {
+            httpPort = DEFAULT_HTTP_PORT;
+        }
+
+        if (sslPort < 0) {
+            sslPort = DEFAULT_SSL_PORT;
+        }
+
+        if (httpPort == DEFAULT_HTTP_PORT || httpPort == DEFAULT_SSL_PORT) {
+            LOG.warn("Using default port for http or https. Please make sure you have the required privileges.");
+        }
 
         // Build LWM2M server
         LeshanServerBuilder builder = new LeshanServerBuilder();
-        LOG.debug("setting objectmodelprovider...");
         builder.setObjectModelProvider(new RethinkModelProvider());
         if (coapAddress != null && !coapAddress.isEmpty()) {
             // check if coapAddress is only port or host:port
@@ -131,19 +190,55 @@ public class CatalogueBroker {
 
         lwServer = builder.build();
         lwServer.start();
+
         // Now prepare and start jetty
+        server = new Server();
 
-        if (httpPort == null) {
-            httpPort = System.getenv("PORT");
-            if (httpPort == null || httpPort.isEmpty()) {
-                httpPort = System.getProperty("PORT");
-            }
-            if (httpPort == null || httpPort.isEmpty()) {
-                httpPort = "8080";
-            }
-        }
+        // HTTP Configuration
+        HttpConfiguration http_config = new HttpConfiguration();
+//        http_config.setSecureScheme("https");
+//        http_config.setSecurePort(8443);
+//        http_config.setOutputBufferSize(32768);
+//        http_config.setRequestHeaderSize(8192);
+//        http_config.setResponseHeaderSize(8192);
+//        http_config.setSendServerVersion(true);
+//        http_config.setSendDateHeader(false);
+        http_config.addCustomizer(new SecureRequestCustomizer());
 
-        server = new Server(Integer.valueOf(httpPort));
+        // === jetty-http.xml ===
+        ServerConnector http = new ServerConnector(server,
+                new HttpConnectionFactory(http_config));
+        http.setPort(httpPort);
+        http.setIdleTimeout(30000);
+        server.addConnector(http);
+
+
+        // === jetty-https.xml ===
+        // SSL Context Factory
+
+        SslContextFactory sslContextFactory = new SslContextFactory();
+        sslContextFactory.setKeyStorePath(keystorePath);
+        sslContextFactory.setKeyStorePassword(keystorePassword);
+        sslContextFactory.setKeyManagerPassword(keystoreManagerPassword);
+        sslContextFactory.setTrustStorePath(truststorePath);
+        sslContextFactory.setTrustStorePassword(truststorePassword);
+        sslContextFactory.setExcludeCipherSuites("SSL_RSA_WITH_DES_CBC_SHA",
+                "SSL_DHE_RSA_WITH_DES_CBC_SHA", "SSL_DHE_DSS_WITH_DES_CBC_SHA",
+                "SSL_RSA_EXPORT_WITH_RC4_40_MD5",
+                "SSL_RSA_EXPORT_WITH_DES40_CBC_SHA",
+                "SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA",
+                "SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA");
+
+        // SSL HTTP Configuration
+        HttpConfiguration https_config = new HttpConfiguration(http_config);
+        https_config.addCustomizer(new SecureRequestCustomizer());
+
+        // SSL Connector
+        ServerConnector sslConnector = new ServerConnector(server,
+                new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
+                new HttpConnectionFactory(https_config));
+        sslConnector.setPort(sslPort);
+        server.addConnector(sslConnector);
 
         // rethink request handler
         RequestHandler rethinkRequestHandler = new RequestHandler(lwServer);
@@ -154,6 +249,8 @@ public class CatalogueBroker {
 
         // Start jetty
         try {
+            LOG.info("Server should be available at: " + server.getURI() + ". http on port " + httpPort + ", https on " + sslPort);
+            LOG.info("Starting server...");
             server.start();
         } catch (Exception e) {
             LOG.error("jetty error", e);
@@ -170,45 +267,65 @@ public class CatalogueBroker {
     }
 
     public static void main(String[] args) {
-        String httpPort = null, coapAddress = null, coapsAddress = null;
+        CatalogueBroker broker = new CatalogueBroker();
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             arg = arg.toLowerCase();
 
             switch(arg) {
-                case "-h":
-                    // hand it down
-                case "-http":
-                    // hand it down
                 case "-httpport":
-                    httpPort = args[++i];
-
+                case "-http":
+                case "-h":
+                    String rawHttpPort = args[++i];
+                    int httpPort = -1;
                     // if http address was given (like for coap), extract only port part
                     try {
-                        httpPort = httpPort.substring(httpPort.lastIndexOf(':') + 1, httpPort.length());
+                        httpPort = Integer.parseInt(rawHttpPort.substring(rawHttpPort.lastIndexOf(':') + 1, rawHttpPort.length()));
                     } catch (IndexOutOfBoundsException e) {
 //                        e.printStackTrace();
                     }
+                    broker.setHttpPort(httpPort);
                     break;
-                case "-c":
-                    // hand it down
-                case "-coap":
-                    // hand it down
+                case "-sslport":
+                case "-ssl":
+                case "-s":
+                    broker.setSslPort(Integer.parseInt(args[++i]));
+                    break;
                 case "-coapaddress":
-                    coapAddress = args[++i];
+                case "-coap":
+                case "-c":
+                    broker.setCoapAddress(args[++i]);
                     break;
-                case "-cs":
-                    // hand it down
-                case "-coaps":
-                    // hand it down
                 case "-coapsaddress":
-                    coapsAddress = args[++i];
+                case "-coaps":
+                case "-cs":
+                    broker.setCoapsAddress(args[++i]);
+                    break;
+                case "-keystorePath":
+                case "-kp":
+                    broker.setKeystorePath(args[++i]);
+                    break;
+                case "-truststorePath":
+                case "-tp":
+                    broker.setTruststorePath(args[++i]);
+                    break;
+                case "-keystorePassword":
+                case "-kpw":
+                    broker.setKeystorePassword(args[++i]);
+                    break;
+                case "-keyManagerPassword":
+                case "-kmpw":
+                    broker.setKeystoreManagerPassword(args[++i]);
+                    break;
+                case "-truststorePassword":
+                case "-tpw":
+                    broker.setTruststorePassword(args[++i]);
                     break;
             }
         }
 
 
-        new CatalogueBroker().start(httpPort, coapAddress, coapsAddress);
+        broker.start();
     }
 }

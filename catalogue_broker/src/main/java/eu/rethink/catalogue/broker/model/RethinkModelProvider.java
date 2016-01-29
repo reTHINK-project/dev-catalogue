@@ -37,7 +37,7 @@ public class RethinkModelProvider extends StandardModelProvider {
 
         Map<Integer, ObjectModel> map = new HashMap<>();
         for (ObjectModel model : models) {
-            LOG.debug("Loading object: {}", model);
+//            LOG.debug("Loading object: {}", model);
             ObjectModel old = map.put(model.id, model);
             if (old != null) {
                 LOG.debug("Model already exists for object {}. Overriding it.", model.id);

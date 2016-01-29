@@ -19,7 +19,9 @@
     <p> Kind:
         <select name="singleSelect" ng-model="kind">
             <option value="hyperty">Hyperty</option>
-            <option value="protostub">Protostub</option>
+            <option value="protocolstub">Protostub</option>
+            <option value="runtime">Hyperty Runtime</option>
+            <option value="dataschema">DataSchema</option>
         </select>
     </p>
     <div ng-show="kind != null">
@@ -34,12 +36,29 @@
 
                     <option></option>
                     <option value="cguid">cguid</option>
+                    <option value="type">type</option>
+                    <option value="version">version</option>
+                    <option value="description">description</option>
                     <option value="objectName">objectName</option>
                     <option value="sourcePackageURL">sourcePackageURL</option>
                     <option value="sourcePackage">sourcePackage</option>
                     <option value="language">language</option>
-                    <option value="dummy">dummy option to force error</option>
-
+                    <option value="signature">signature</option>
+                    <option>---hyperty specific---</option>
+                    <option value="messageSchema">messageSchema</option>
+                    <option value="configuration">configuration</option>
+                    <option value="constraints">constraints</option>
+                    <option value="dataObjects">dataObjects</option>
+                    <option value="policies">policies</option>
+                    <option>---protostub specific---</option>
+                    <option value="messageSchemas">messageSchemas</option>
+                    <option value="configuration">configuration</option>
+                    <option value="constraints">constraints</option>
+                    <option>---runtime specific---</option>
+                    <option value="hypertyCapabilities">hypertyCapabilities</option>
+                    <option value="protocolCapabilities">protocolCapabilities</option>
+                    <option>---dataschema specific---</option>
+                    <option value="accessControlPolicy">accessControlPolicy</option>
                 </select>
             </p>
         </div>
@@ -48,7 +67,7 @@
         <h3>Generated path:<br>
             {{"http://" + address + "/.well-known/" + kind + "/" + (name == null ? '' : name) + (resourceName != null ? "/" + resourceName : "")}}</h3>
         <button ng-click="response = getResource('http://' + address + '/.well-known/' + kind + '/' + (name == null ? '' : name) + (resourceName != null ? '/' + resourceName : ''))" ng-init="response = null">get {{name || kind}}</button>
-        <button ng-click="response = getAndExecCode('http://' + address + '/.well-known/' + kind + '/' + name + '/sourcePackage')">get & execute code</button>
+        <button ng-click="response = getAndExecCode(getResource('http://' + address + '/.well-known/' + kind + '/' + name + '/sourcePackageURL'))">get & execute code</button>
 
 
         <div ng-show="response != null">
@@ -91,6 +110,8 @@
 <script>
     var app = angular.module('rethinkTest', []);
     app.controller('myCtrl', function ($scope) {
+
+
         $scope.getResource = function(url) {
 //            var url = "http://" + address + "/.well-known/" + kind + "/" + name;
             console.log("trying to send a request to: " + url);
@@ -109,9 +130,9 @@
             try {
                 resp = JSON.parse(xmlHttp.responseText);
             } catch (e) {
-                alert("Error trying to parse json:\r\n" + resp + "\r\nerror: " + e);
+//                alert("Error trying to parse json:\r\n" + resp + "\r\nerror: " + e);
+                console.log("json parsing failed, probably not json:", resp);
             }
-            console.log("response json: ", resp);
 
 
             return resp;
@@ -119,14 +140,19 @@
 
 
         $scope.getAndExecCode = function(url) {
+            console.log("getting sourcePackage from:", url);
             try {
-                var respJson = $scope.getResource(url);
-                var sourcePackage = respJson["sourcePackage"];
-                sourcePackage = JSON.parse(sourcePackage);
-                code = sourcePackage.sourceCode;
+                var resp = $scope.getResource(url);
+                console.log("got raw package:", resp);
+                var sourcePackage = resp;
+                var code = sourcePackage.sourceCode;
+
+                if (sourcePackage.encoding === "base64")
+                    code = atob(code);
+
                 console.log("About to exec following code: " + code);
                 eval(code);
-                return respJson;
+                return resp;
             } catch (e) {
                 alert("Error trying to execute code from url:\r\n" + url + "\r\n" + e);
             }
