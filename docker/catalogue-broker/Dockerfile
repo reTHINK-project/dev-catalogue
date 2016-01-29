@@ -1,4 +1,4 @@
-FROM rethink/catalogue-baseline:v2.0
+FROM rethink/catalogue-baseline:v2.1
 MAINTAINER marc.emmelmann@fokus.fraunhofer.de
 
 

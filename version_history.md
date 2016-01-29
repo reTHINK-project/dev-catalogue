@@ -15,3 +15,5 @@
 * added version field to catalogue objects
 * use self-signed certificate for ssl
 * sourceCode can be defined in separate file
+
+## 2.1
