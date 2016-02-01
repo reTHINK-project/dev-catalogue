@@ -80,24 +80,47 @@ public class CatalogueDatabase {
 
     private String accessURL;
 
+    private final String DEFAULT_SERVER_HOSTNAME = "localhost";
+    private final int DEFAULT_SERVER_COAP_PORT = 5683;
+
     public static void main(final String[] args) {
-        switch (args.length) {
-            case 0:
-                // hand down
-            case 1:
-                System.out
-                        .println("Usage:\njava -jar target/catalogue_database-*-jar-with-dependencies.jar ServerHost ServerCoapPort [ObjectFolderPath]");
-                break;
-            case 2:
-                new CatalogueDatabase(args[0], Integer.parseInt(args[1]), null);
-                break;
-            case 3:
-                new CatalogueDatabase(args[0], Integer.parseInt(args[1]), args[2]);
-                break;
+        String hostName = null, objPath = null;
+        int port = -1;
+
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
+            switch (arg) {
+                case "-h":
+                case "-host":
+                    hostName = args[++i];
+                    break;
+                case "-p":
+                case "-port":
+                    port = Integer.parseInt(args[++i]);
+                    break;
+                case "-o":
+                case "-op":
+                case "-objPath":
+                case "-objpath":
+                    objPath = args[++i];
+                    break;
+            }
         }
+        new CatalogueDatabase(hostName, port, objPath);
     }
 
-    public CatalogueDatabase(final String serverHostName, final int serverPort, String catObjsPath) {
+    public CatalogueDatabase(String serverHostName, int serverPort, String catObjsPath) {
+
+        // check arguments
+        if (serverHostName == null)
+            serverHostName = DEFAULT_SERVER_HOSTNAME;
+
+        if (serverPort == -1)
+            serverPort = DEFAULT_SERVER_COAP_PORT;
+
+        if (catObjsPath == null) {
+            catObjsPath = "./catalogue_objects";
+        }
 
         // parse files
         RethinkInstance[] parsedHyperties;
@@ -105,10 +128,6 @@ public class CatalogueDatabase {
         RethinkInstance[] parsedRuntimes;
         RethinkInstance[] parsedSchemas;
         RethinkInstance[] parsedSourcePackages;
-
-        if (catObjsPath == null) {
-            catObjsPath = "./";
-        }
 
         accessURL = "https://" + serverHostName + "/.well-known/";
 
@@ -297,7 +316,6 @@ public class CatalogueDatabase {
     private RethinkInstance parseCatalogueObject(File dir) throws FileNotFoundException {
         File desc = new File(dir, "description.json");
         File pkg = new File(dir, "sourcePackage.json");
-        File code = new File(dir, "sourceCode.js");
 
         // 1. parse hyperty
         RethinkInstance instance = createFromFile(desc);
@@ -307,8 +325,17 @@ public class CatalogueDatabase {
             RethinkInstance sourcePackage = createFromFile(pkg);
 
             // 3. attach code to sourcePackage
-            if (code.exists()) {
-                sourcePackage.setSourceCodeFile(code);
+            if (sourcePackage.nameValueMap.get("sourceCode") == null) {
+                // try to get sourceCode file
+                File code = null;
+                for (File file : dir.listFiles()) {
+                    if (file.getName().startsWith("sourceCode")) {
+                        code = file;
+                        break;
+                    }
+                }
+                if (code != null)
+                    sourcePackage.setSourceCodeFile(code);
             }
             // 4. add sourcePackage to hyperty
             instance.setSourcePackage(sourcePackage);
@@ -384,6 +411,7 @@ public class CatalogueDatabase {
         }
         resultMap.put(SCHEMA_MODEL_ID, schemaInstances.toArray(new RethinkInstance[schemaInstances.size()]));
 
+        // gather sourcePackages, update sourcePackageURL
         LinkedList<RethinkInstance> sourcePackageInstances = new LinkedList<>();
         for (RethinkInstance hypertyInstance : hypertyInstances) {
             RethinkInstance sourcePackage = hypertyInstance.getSourcePackage();
