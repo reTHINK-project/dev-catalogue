@@ -41,7 +41,7 @@ option                      | description
 
 ## Catalogue Database
 
-If you run the Catalogue Database similar to the provided example, but without the launch arguments,
+If you run the Catalogue Database without launch arguments,
 it tries to connect to the Catalogue Broker on localhost:5683 by default,
 trying to use the catalogue_objects folder in the same directory you started the jar from.
 
