@@ -177,7 +177,6 @@ public class CatalogueDatabase {
             }
 
             // set id:name map on all hyperties
-            LOG.debug("hyperties get this idNameMap: " + idNameMap);
             for (RethinkInstance parsedHyperty : parsedHyperties) {
                 parsedHyperty.setIdNameMap(idNameMap);
             }
