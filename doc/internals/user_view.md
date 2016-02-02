@@ -30,6 +30,13 @@ To retrieve objects from the reThink Catalogue, a client (e.g. a hyperty runtime
 
 **Note:  the BNFR spec of the resource path needs to be updated, as the [most current version](https://github.com/reTHINK-project/architecture/blob/master/docs/interface-design/resource-path.md) does not reflect all possible objects that can be stored in the catalogue**
 
+The following examples show the resource path for two protocol stubs, namely *myAwesome_protocol-stub9* and *myAwesome_protocol-stub9*, which are stored in a reThink Catalogue hosted on the host *catalogue.rethink.eu*.  Note that it is also possible to use *localhost* in case a catalogue is locally deployed on the system that originates the request.
+
+    catalogue.rethink.eu/.well-known/protocolstub/myAwesome_protocol-stub9
+    localhost/.well-known/protocolstub/myAwesome_protocol-stub9
+
+For **retrieving a list of all available objects of a given kind**, the user can simply contact the catalogue using a shortened version of the resource path, i.e. not including  < resource-type-id >  in it.
+
 ![external_view](https://github.com/reTHINK-project/dev-catalogue/blob/master/doc/internals/catalogue-external-view.png)
 
 
