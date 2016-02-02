@@ -1,6 +1,6 @@
 ## Internals
-### Developer view
-* specifications, interfaces
-* including usable tools, tutorials and working examples
+* [Developer view](./developer_view.md)
+  * specifications, interfaces
+  * including usable tools, tutorials and working examples
 
-### User view
+* [User view](./user_view.md)
