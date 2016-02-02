@@ -1,9 +1,9 @@
 # The Hitchacker's Guide of The reTHINK Catalogue
 
-## Overview
+## [Overview](./overview)
 
 ## [Getting started](./getting_started)
-### [Installation guide](./installation_guide)
+### Installation guide
 ### Usage guide
 
 ## [Internals](./internals)
