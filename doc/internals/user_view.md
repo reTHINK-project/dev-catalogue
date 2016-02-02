@@ -3,8 +3,8 @@
 Looking at the reThink Catalogue from a user's perspective, one has to distinguish if a user aims at *retrieving* an object from the catalogue or at *populating* the catalogue with entries.
 
 When **retrieving an object from the catalogue**, the catalogue appears to users as a single, monolytic implementation.  It is accessible via ports 80 (http) and 443 (https) in order to retrieve catalgue objects using the http(s)-get primitive.  As of version 2.1, the reThink Catalogue supports storing the following objects:
-* a
-* b
+* protocolstub
+* hyperty
 * c
 * d
 
