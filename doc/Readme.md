@@ -2,11 +2,11 @@
 
 ## Overview
 
-## Getting started
-### Installation guide
+## [Getting started](./getting_started)
+### [Installation guide](./installation_guide)
 ### Usage guide
 
-## Internals
+## [Internals](./internals)
 ### Developer view
 * specifications, interfaces
 * including usable tools, tutorials and working examples
