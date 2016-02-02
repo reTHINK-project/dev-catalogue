@@ -1,3 +1,3 @@
 ## Getting started
-### [Installation guide](./installation_guide)
-### [Usage guide](./usage_guide)
+### [Installation guide](./installation_guide.md)
+### [Usage guide](./usage_guide.md)
