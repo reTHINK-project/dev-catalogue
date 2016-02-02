@@ -3,8 +3,8 @@
 ## [Overview](./overview)
 
 ## [Getting started](./getting_started)
-### Installation guide
-### Usage guide
+* Installation guide
+* Usage guide
 
 ## [Internals](./internals)
 ### Developer view
