@@ -37,6 +37,12 @@ The following examples show the resource path for two protocol stubs, namely *my
 
 For **retrieving a list of all available objects of a given kind**, the user can simply contact the catalogue using a shortened version of the resource path, i.e. not including  < resource-type-id >  in it.
 
+In order to **populate the catalogue with data**, the user sees the catalogue as distributed system consisting of one reThink Catalogue Broker and at least one reThink Catalogue Database.
+
+**bla bla bla bla.  Need to finsih the text here**
+
+The following Figure illustrates the two users' views on the reThink Catalogue, showing the one monolytic appearance that can be accessed via http and https to retrieve objects fromt the catalogue, and the distributed internal view to populate the catalogue, here by having two instances of the reThink Catalogue Database.
+
 ![external_view](https://github.com/reTHINK-project/dev-catalogue/blob/master/doc/internals/catalogue-external-view.png)
 
 
