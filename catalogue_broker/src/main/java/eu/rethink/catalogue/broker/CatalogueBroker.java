@@ -51,11 +51,6 @@ import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.xml.bind.DatatypeConverter;
-import java.math.BigInteger;
-import java.security.*;
-import java.security.spec.*;
-
 /**
  * The reTHINK Catalogue Broker
  */
@@ -145,6 +140,8 @@ public class CatalogueBroker {
             builder.setLocalAddress(coapAddress.substring(0, coapAddress.lastIndexOf(':')),
                     Integer.parseInt(coapAddress.substring(coapAddress.lastIndexOf(':') + 1, coapAddress.length())));
         }
+
+
         if (coapsAddress != null && !coapsAddress.isEmpty()) {
             // check if coapsAddress is only port or host:port
             if (!coapsAddress.contains(":")) {
@@ -156,38 +153,6 @@ public class CatalogueBroker {
                     Integer.parseInt(coapsAddress.substring(coapsAddress.lastIndexOf(':') + 1, coapsAddress.length())));
         }
 
-        // Get public and private server key
-        PrivateKey privateKey = null;
-        PublicKey publicKey = null;
-        try {
-            // Get point values
-            byte[] publicX = DatatypeConverter
-                    .parseHexBinary("fcc28728c123b155be410fc1c0651da374fc6ebe7f96606e90d927d188894a73");
-            byte[] publicY = DatatypeConverter
-                    .parseHexBinary("d2ffaa73957d76984633fc1cc54d0b763ca0559a9dff9706e9f4557dacc3f52a");
-            byte[] privateS = DatatypeConverter
-                    .parseHexBinary("1dae121ba406802ef07c193c1ee4df91115aabd79c1ed7f4c0ef7ef6a5449400");
-
-            // Get Elliptic Curve Parameter spec for secp256r1
-            AlgorithmParameters algoParameters = AlgorithmParameters.getInstance("EC");
-            algoParameters.init(new ECGenParameterSpec("secp256r1"));
-            ECParameterSpec parameterSpec = algoParameters.getParameterSpec(ECParameterSpec.class);
-
-            // Create key specs
-            KeySpec publicKeySpec = new ECPublicKeySpec(new ECPoint(new BigInteger(publicX), new BigInteger(publicY)),
-                    parameterSpec);
-            KeySpec privateKeySpec = new ECPrivateKeySpec(new BigInteger(privateS), parameterSpec);
-
-            // Get keys
-            publicKey = KeyFactory.getInstance("EC").generatePublic(publicKeySpec);
-            privateKey = KeyFactory.getInstance("EC").generatePrivate(privateKeySpec);
-
-//            builder.setSecurityRegistry(new SecurityRegistryImpl(privateKey, publicKey));
-        } catch (InvalidKeySpecException | NoSuchAlgorithmException | InvalidParameterSpecException e) {
-            LOG.warn("Unable to load RPK.", e);
-        }
-
-
         lwServer = builder.build();
         lwServer.start();
 
@@ -196,13 +161,6 @@ public class CatalogueBroker {
 
         // HTTP Configuration
         HttpConfiguration http_config = new HttpConfiguration();
-//        http_config.setSecureScheme("https");
-//        http_config.setSecurePort(8443);
-//        http_config.setOutputBufferSize(32768);
-//        http_config.setRequestHeaderSize(8192);
-//        http_config.setResponseHeaderSize(8192);
-//        http_config.setSendServerVersion(true);
-//        http_config.setSendDateHeader(false);
         http_config.addCustomizer(new SecureRequestCustomizer());
 
         // === jetty-http.xml ===
