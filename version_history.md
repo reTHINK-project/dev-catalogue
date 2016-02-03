@@ -21,7 +21,7 @@
 * changed how Catalogue Database is started, using optional launch options (see README.md for details)
 * Catalogue Database can be started without providing arguments (will try to connect to localhost:5683 and using "catalogue_objects" folder from current working directory.
 * the sourceCode file that can contain the source code of a catalogue object can now have any file extension (name has to be "sourceCode.*")
-
+* added ability to specify which protocol is used when generating sourceCodeURLs, using -usehttp flag
 
 ### internal view
 * sourceCode file can have any file extension (as mentioned in user view)

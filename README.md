@@ -52,6 +52,7 @@ option       | description
 -host, -h    | specify Catalogue Broker hostname/IP
 -port, -p    | specify Catalogue Broker coap port
 -objpath, -o | path of folder containing catalogue objects (e.g. provided catalogue_objects folder)
+-usehttp     | change protocol of generated sourceCodeURLs to http (otherwise, https is used)
 
 **Please be aware that the hostname will be used to generate the sourcePackageURL, if a sourcePackage is provided.**
 
