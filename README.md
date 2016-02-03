@@ -58,7 +58,7 @@ option       | description
 
 Synopsis:
 
-`java -jar target/catalogue_database-*-jar-with-dependencies.jar [-host hostname] [-port coap_port] [-objpath object_path]`
+`java -jar target/catalogue_database-*-jar-with-dependencies.jar [-host hostname] [-port coap_port] [-objpath object_path] [-usehttp]`
 
 Example:
 
