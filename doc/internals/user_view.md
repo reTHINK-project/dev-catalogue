@@ -73,7 +73,7 @@ The following **Figure illustrates the two users' views on the reThink Catalogue
 
 ![external_view](https://github.com/reTHINK-project/dev-catalogue/blob/master/doc/internals/catalogue-external-view.png)
 
-In order to learn how to start either of the catalogue database or cataluge broker, please go to the XXX
+In order to learn how to start either of the catalogue database or cataluge broker from a deployable docker image or by checking out the sourcode from GitHub, please go to the [Getting Started](../getting_started) section of this documentation.
 
 
 **References**
