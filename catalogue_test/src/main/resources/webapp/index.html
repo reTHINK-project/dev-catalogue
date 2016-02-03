@@ -7,81 +7,130 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>reTHINK catalogue broker test page</title>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.7/angular.js"></script>
+    <title>reTHINK Catalogue Test Page</title>
+    <script src="angular.js"></script>
 </head>
 <body>
-<h1>reTHINK catalogue broker test page</h1>
-
 <div ng-app="rethinkTest" ng-controller="myCtrl">
-    <p>reTHINK broker address : <input type="text" ng-model="address" ng-init="address = 'localhost:8080'"></p>
+    <h1>reTHINK Catalogue Test Page</h1>
 
-    <p> Kind:
-        <select name="singleSelect" ng-model="kind">
-            <option value="hyperty">Hyperty</option>
-            <option value="protocolstub">Protostub</option>
-            <option value="runtime">Hyperty Runtime</option>
-            <option value="dataschema">DataSchema</option>
-        </select>
-    </p>
-    <div ng-show="kind != null">
-        <p>(optional) {{kind}} name: <input type="text" ng-model="name" ng-change="name = name == '' ? null : name"></p>
-    </div>
-
-    <div ng-show="address != null && kind != null">
-        <div ng-show="name != null">
-            <p> (optional) resource of {{name}}:
-                <select name="singleSelect" ng-model="resourceName"
+    <table>
+        <tr>
+            <td>Catalogue Broker hostname:</td>
+            <td><input type="text" ng-model="host" ng-init="host = 'localhost'"></td>
+        </tr>
+        <tr>
+            <td>Catalogue Broker protocol:</td>
+            <td><select name="singleSelect" ng-model="protocol"
+                        ng-init="protocol = 'http'" ng-change="protocol == 'http' ? port = 80 : port = 443">
+                <option value="http">http</option>
+                <option value="https">https</option>
+            </select></td>
+        </tr>
+        <tr>
+            <td align="right">Set port manually?</td>
+            <td><input type="checkbox" ng-model="manualPort">{{manualPort ? "yes" : "no"}}</td>
+        </tr>
+        <tr ng-show="manualPort">
+            <td>Catalogue Broker port:</td>
+            <td><input type="number"
+                       ng-model="port"
+                       ng-init="port = 80"></td>
+        </tr>
+        <tr>
+            <td>Catalogue Object type:</td>
+            <td><select name="singleSelect" ng-model="kind" ng-init="kind = 'hyperty'"
+                        ng-change="name = null; resourceName = null">
+                <option value="hyperty">Hyperty</option>
+                <option value="protocolstub">Protostub</option>
+                <option value="runtime">Hyperty Runtime</option>
+                <option value="dataschema">DataSchema</option>
+                <option value="sourcepackage">SourcePackage</option>
+            </select></td>
+        </tr>
+        <tr ng-show="kind != null">
+            <td>(optional) Object name:</td>
+            <td><input type="text" ng-model="name" ng-init="name = 'FirstHyperty'"
+                       ng-change="name = name == '' ? null : name"></td>
+        </tr>
+        <tr ng-show="name != null">
+            <td>(optional) Resource name:</td>
+            <td><select name="singleSelect" ng-model="resourceName"
                         ng-change="resourceName = resourceName == '' ? null : resourceName">
 
-                    <option></option>
-                    <option value="cguid">cguid</option>
-                    <option value="type">type</option>
-                    <option value="version">version</option>
-                    <option value="description">description</option>
-                    <option value="objectName">objectName</option>
-                    <option value="sourcePackageURL">sourcePackageURL</option>
-                    <option value="sourcePackage">sourcePackage</option>
-                    <option value="language">language</option>
-                    <option value="signature">signature</option>
-                    <option>---hyperty specific---</option>
-                    <option value="messageSchema">messageSchema</option>
-                    <option value="configuration">configuration</option>
-                    <option value="constraints">constraints</option>
-                    <option value="dataObjects">dataObjects</option>
-                    <option value="policies">policies</option>
-                    <option>---protostub specific---</option>
-                    <option value="messageSchemas">messageSchemas</option>
-                    <option value="configuration">configuration</option>
-                    <option value="constraints">constraints</option>
-                    <option>---runtime specific---</option>
-                    <option value="hypertyCapabilities">hypertyCapabilities</option>
-                    <option value="protocolCapabilities">protocolCapabilities</option>
-                    <option>---dataschema specific---</option>
-                    <option value="accessControlPolicy">accessControlPolicy</option>
-                </select>
-            </p>
-        </div>
+                <!-- empty option -->
+                <option></option>
 
+                <!-- generic attributes, hide if source package is selected -->
+                <option ng-hide="kind == 'sourcepackage'" value="cguid">cguid</option>
+                <option ng-hide="kind == 'sourcepackage'" value="version">version</option>
+                <option ng-hide="kind == 'sourcepackage'" value="description">description</option>
+                <option ng-hide="kind == 'sourcepackage'" value="objectName">objectName</option>
+                <option ng-hide="kind == 'sourcepackage'" value="sourcePackageURL">sourcePackageURL</option>
+                <option ng-hide="kind == 'sourcepackage'" value="sourcePackage">sourcePackage</option>
+                <option ng-hide="kind == 'sourcepackage'" value="language">language</option>
+                <option ng-hide="kind == 'sourcepackage'" value="signature">signature</option>
+
+                <!-- hyperty specific -->
+                <option ng-show="kind == 'hyperty'" value="hypertyType">hypertyType</option>
+                <option ng-show="kind == 'hyperty'" value="messageSchema">messageSchema</option>
+                <option ng-show="kind == 'hyperty'" value="configuration">configuration</option>
+                <option ng-show="kind == 'hyperty'" value="constraints">constraints</option>
+                <option ng-show="kind == 'hyperty'" value="dataObjects">dataObjects</option>
+                <option ng-show="kind == 'hyperty'" value="policies">policies</option>
+
+                <!-- protocolstub specific -->
+                <option ng-show="kind == 'protocolstub'" value="messageSchemas">messageSchemas</option>
+                <option ng-show="kind == 'protocolstub'" value="configuration">configuration</option>
+                <option ng-show="kind == 'protocolstub'" value="constraints">constraints</option>
+
+                <!-- runtime specific -->
+                <option ng-show="kind == 'runtime'" value="runtimeType">runtimeType</option>
+                <option ng-show="kind == 'runtime'" value="hypertyCapabilities">hypertyCapabilities</option>
+                <option ng-show="kind == 'runtime'" value="protocolCapabilities">protocolCapabilities</option>
+
+                <!-- data schema specific -->
+                <option ng-show="kind == 'dataschema'" value="accessControlPolicy">accessControlPolicy</option>
+
+                <!-- source package specific-->
+                <option ng-show="kind == 'sourcepackage'" value="encoding">encoding</option>
+                <option ng-show="kind == 'sourcepackage'" value="sourceCodeClassname">sourceCodeClassname</option>
+                <option ng-show="kind == 'sourcepackage'" value="sourceCode">sourceCode</option>
+                <option ng-show="kind == 'sourcepackage'" value="signature">signature</option>
+            </select></td>
+        </tr>
+    </table>
+
+    <div ng-show="host != null && kind != null">
         <!-- TODO: improve code -->
-        <h3>Generated path:<br>
-            {{"http://" + address + "/.well-known/" + kind + "/" + (name == null ? '' : name) + (resourceName != null ? "/" + resourceName : "")}}</h3>
-        <button ng-click="response = getResource('http://' + address + '/.well-known/' + kind + '/' + (name == null ? '' : name) + (resourceName != null ? '/' + resourceName : ''))" ng-init="response = null">get {{name || kind}}</button>
-        <button ng-click="response = getAndExecCode(getResource('http://' + address + '/.well-known/' + kind + '/' + name + '/sourcePackageURL'))">get & execute code</button>
+        <h2>Generated path:<br>
+            {{address = protocol + "://" + host + (manualPort ? ":" + port : "")+ "/.well-known/" + kind + "/" + (name
+            == null ? '' : name) + (resourceName != null ? "/" + resourceName : "")}}</h2>
+        <button ng-click="response = getResource(address)" ng-init="response = null">get {{name || kind}}</button>
+        <button ng-click="response = getAndExecCode(getResource(address + '/sourcePackageURL'))">get & execute code
+        </button>
 
 
         <div ng-show="response != null">
             <br>
-            Response:<pre>{{response | json}}</pre>
+            Response:
+            <pre>{{response | json}}</pre>
         </div>
 
     </div>
 
-    <br>
-    ---------------------------------------------------<br>
+    <p>---------------------------</p>
     <button ng-click="debug = !debug" ng-init="debug = false">Toggle Debug Info</button>
     <div ng-show="debug">
         <table border="1">
+            <tr>
+                <td align="right">host</td>
+                <td>{{host}}</td>
+            </tr>
+            <tr>
+                <td align="right">port</td>
+                <td>{{port}}</td>
+            </tr>
             <tr>
                 <td align="right">address</td>
                 <td>{{address}}</td>
@@ -100,7 +149,9 @@
             </tr>
             <tr>
                 <td align="right">response</td>
-                <td><pre>{{response}}</pre></td>
+                <td>
+                    <pre>{{response | json}}</pre>
+                </td>
             </tr>
         </table>
     </div>
@@ -112,7 +163,7 @@
     app.controller('myCtrl', function ($scope) {
 
 
-        $scope.getResource = function(url) {
+        $scope.getResource = function (url) {
 //            var url = "http://" + address + "/.well-known/" + kind + "/" + name;
             console.log("trying to send a request to: " + url);
 
@@ -139,7 +190,7 @@
         };
 
 
-        $scope.getAndExecCode = function(url) {
+        $scope.getAndExecCode = function (url) {
             console.log("getting sourcePackage from:", url);
             try {
                 var resp = $scope.getResource(url);
@@ -161,7 +212,7 @@
 //        window.getResource = $scope.getResource;
 
         var rethink = {};
-        rethink.myalert = function(msg) {
+        rethink.myalert = function (msg) {
             alert(msg || "this is a test!");
         };
 
