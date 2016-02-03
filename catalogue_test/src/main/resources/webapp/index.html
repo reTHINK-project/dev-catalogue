@@ -13,16 +13,16 @@
 <body>
 <div ng-app="rethinkTest" ng-controller="myCtrl">
     <h1>reTHINK Catalogue Test Page</h1>
-
+    <b>Attention: Use catalogue-rethink.fokus.fraunhofer.de as a broker address to access a publicly available instance.</b>
     <table>
         <tr>
             <td>Catalogue Broker hostname:</td>
-            <td><input type="text" ng-model="host" ng-init="host = 'localhost'"></td>
+            <td><input size="30" type="text" ng-model="host" ng-init="host = 'localhost'"></td>
         </tr>
         <tr>
             <td>Catalogue Broker protocol:</td>
             <td><select name="singleSelect" ng-model="protocol"
-                        ng-init="protocol = 'http'" ng-change="protocol == 'http' ? port = 80 : port = 443">
+                        ng-init="protocol = 'https'" ng-change="protocol == 'http' ? port = 80 : port = 443">
                 <option value="http">http</option>
                 <option value="https">https</option>
             </select></td>
@@ -50,7 +50,7 @@
         </tr>
         <tr ng-show="kind != null">
             <td>(optional) Object name:</td>
-            <td><input type="text" ng-model="name" ng-init="name = 'FirstHyperty'"
+            <td><input size="30" type="text" ng-model="name" ng-init="name = 'FirstHyperty'"
                        ng-change="name = name == '' ? null : name"></td>
         </tr>
         <tr ng-show="name != null">
