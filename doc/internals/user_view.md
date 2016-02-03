@@ -15,7 +15,7 @@ To retrieve objects from the reThink Catalogue, a client (e.g. a hyperty runtime
     <hostname>  ::= "localhost"  |  <csp-domain>
     <csp-domain>  ::=   [ <url-string> "." ]  <url-string> "." <top-level-domain>
     <top-level-domain>  ::=  "de" | "com" | "org" | "fr" | "eu"
-    <resource-type> ::= "protocolstub"  |  "hyperty" 
+    <resource-type> ::= "protocolstub"  |  "hyperty" | "runtime"  |  "dataschema"
     <resource-type-id>  ::= "default"  | <identifier>
     <identifier>  ::= <url-string>
     <url-string> ::= <url-char> ...
@@ -28,7 +28,7 @@ To retrieve objects from the reThink Catalogue, a client (e.g. a hyperty runtime
                                 | "T" | "U" | "V" | "W" | "X" | "Y" | "Z"
     <digit>  ::=   "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" 
 
-**Note:  the BNFR spec of the resource path needs to be updated, as the [most current version](https://github.com/reTHINK-project/architecture/blob/master/docs/interface-design/resource-path.md) does not reflect all possible objects that can be stored in the catalogue**
+Note: The most current verion of the resource data path definiton can be found  [here](https://github.com/reTHINK-project/architecture/blob/master/docs/interface-design/resource-path.md).
 
 The following examples show the resource path for two protocol stubs, namely *myAwesome_protocol-stub9* and *myAwesome_protocol-stub9*, which are stored in a reThink Catalogue hosted on the host *catalogue.rethink.eu*.  Note that it is also possible to use *localhost* in case a catalogue is locally deployed on the system that originates the request.
 
@@ -69,11 +69,11 @@ Each catalogue object's directory contains up to three files that contain the de
 
 The catalogue object descriptions below the *catalogue_objects* directory are read-in once while starting the reThink Catalogue Database program.
 
-
-
 The following **Figure illustrates the two users' views on the reThink Catalogue**, showing the one monolytic appearance that can be accessed via http and https to retrieve objects fromt the catalogue, and the distributed internal view to populate the catalogue, here by having two instances of the reThink Catalogue Database.
 
 ![external_view](https://github.com/reTHINK-project/dev-catalogue/blob/master/doc/internals/catalogue-external-view.png)
+
+In order to learn how to start either of the catalogue database or cataluge broker, please go to the XXX
 
 
 **References**
