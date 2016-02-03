@@ -85,6 +85,7 @@ public class CatalogueDatabase {
 
     public static void main(final String[] args) {
         String hostName = null, objPath = null;
+        boolean useHttp = false;
         int port = -1;
 
         for (int i = 0; i < args.length; i++) {
@@ -93,6 +94,13 @@ public class CatalogueDatabase {
                 case "-h":
                 case "-host":
                     hostName = args[++i];
+                    break;
+                case "-usehttp":
+                    if (args.length <= i+1 || args[i+1].startsWith("-")) { // check if boolean value is not given, assume true
+                        useHttp = true;
+                    } else {
+                        useHttp = Boolean.parseBoolean(args[++i]);
+                    }
                     break;
                 case "-p":
                 case "-port":
@@ -106,10 +114,10 @@ public class CatalogueDatabase {
                     break;
             }
         }
-        new CatalogueDatabase(hostName, port, objPath);
+        new CatalogueDatabase(hostName, port, objPath, useHttp);
     }
 
-    public CatalogueDatabase(String serverHostName, int serverPort, String catObjsPath) {
+    public CatalogueDatabase(String serverHostName, int serverPort, String catObjsPath, boolean useHttp) {
 
         // check arguments
         if (serverHostName == null)
@@ -129,7 +137,11 @@ public class CatalogueDatabase {
         RethinkInstance[] parsedSchemas;
         RethinkInstance[] parsedSourcePackages;
 
-        accessURL = "https://" + serverHostName + "/.well-known/";
+        if (useHttp) {
+            accessURL = "http://" + serverHostName + "/.well-known/";
+        } else {
+            accessURL = "https://" + serverHostName + "/.well-known/";
+        }
 
         Map<Integer, RethinkInstance[]> resultMap = parseFiles(catObjsPath);
         parsedHyperties = resultMap.get(HYPERTY_MODEL_ID);
