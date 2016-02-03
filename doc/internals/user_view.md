@@ -42,18 +42,26 @@ In order to **populate the catalogue with data**, the user sees the catalogue as
 At the database, catalogue objects are hirarchically stored in the file system.  Those resources are stored in the *catalogue_objects* directory which exists in parallel to the *catalogue_database* directory that holds the runtime of the reThink Catalogue Database.  Beneath *catalogue_objects* exist subdirectories, one for each *kind of cataogue objects*, which in turn hold one subdirectory for each catalogue object.  The following figure illustrates the directory structure; two hyperty catalogue objects, named *FirstHyperty* and *SecondHyperty* are included.
 
     --|----- catalogue_database
+      |
       |--+-- catalogue_objects
+         |
          |--+-- hyperty
-            |--+-- FirstHyperty
-               |----- description.json
-               |----- sourcePackage.json
-               |----- sourceCode.js
-            |--+-- SecondHyperty
-               |----- ...
+         |  |
+         |  |--+-- FirstHyperty
+         |  |  |
+         |  |  |----- description.json
+         |  |  |----- sourcePackage.json
+         |  |  |----- sourceCode.js
+         |  |
+         |  |--+-- SecondHyperty
+         |  |  |----- ...
+         |  |
          |--+-- protostub
-            |----- ...
+         |  |----- ...
+         |
          |--+-- dataschema
-            |----- ...
+         |  |----- ...
+         |
          |--+-- runtime
             |----- ...
 
