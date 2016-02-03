@@ -35,7 +35,7 @@
             <td>Catalogue Broker port:</td>
             <td><input type="number"
                        ng-model="port"
-                       ng-init="port = 80"></td>
+                       ng-init="protocol == 'http' ? port = 80 : port = 443"></td>
         </tr>
         <tr>
             <td>Catalogue Object type:</td>
