@@ -14,6 +14,9 @@ As described in the [user view](./user_view.md) section, the reThink Catalogue c
 
 #### reThink Catalogue Database
 
+![developer_view_database](https://github.com/reTHINK-project/dev-catalogue/blob/master/doc/internals/catalogue-developer-view-database.png)
+
+
 Upon initialization, the catalogue database checks if user-defined values for the (broker) host name and port number were given and if not, initializes them with default presets.
 
         if (serverHostName == null)
