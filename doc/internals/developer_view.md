@@ -14,6 +14,8 @@ As described in the [user view](./user_view.md) section, the reThink Catalogue c
 
 #### reThink Catalogue Database
 
+The implementation of the reThink Catalogue Database is concentrated in the catalogue database class which only depends on the Eclipse Leshan (client) class as seen in the figure below:
+
 ![developer_view_database](https://github.com/reTHINK-project/dev-catalogue/blob/master/doc/internals/catalogue-developer-view-database.png)
 
 
