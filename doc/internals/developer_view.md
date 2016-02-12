@@ -11,7 +11,51 @@ As described in the [user view](./user_view.md) section, the reThink Catalogue c
 
 #### reThink Catalogue Broker
 
+The implementation of the reThink Catalogue Broker is concentrated in the catalogue broker class which only depends on the (a) the Eclipse Leshan (server) class and (b) on the http(s) server as provided via the Java library.
 
+XXXX include Fig Here
+
+The implementation of the catalogue broker class provides a main() method allowing to immediately derive a catalogue broker application.  Within the main() method, the broker parses potential arguments provided during the invokation of the application.  As the catalogue broker is an instantiated object at this time, all required initializations are completed upon invoking main().  For the developer, the initialization of the path to the key-files needed for https-support as well as the keys themself are essential.  In the current implentation, both are hard-coded, i.e.:
+
+    private String keystorePath = "ssl/keystore";
+    private String keystorePassword = "OBF:RandomizedStringAsAPassword";
+    private String keystoreManagerPassword = "OBF:RandomizedStringAsAPassword";
+    private String truststorePath = "ssl/keystore";
+    private String truststorePassword = "OBF:RandomizedStringAsAPassword";
+ 
+ Accordingly, the keystore-file has to be located at ```ssl/keystore``` at the top level of the dev-catalogue repository.
+ 
+ Upon ```start()```, the catalogue broker instantiates a Lehsan server object to provide the southbound interface towards the databases and to store the provided resource information from each connected database; and a http(s)-server that acts as the (additional) northbound interface as specified in the reThink Project.
+ 
+Incoming (northbound) requests via http(s) on the ```/.well-known/*``` path as defined in the reThink resource path spec are handled via a servelet that invokes the ```rethinkRequestHandler = new RequestHandler(lwServer)```.  Note: The implementation of the RequestHandler class is contained in *RequestHandler.java*.
+
+As the reThink resource path contains names, i.e. textual descripive tags, for each resource versus the core of the LWM2M-based catalogue employing unique numerical tags for efficiency, the ```RequestHandler``` generates a name:id map upon initialization for each supported resource.  The following code sniplet is given for hypertyResouces only.  A developer that intends to add additional catalogue object kinds to be supported by the reThink Catalogue would have to extend the code within the ```RequestHandler``` correspondingly.
+
+    // name:id map for
+    // populate hypertyResourceNameToID
+    ObjectEnabler hypertyEnabler = new ObjectsInitializer(customModel).create(HYPERTY_MODEL_ID);
+    HYPERTYMODEL = hypertyEnabler.getObjectModel().resources;
+    // populate id:name map from resources
+    for (Map.Entry<Integer, ResourceModel> entry : HYPERTYMODEL.entrySet()) {
+      hypertyResourceNameToID.put(entry.getValue().name, entry.getKey());
+    }
+    LOG.debug("generated name:id map for hyperties: " + hypertyResourceNameToID);
+    
+
+The ```handleGet()``` method parses the received (resource) path and returns the corrsponding entries from the linkedHashMap, e.g. as shown here for the hyperty path:
+
+String type = pathParts[0];
+      
+      switch (type) {
+        case HYPERTY_TYPE_NAME: {
+          return this.gson.toJson(hypertyNameToInstanceMap.keySet());
+        }
+        .....
+        .....
+        
+
+
+ 
 
 
 #### reThink Catalogue Database
