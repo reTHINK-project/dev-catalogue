@@ -42,10 +42,6 @@ package eu.rethink.catalogue.broker;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
-import eu.rethink.catalogue.broker.json.ClientSerializer;
-import eu.rethink.catalogue.broker.json.LwM2mNodeDeserializer;
-import eu.rethink.catalogue.broker.json.LwM2mNodeSerializer;
-import eu.rethink.catalogue.broker.json.ResponseSerializer;
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.leshan.LinkObject;
 import org.eclipse.leshan.ResponseCode;
@@ -55,7 +51,6 @@ import org.eclipse.leshan.core.model.LwM2mModel;
 import org.eclipse.leshan.core.model.ResourceModel;
 import org.eclipse.leshan.core.node.*;
 import org.eclipse.leshan.core.request.ReadRequest;
-import org.eclipse.leshan.core.response.LwM2mResponse;
 import org.eclipse.leshan.core.response.ValueResponse;
 import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.eclipse.leshan.server.client.Client;
@@ -176,10 +171,7 @@ public class RequestHandler {
 
         // set up gson
         GsonBuilder gsonBuilder = new GsonBuilder();
-        gsonBuilder.registerTypeHierarchyAdapter(Client.class, new ClientSerializer());
-        gsonBuilder.registerTypeHierarchyAdapter(LwM2mResponse.class, new ResponseSerializer());
-        gsonBuilder.registerTypeHierarchyAdapter(LwM2mNode.class, new LwM2mNodeSerializer());
-        gsonBuilder.registerTypeHierarchyAdapter(LwM2mNode.class, new LwM2mNodeDeserializer());
+
         gsonBuilder.setDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
         this.gson = gsonBuilder.create();
         this.parser = new JsonParser();
@@ -956,17 +948,6 @@ public class RequestHandler {
                                 errorMap.put("ERROR", instanceMap);
                                 result[0] = gson.toJson(errorMap);
                             } else {
-//                                if (finalModel.get(resource.getId()).name.equals("sourcePackage")) {
-//                                    JsonElement obj = parser.parse((String) resource.getValue().value);
-//                                    Set<Map.Entry<String, JsonElement>> entries = obj.getAsJsonObject().entrySet();
-//                                    for (Map.Entry<String, JsonElement> entry : entries) {
-//                                        instanceMap.put(entry.getKey(), entry.getValue().getAsString());
-//                                    }
-//                                    result[0] = gson.toJson(instanceMap);
-//
-//                                } else {
-//                                    instanceMap.put(finalModel.get(resource.getId()).name, (String) resource.getValue().value);
-//                                }
                                 result[0] = (String) resource.getValue().value;
                             }
 

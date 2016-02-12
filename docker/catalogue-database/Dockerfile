@@ -8,17 +8,10 @@ MAINTAINER marc.emmelmann@fokus.fraunhofer.de
 # TODO: mv the installation of the code from the baseline
 # into this dockerfile.
 
-
-ADD ./runner.sh /opt/reTHINK/catalogue/catalogue_database/runner.sh
-RUN chmod +x /opt/reTHINK/catalogue/catalogue_database/runner.sh
-
-
 # Attention:  run with
 #
 #		docker  run  -it  --net=host 
 #
 
 # ENTRYPOINT is the command that is always run.
-ENTRYPOINT ["/opt/reTHINK/catalogue/catalogue_database/runner.sh"]
-# Default Parameters; may be easily overwritten upon runtime
-CMD ["localhost", "5683", "/opt/reTHINK/catalogue/catalogue_objects"] 
+ENTRYPOINT ["java", "-jar", "/opt/reTHINK/catalogue/catalogue_database/target/rethink-catalogue-database-2.1-jar-with-dependencies.jar", "-o", "/opt/reTHINK/catalogue/catalogue_objects"]
