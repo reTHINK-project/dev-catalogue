@@ -1,8 +1,4 @@
 ### Developer view
-* specifications, interfaces
-* including usable tools, tutorials and working examples
-* 
-
 
 As described in the [user view](./user_view.md) section, the reThink Catalogue consists of two functional components: the reThink Catalogue Broker and the reThink Catalogue Database.  The developer view describes per component the latter's functional block in the implementation.  Focus is herein given to those aspects of the implementation that need to be changed if a future revision of the reThink Catalogue is extended towards:
   * supporting additional catalgoue object kinds
@@ -13,7 +9,7 @@ As described in the [user view](./user_view.md) section, the reThink Catalogue c
 
 The implementation of the reThink Catalogue Broker is concentrated in the catalogue broker class which only depends on the (a) the Eclipse Leshan (server) class and (b) on the http(s) server as provided via the Java library.
 
-XXXX include Fig Here
+![developer_view_broker](https://github.com/reTHINK-project/dev-catalogue/blob/master/doc/internals/catalogue-developer-view-broker.png)
 
 The implementation of the catalogue broker class provides a main() method allowing to immediately derive a catalogue broker application.  Within the main() method, the broker parses potential arguments provided during the invokation of the application.  As the catalogue broker is an instantiated object at this time, all required initializations are completed upon invoking main().  For the developer, the initialization of the path to the key-files needed for https-support as well as the keys themself are essential.  In the current implentation, both are hard-coded, i.e.:
 
