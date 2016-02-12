@@ -4,7 +4,9 @@
 * 
 
 
-As described in the [user view](./user_view.md) section, the reThink Catalogue consists of two functional components: the reThink Catalogue Broker and the reThink Catalogue Database.  The developer view describes per component the latter's functional block in the implementation.
+As described in the [user view](./user_view.md) section, the reThink Catalogue consists of two functional components: the reThink Catalogue Broker and the reThink Catalogue Database.  The developer view describes per component the latter's functional block in the implementation.  Focus is herein given to those aspects of the implementation that need to be changed if a future revision of the reThink Catalogue is extended towards:
+  * supporting additional catalgoue object kinds
+  * tbf.
 
 
 #### reThink Catalogue Broker
