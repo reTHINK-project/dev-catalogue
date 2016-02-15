@@ -8,6 +8,4 @@
 
 ## [Internals](./internals)
 * [Developer view](./internals/developer_view.md)
-  * specifications, interfaces
-  * including usable tools, tutorials and working examples
 * [User view](./internals/user_view.md)
