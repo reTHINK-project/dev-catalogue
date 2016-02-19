@@ -102,7 +102,7 @@ The following components are dockerized to allow local testing without the need 
 * Catalogue Database
 * Catalogue Test Client GUI
 
-To start the three components, run the following commands _in that order_ in separate terminal windows:
+To start the three components, run the following commands *in that order* in separate terminal windows:
 
 1. docker run -it --net=host rethink/catalogue-broker:v2.1
 2. docker run -it --net=host rethink/catalogue-database:v2.1
