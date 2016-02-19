@@ -25,6 +25,18 @@ java -jar catalogue_test/target/rethink-catalogue-test-*-jar-with-dependencies.j
 
 Please refer to the [usage guide](./usage_guide.md) to learn about support arguments and configuration options.
 
+
 #### Working with deployable Docker images
+
+A set of docker images is provided, one for each catalogue components.  The images contain the most recest version of the implementation as found in the master branch of the code repository.  Images are automatically updated by Docker-Hub.  To deploy the images, run ```docker pull``` for each image.  You may also directly start the images (indirectly triggering a *pull* if the image is not locally available) via:
+```
+docker run -it --net=host rethink/catalogue-broker
+docker run -it --net=host rethink/catalogue-database
+docker run -it --net=host rethink/catalogue-test-client
+```
+
+Please refer to the [docker website](https://www.docker.com) on how to install and work with docker.
+
+
 
 
