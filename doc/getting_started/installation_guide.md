@@ -35,7 +35,8 @@ docker run -it --net=host rethink/catalogue-database
 docker run -it --net=host rethink/catalogue-test-client
 ```
 
-Please refer to the [docker website](https://www.docker.com) on how to install and work with docker.
+Please refer to the [docker website](https://www.docker.com) on how to install and work with docker.  Also, please refer to the [usage guide](./usage_guide.md) to learn about support arguments and configuration options.
+
 
 
 
