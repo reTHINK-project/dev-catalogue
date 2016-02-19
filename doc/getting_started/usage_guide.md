@@ -33,5 +33,30 @@ If testing in a browser, please also make sure your browser accepts the provided
 
 ##### Catalogue Database
 
+Synopsis:
+
+`java -jar target/catalogue_database-*-jar-with-dependencies.jar [-host hostname] [-port coap_port] [-objpath object_path] [-usehttp]`
+
+Example:
+
+`java -jar catalogue_database/target/rethink-catalogue-database-*-jar-with-dependencies.jar -h mydomain.com -p 5683 -o catalogue_objects`
+
+
+You can configure the Catalogue Database using the following options:
+
+option       | description
+------------ | ---------------------------
+-host, -h    | specify Catalogue Broker hostname/IP
+-port, -p    | specify Catalogue Broker coap port
+-objpath, -o | path of folder containing catalogue objects (e.g. provided catalogue_objects folder)
+-usehttp     | change protocol of generated sourceCodeURLs to http (otherwise, https is used)
+
+If you run the Catalogue Database without launch arguments,
+it tries to connect to the Catalogue Broker on localhost:5683 by default,
+trying to use the catalogue_objects folder in the same directory you started the jar from.
+
+Please be aware that the hostname will be used to generate the sourcePackageURL, if a sourcePackage is provided.
+
+
 ##### Catalogue Test WebPage
 
