@@ -83,9 +83,9 @@ To use custom Catalogue Data Objects, you have to comply with a certain folder s
 4. the catalogue data object is primarily defined in *description.json*
 5. the sourcePackage is defined in *sourcePackage.json*
 6. if a sourcePackage is provided, then a sourcePackageURL will be generated.
-7. providing a sourcePackage is optional. **If not provided, sourcePackageURL has to be defined in *description.json***
+7. providing a sourcePackage is optional.  Please pay attenttion that in the case where a source package is not provided, a sourcePackageURL has to be defined in *description.json*.
 7. the source code can either be included in the sourcePackage, or contained in *sourceCode.js*
 8. a sourcePackage can also be included in description.json
 9. you cannot have a sourcePackage defined in description.json and have the sourceCode in a separate file
-10. please avoid duplicate entries, e.g. sourceCode in *sourcePackage.json* **and** *sourceCode.js*
+10. please avoid duplicate entries, e.g. sourceCode in *sourcePackage.json* and *sourceCode.js*
 
