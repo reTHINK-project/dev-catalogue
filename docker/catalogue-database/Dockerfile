@@ -1,4 +1,4 @@
-FROM rethink/catalogue-baseline
+FROM rethink/catalogue-baseline:v2.2
 MAINTAINER marc.emmelmann@fokus.fraunhofer.de
 
 
@@ -14,4 +14,4 @@ MAINTAINER marc.emmelmann@fokus.fraunhofer.de
 #
 
 # ENTRYPOINT is the command that is always run.
-ENTRYPOINT ["java", "-jar", "/opt/reTHINK/catalogue/catalogue_database/target/rethink-catalogue-database-latest-jar-with-dependencies.jar", "-o", "/opt/reTHINK/catalogue/catalogue_objects"]
+ENTRYPOINT ["java", "-jar", "/opt/reTHINK/catalogue/catalogue_database/target/rethink-catalogue-database-2.2-jar-with-dependencies.jar", "-o", "/opt/reTHINK/catalogue/catalogue_objects"]
