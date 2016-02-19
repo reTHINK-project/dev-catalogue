@@ -70,3 +70,22 @@ Example:
 `java -jar catalogue_test/target/rethink-catalogue-test-*-jar-with-dependencies.jar 8090`
 
 Note: by default, the catalogue test webpage is accessible via port 8080.
+
+
+
+#### Using custom Catalogue Data Objects
+
+To use custom Catalogue Data Objects, you have to comply with a certain folder structure. Please see the provided example objects contained in *catalogue_objects*.
+
+1. the root folder for objects must contain the type as a subfolder, e.g. "protocolstub"
+2. all elements of a catalogue object are contained in a single folder.
+3. the type folders hold the catalogue object folders
+4. the catalogue data object is primarily defined in *description.json*
+5. the sourcePackage is defined in *sourcePackage.json*
+6. if a sourcePackage is provided, then a sourcePackageURL will be generated.
+7. providing a sourcePackage is optional. **If not provided, sourcePackageURL has to be defined in *description.json***
+7. the source code can either be included in the sourcePackage, or contained in *sourceCode.js*
+8. a sourcePackage can also be included in description.json
+9. you cannot have a sourcePackage defined in description.json and have the sourceCode in a separate file
+10. please avoid duplicate entries, e.g. sourceCode in *sourcePackage.json* **and** *sourceCode.js*
+
