@@ -18,6 +18,10 @@ java -jar catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependenci
 ```
 java -jar catalogue_database/target/rethink-catalogue-database-*-jar-with-dependencies.jar -h mydomain.com -p 5683 -o catalogue_objects
 ```
+3.) For the Catalogue testsite:
+```
+java -jar catalogue_test/target/rethink-catalogue-test-*-jar-with-dependencies.jar 8090
+```
 
 Please refer to the [usage guide](./usage_guide.md) to learn about support arguments and configuration options.
 
