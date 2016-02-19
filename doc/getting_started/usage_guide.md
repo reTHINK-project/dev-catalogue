@@ -60,3 +60,13 @@ Please be aware that the hostname will be used to generate the sourcePackageURL,
 
 ##### Catalogue Test WebPage
 
+
+Synopsis:
+
+`java -jar rethink-catalogue-test-*-jar-with-dependencies.jar [port]`
+
+Example:
+
+`java -jar catalogue_test/target/rethink-catalogue-test-*-jar-with-dependencies.jar 8090`
+
+Note: by default, the catalogue test webpage is accessible via port 8080.
