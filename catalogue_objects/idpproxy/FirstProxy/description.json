@@ -1,0 +1,11 @@
+{
+  "cguid": 32065498481198,
+  "version": "1.0",
+  "objectName": "FirstProxy",
+  "description": "This is a idp-proxy",
+  "language": "Javascript ECMA6",
+  "dataObjects": [],
+  "configuration": [],
+  "constraints": [],
+  "messageSchemas": []
+}
