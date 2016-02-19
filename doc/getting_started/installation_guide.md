@@ -19,7 +19,7 @@ java -jar catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependenci
 java -jar catalogue_database/target/rethink-catalogue-database-*-jar-with-dependencies.jar -h mydomain.com -p 5683 -o catalogue_objects
 ```
 
-Please refer to the usage guide to learn about support arguments and configuration options.
+Please refer to the [usage guide](./usage_guide.md) to learn about support arguments and configuration options.
 
 #### Working with deployable Docker images
 
