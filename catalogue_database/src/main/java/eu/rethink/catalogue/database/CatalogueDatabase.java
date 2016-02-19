@@ -109,7 +109,7 @@ public class CatalogueDatabase {
                     hostName = args[++i];
                     break;
                 case "-usehttp":
-                    if (args.length <= i+1 || args[i+1].startsWith("-")) { // check if boolean value is not given, assume true
+                    if (args.length <= i + 1 || args[i + 1].startsWith("-")) { // check if boolean value is not given, assume true
                         useHttp = true;
                     } else {
                         useHttp = Boolean.parseBoolean(args[++i]);
@@ -359,6 +359,7 @@ public class CatalogueDatabase {
 
         /**
          * Set id:name map so instance knows which id corresponds to the correct field. (based on model.json)
+         *
          * @param idNameMap
          */
         public void setIdNameMap(Map<Integer, String> idNameMap) {
@@ -392,6 +393,7 @@ public class CatalogueDatabase {
 
         /**
          * Create a reTHINK instance with name:value mapping from model.json
+         *
          * @param nameValueMap
          */
         public RethinkInstance(Map<String, String> nameValueMap) {
