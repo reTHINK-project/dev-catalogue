@@ -33,4 +33,4 @@
 
 ### internal view
 * code refinement for Catalogue Broker & Database
-* fixed a bug that occured when the Broker requested a resource of an Object and the Database returned with NOT_FOUND
+* fixed a bug that occurred when the Broker requested a resource of an Object and the Database returned with NOT_FOUND
