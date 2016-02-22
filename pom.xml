@@ -7,7 +7,7 @@
     <groupId>eu.rethink.catalogue</groupId>
     <artifactId>rethink-catalogue</artifactId>
     <packaging>pom</packaging>
-    <version>latest</version>
+    <version>1.0.0</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

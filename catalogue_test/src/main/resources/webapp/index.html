@@ -45,6 +45,7 @@
                 <option value="protocolstub">Protostub</option>
                 <option value="runtime">Hyperty Runtime</option>
                 <option value="dataschema">DataSchema</option>
+                <option value="idp-proxy">IDP-Proxy</option>
                 <option value="sourcepackage">SourcePackage</option>
             </select></td>
         </tr>
@@ -92,6 +93,11 @@
                 <!-- data schema specific -->
                 <option ng-show="kind == 'dataschema'" value="accessControlPolicy">accessControlPolicy</option>
 
+                <!-- idp-proxy specific -->
+                <option ng-show="kind == 'idp-proxy'" value="messageSchemas">messageSchemas</option>
+                <option ng-show="kind == 'idp-proxy'" value="configuration">configuration</option>
+                <option ng-show="kind == 'idp-proxy'" value="constraints">constraints</option>
+
                 <!-- source package specific-->
                 <option ng-show="kind == 'sourcepackage'" value="encoding">encoding</option>
                 <option ng-show="kind == 'sourcepackage'" value="sourceCodeClassname">sourceCodeClassname</option>
@@ -104,9 +110,17 @@
     <div ng-show="host != null && kind != null">
         <!-- TODO: improve code -->
         <h2>Generated path:<br>
-            {{address = protocol + "://" + host + (manualPort ? ":" + port : "")+ "/.well-known/" + kind + "/" + (name
-            == null ? '' : name) + (resourceName != null ? "/" + resourceName : "")}}</h2>
-        <button ng-click="response = getResource(address)" ng-init="response = null">get {{name || kind}}</button>
+            {{
+                address = protocol
+                    + "://" + host + (manualPort ? ":" + port : "")
+                    + "/.well-known/"
+                    + kind + "/"
+                    + (name == null ? '' : name);
+
+                address + (resourceName != null ? '/' + resourceName : '')
+            }}
+        </h2>
+        <button ng-click="response = getResource(address + (resourceName != null ? '/' + resourceName : ''))" ng-init="response = null">get {{name || kind}}</button>
         <button ng-click="response = getAndExecCode(getResource(address + '/sourcePackageURL'))">get & execute code
         </button>
 
@@ -170,8 +184,9 @@
             var xmlHttp = new XMLHttpRequest();
             try {
                 xmlHttp.open("GET", url, false); // false for synchronous request
-                xmlHttp.send(null);
+                xmlHttp.send();
             } catch (e) {
+                console.error(e);
                 alert("Error while trying to get resource:\r\n" + e);
                 return;
             }

@@ -7,16 +7,12 @@ MAINTAINER marc.emmelmann@fokus.fraunhofer.de
 #
 # TODO: mv the installation of the code from the baseline
 # into this dockerfile.
-
-ADD ./runner.sh /opt/reTHINK/catalogue/catalogue_broker/runner.sh
-RUN chmod +x /opt/reTHINK/catalogue/catalogue_broker/runner.sh
-
-
+#
 # Attention:  run with
 #
 #		docker  run  -it  --net=host 
 #
 
 # ENTRYPOINT is the command that is always run.
-ENTRYPOINT ["java", "-jar", "/opt/reTHINK/catalogue/catalogue_broker/target/rethink-catalogue-broker-latest-jar-with-dependencies.jar", "-kp", "/opt/reTHINK/catalogue/ssl/keystore", "-tp", "/opt/reTHINK/catalogue/ssl/keystore"]
+ENTRYPOINT ["java", "-jar", "/opt/reTHINK/catalogue/catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependencies.jar", "-kp", "/opt/reTHINK/catalogue/ssl/keystore", "-tp", "/opt/reTHINK/catalogue/ssl/keystore"]
 

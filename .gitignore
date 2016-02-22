@@ -9,3 +9,4 @@ gen
 /Californium.properties
 /catalogue_database/target
 /catalogue_broker/target
+/catalogue_test/target

@@ -5,7 +5,7 @@
     <parent>
         <artifactId>rethink-catalogue</artifactId>
         <groupId>eu.rethink.catalogue</groupId>
-        <version>latest</version>
+        <version>1.0.0</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
