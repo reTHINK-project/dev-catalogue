@@ -5,7 +5,7 @@ As described in the [user view](./user_view.md) section, the reThink Catalogue c
 
 #### reThink Catalogue Broker
 
-The implementation of the reThink Catalogue Broker is concentrated in the catalogue broker class which only depends on the (a) the Eclipse Leshan (server) class and (b) on the http(s) server as provided via the Java library.
+The implementation of the reThink Catalogue Broker is concentrated in the catalogue broker class which only depends on the (a) the Eclipse Leshan (server) class and (b) on the http(s) server as provided via the Eclipse Jetty library.
 
 ![developer_view_broker](https://github.com/reTHINK-project/dev-catalogue/blob/master/doc/internals/catalogue-developer-view-broker.png)
 
