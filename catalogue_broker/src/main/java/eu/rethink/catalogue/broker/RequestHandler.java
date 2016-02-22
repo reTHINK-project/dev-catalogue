@@ -95,15 +95,15 @@ public class RequestHandler {
     public RequestHandler(LeshanServer server) {
         this.server = server;
 
-        //get LwM2mModel from modelprovider
+        // get LwM2mModel from modelprovider
         LwM2mModel customModel = server.getModelProvider().getObjectModel(null);
 
         for (Integer modelId : MODEL_IDS) {
-            ObjectEnabler hypertyEnabler = new ObjectsInitializer(customModel).create(modelId);
-            Map<Integer, ResourceModel> model = hypertyEnabler.getObjectModel().resources;
+            ObjectEnabler modelEnabler = new ObjectsInitializer(customModel).create(modelId);
+            Map<Integer, ResourceModel> model = modelEnabler.getObjectModel().resources;
             MODEL_MAP.put(modelId, model);
             Map<String, Integer> resourceNameToIdMap = new LinkedHashMap<>(model.size());
-            //populate id:name map from resources
+            // populate id:name map from resources
             for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
                 resourceNameToIdMap.put(entry.getValue().name, entry.getKey());
             }

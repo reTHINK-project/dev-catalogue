@@ -191,7 +191,7 @@ public class CatalogueDatabase {
                 ObjectEnabler enabler = initializer.create(modelId);
                 enablers.add(enabler);
 
-                // create idNameMap for hyperties
+                // create id:name map for the current model
                 LinkedHashMap<Integer, String> idNameMap = new LinkedHashMap<>();
                 Map<Integer, ResourceModel> model = enabler.getObjectModel().resources;
 
@@ -200,9 +200,9 @@ public class CatalogueDatabase {
                     idNameMap.put(entry.getKey(), entry.getValue().name);
                 }
 
-                // set id:name map on all hyperties
-                for (RethinkInstance parsedHyperty : instances) {
-                    parsedHyperty.setIdNameMap(idNameMap);
+                // set id:name map on all instances of that model
+                for (RethinkInstance instance : instances) {
+                    instance.setIdNameMap(idNameMap);
                 }
             }
         }
@@ -332,7 +332,7 @@ public class CatalogueDatabase {
         File desc = new File(dir, "description.json");
         File pkg = new File(dir, "sourcePackage.json");
 
-        // 1. parse hyperty
+        // 1. parse catalogue object
         RethinkInstance instance = createFromFile(desc);
 
         // 2. parse sourcePackage
@@ -352,7 +352,7 @@ public class CatalogueDatabase {
                 if (code != null)
                     sourcePackage.setSourceCodeFile(code);
             }
-            // 4. add sourcePackage to hyperty
+            // 4. add sourcePackage to catalogue object
             instance.setSourcePackage(sourcePackage);
         }
         return instance;
