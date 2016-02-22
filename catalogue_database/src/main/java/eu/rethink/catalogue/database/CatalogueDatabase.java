@@ -50,7 +50,7 @@ public class CatalogueDatabase {
     private String registrationID;
     private static final Logger LOG = LoggerFactory.getLogger(CatalogueDatabase.class);
 
-    //model IDs that define the custom models inside model.json
+    // model IDs that define the custom models inside model.json
     private static final int HYPERTY_MODEL_ID = 1337;
     private static final int PROTOSTUB_MODEL_ID = 1338;
     private static final int RUNTIME_MODEL_ID = 1339;
@@ -59,9 +59,10 @@ public class CatalogueDatabase {
 
     private static final int SOURCEPACKAGE_MODEL_ID = 1350;
 
-
+    // list of supported models
     private static final Set<Integer> MODEL_IDS = new HashSet<>(Arrays.asList(HYPERTY_MODEL_ID, PROTOSTUB_MODEL_ID, RUNTIME_MODEL_ID, SCHEMA_MODEL_ID, IDPPROXY_MODEL_ID, SOURCEPACKAGE_MODEL_ID));
 
+    // path names for the models
     private static final String HYPERTY_TYPE_NAME = "hyperty";
     private static final String PROTOSTUB_TYPE_NAME = "protocolstub";
     private static final String RUNTIME_TYPE_NAME = "runtime";
@@ -70,10 +71,8 @@ public class CatalogueDatabase {
 
     private static final String SOURCEPACKAGE_TYPE_NAME = "sourcepackage";
 
+    // mapping of model IDs to their path names
     private static Map<Integer, String> MODEL_ID_TO_NAME_MAP = new HashMap<>();
-
-    private static Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
     static {
         MODEL_ID_TO_NAME_MAP.put(HYPERTY_MODEL_ID, HYPERTY_TYPE_NAME);
         MODEL_ID_TO_NAME_MAP.put(PROTOSTUB_MODEL_ID, PROTOSTUB_TYPE_NAME);
@@ -82,6 +81,9 @@ public class CatalogueDatabase {
         MODEL_ID_TO_NAME_MAP.put(IDPPROXY_MODEL_ID, IDPPROXY_TYPE_NAME);
         MODEL_ID_TO_NAME_MAP.put(SOURCEPACKAGE_MODEL_ID, SOURCEPACKAGE_TYPE_NAME);
     }
+
+    private static Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    private JsonParser parser = new JsonParser();
 
     private static final String NAME_FIELD_NAME = "objectName";
 
@@ -124,6 +126,13 @@ public class CatalogueDatabase {
         new CatalogueDatabase(hostName, port, objPath, useHttp);
     }
 
+    /**
+     * Create and start a Catalogue Database.
+     * @param serverHostName - Catalogue Broker host name, e.g. "mydomain.com" or "127.0.0.1"
+     * @param serverPort - Catalogue Broker access port, by default 5683
+     * @param catObjsPath - path to the folder that contains the catalogue objects
+     * @param useHttp - whether or not to use http or https when generating the sourcePackageURLs
+     */
     public CatalogueDatabase(String serverHostName, int serverPort, String catObjsPath, boolean useHttp) {
         LOG.info("Starting Catalogue Database...");
 
@@ -148,6 +157,7 @@ public class CatalogueDatabase {
         LOG.info("Catalogue Broker CoAP port: " + serverPort);
         LOG.info("Catalogue Objects location: " + catObjsPath);
 
+        // parse all catalogue objects
         Map<Integer, RethinkInstance[]> resultMap = parseFiles(catObjsPath);
 
         // get default models
@@ -157,6 +167,7 @@ public class CatalogueDatabase {
         InputStream modelStream = getClass().getResourceAsStream("/model.json");
         objectModels.addAll(ObjectLoader.loadJsonStream(modelStream));
 
+        // map object models by ID
         HashMap<Integer, ObjectModel> map = new HashMap<>();
         for (ObjectModel objectModel : objectModels) {
             map.put(objectModel.id, objectModel);
@@ -165,9 +176,13 @@ public class CatalogueDatabase {
         // Initialize object list
         ObjectsInitializer initializer = new ObjectsInitializer(new LwM2mModel(map));
 
+        // set dummy Device
         initializer.setClassForObject(3, Device.class);
         List<ObjectEnabler> enablers = initializer.createMandatory();
 
+        // iterate through supported models,
+        // set parsed instances of those models in initializer,
+        // and finally give the instances the id:name map from the model
         for (Integer modelId : MODEL_IDS) {
             RethinkInstance[] instances = resultMap.get(modelId);
 
@@ -236,38 +251,11 @@ public class CatalogueDatabase {
 
     }
 
-    JsonParser parser = new JsonParser();
-
-    private RethinkInstance parseCatalogueObject(File dir) throws FileNotFoundException {
-        File desc = new File(dir, "description.json");
-        File pkg = new File(dir, "sourcePackage.json");
-
-        // 1. parse hyperty
-        RethinkInstance instance = createFromFile(desc);
-
-        // 2. parse sourcePackage
-        if (instance.nameValueMap.get("sourcePackage") == null && pkg.exists()) {
-            RethinkInstance sourcePackage = createFromFile(pkg);
-
-            // 3. attach code to sourcePackage
-            if (sourcePackage.nameValueMap.get("sourceCode") == null) {
-                // try to get sourceCode file
-                File code = null;
-                for (File file : dir.listFiles()) {
-                    if (file.getName().startsWith("sourceCode")) {
-                        code = file;
-                        break;
-                    }
-                }
-                if (code != null)
-                    sourcePackage.setSourceCodeFile(code);
-            }
-            // 4. add sourcePackage to hyperty
-            instance.setSourcePackage(sourcePackage);
-        }
-        return instance;
-    }
-
+    /**
+     * Parse all catalogue objects contained in this folder and their respective subfolders
+     * @param sourcePath - path to the catalogue objects source folder (e.g. catalogue_objects)
+     * @return Map containing all parsed objects as instances, mapped by model ID
+     */
     private Map<Integer, RethinkInstance[]> parseFiles(String sourcePath) {
         if (sourcePath == null)
             sourcePath = "./";
@@ -311,6 +299,11 @@ public class CatalogueDatabase {
         return resultMap;
     }
 
+    /**
+     * Parse catalogue objects contained in the given type folder (e.g. catalogue_objects/hyperty)
+     * @param typeFolder - folder that contains catalogue objects as subfolders (e.g. catalogue_objects/hyperty)
+     * @return Array of parsed catalogue objects as instances
+     */
     private RethinkInstance[] generateInstances(File typeFolder) {
         Set<RethinkInstance> instances = new HashSet<>();
 
@@ -329,6 +322,48 @@ public class CatalogueDatabase {
     }
 
 
+    /**
+     * Parse catalogue object from this folder
+     * @param dir - folder that contains the catalogue object files (e.g. catalogue_objects/hyperty/FirstHyperty)
+     * @return instance of the parsed catalogue object
+     * @throws FileNotFoundException
+     */
+    private RethinkInstance parseCatalogueObject(File dir) throws FileNotFoundException {
+        File desc = new File(dir, "description.json");
+        File pkg = new File(dir, "sourcePackage.json");
+
+        // 1. parse hyperty
+        RethinkInstance instance = createFromFile(desc);
+
+        // 2. parse sourcePackage
+        if (instance.nameValueMap.get("sourcePackage") == null && pkg.exists()) {
+            RethinkInstance sourcePackage = createFromFile(pkg);
+
+            // 3. attach code to sourcePackage
+            if (sourcePackage.nameValueMap.get("sourceCode") == null) {
+                // try to get sourceCode file
+                File code = null;
+                for (File file : dir.listFiles()) {
+                    if (file.getName().startsWith("sourceCode")) {
+                        code = file;
+                        break;
+                    }
+                }
+                if (code != null)
+                    sourcePackage.setSourceCodeFile(code);
+            }
+            // 4. add sourcePackage to hyperty
+            instance.setSourcePackage(sourcePackage);
+        }
+        return instance;
+    }
+
+    /**
+     * Creates a RethinkInstance from a description file (or sourcePackage file)
+     * @param f - file that holds the json that defines the catalogue object
+     * @return A RethinkInstance based on the information of the parsed file
+     * @throws FileNotFoundException
+     */
     private RethinkInstance createFromFile(File f) throws FileNotFoundException {
         JsonObject descriptor = parser.parse(new FileReader(f)).getAsJsonObject();
         LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
@@ -351,44 +386,56 @@ public class CatalogueDatabase {
      */
     public static class RethinkInstance extends BaseInstanceEnabler {
 
+        private Map<Integer, String> idNameMap = null;
+        private final Map<String, String> nameValueMap;
+
+        private String sourceCodeKeyName = "sourceCode";
+
+        // source code file if this instance is a sourcePackage
+        private File sourceCodeFile = null;
+
+        // source package if this instance is a catalogue object
+        private RethinkInstance sourcePackage = null;
+
+
         /**
          * Set id:name map so instance knows which id corresponds to the correct field. (based on model.json)
          *
-         * @param idNameMap
+         * @param idNameMap - id:name mapping of the model this is an instance of (based on model.json)
          */
         public void setIdNameMap(Map<Integer, String> idNameMap) {
             this.idNameMap = idNameMap;
         }
 
-        private Map<Integer, String> idNameMap = null;
-        private final Map<String, String> nameValueMap;
-        private String sourceCodeKeyName = "sourceCode";
-        private File sourceCodeFile = null;
-
+        /**
+         * Return the sourcePackage that belongs to this instance
+         * @return sourcePackage - source package that belongs to this (descriptor) instance
+         */
         public RethinkInstance getSourcePackage() {
             return sourcePackage;
         }
 
+        /**
+         * Attach sourcePackage instance to this (descriptor) instance
+         * @param sourcePackage - sourcePackage that belongs to this (descriptor) instance
+         */
         public void setSourcePackage(RethinkInstance sourcePackage) {
             this.sourcePackage = sourcePackage;
         }
 
-        private RethinkInstance sourcePackage = null;
-
-        public RethinkInstance() {
-            idNameMap = null;
-            nameValueMap = null;
+        /**
+         * Set the source code file for this sourcePackage instance
+         * @param sourceFile - file that contains the source code of this sourcePackage
+         */
+        public void setSourceCodeFile(File sourceFile) {
+            sourceCodeFile = sourceFile;
         }
 
-        public RethinkInstance(Map<Integer, String> idNameMap, Map<String, String> NameValueMap) {
-            this.idNameMap = idNameMap;
-            this.nameValueMap = NameValueMap;
-        }
 
         /**
-         * Create a reTHINK instance with name:value mapping from model.json
+         * Create a reTHINK instance with name:value mapping from a parsed catalogue object file
          *
-         * @param nameValueMap
+         * @param nameValueMap - name:value mapping based on parsed catalogue object file
          */
         public RethinkInstance(Map<String, String> nameValueMap) {
             this.nameValueMap = nameValueMap;
@@ -421,10 +468,6 @@ public class CatalogueDatabase {
                 return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid, Value.newStringValue(resourceValue)));
             } else
                 return super.read(resourceid);
-        }
-
-        public void setSourceCodeFile(File sourceFile) {
-            sourceCodeFile = sourceFile;
         }
 
         @Override
