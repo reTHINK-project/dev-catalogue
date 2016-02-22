@@ -2,11 +2,12 @@
 
 Looking at the reThink Catalogue from a user's perspective, one has to distinguish if a user aims at *retrieving* an object from the catalogue or at *populating* the catalogue with entries.
 
-When **retrieving an object from the catalogue**, the catalogue appears to users as a single, monolytic implementation.  It is accessible via ports 80 (http) and 443 (https) in order to retrieve catalgue objects using the http(s)-get primitive.  As of version 2.1, the reThink Catalogue supports storing the following objects:
+When **retrieving an object from the catalogue**, the catalogue appears to users as a single, monolytic implementation.  It is accessible via ports 80 (http) and 443 (https) in order to retrieve catalgue objects using the http(s)-get primitive.  As of version 2.1, the reThink Catalogue supports storing the following object types:
 * protocolstub
 * hyperty
 * dataschema
 * runtime
+* idp-proxy
 
 To retrieve objects from the reThink Catalogue, a client (e.g. a hyperty runtime environment) can access the object via the *object's resource path* that is expressed via RBNF [1] as follows: 
 
@@ -35,11 +36,11 @@ The following examples show the resource path for two protocol stubs, namely *my
     catalogue.rethink.eu/.well-known/protocolstub/myAwesome_protocol-stub9
     localhost/.well-known/protocolstub/myAwesome_protocol-stub9
 
-For **retrieving a list of all available objects of a given kind**, the user can simply contact the catalogue using a shortened version of the resource path, i.e. not including  < resource-type-id >  in it.
+For **retrieving a list of all available objects of a given type**, the user can simply contact the catalogue using a shortened version of the resource path, i.e. not including  < resource-type-id >  in it.
 
 In order to **populate the catalogue with data**, the user sees the catalogue as distributed system consisting of one reThink Catalogue Broker and at least one reThink Catalogue Database.  Every reThink Catalogue Database can populate entries at the broker by reading sets of catalogue objects from the filesystem and forwarding information about them to the broker.
 
-At the database, catalogue objects are hirarchically stored in the file system.  Those resources are stored in the *catalogue_objects* directory which exists in parallel to the *catalogue_database* directory that holds the runtime of the reThink Catalogue Database.  Beneath *catalogue_objects* exist subdirectories, one for each *kind of cataogue objects*, which in turn hold one subdirectory for each catalogue object.  The following figure illustrates the directory structure; two hyperty catalogue objects, named *FirstHyperty* and *SecondHyperty* are included.
+At the database, catalogue objects are hirarchically stored in the file system.  Those resources are stored in the *catalogue_objects* directory which exists in parallel to the *catalogue_database* directory that holds the runtime of the reThink Catalogue Database.  Beneath *catalogue_objects* exist subdirectories, one for each *type of cataogue objects*, which in turn hold one subdirectory for each catalogue object.  The following figure illustrates the directory structure; two hyperty catalogue objects, named *FirstHyperty* and *SecondHyperty* are included.
 
     --|----- catalogue_database
       |
@@ -64,8 +65,11 @@ At the database, catalogue objects are hirarchically stored in the file system. 
          |
          |--+-- runtime
             |----- ...
+         |
+         |--+-- idpproxy
+            |----- ...
 
-Each catalogue object's directory contains up to three files that contain the descption of the catalogue object.  *description.json* is mandatory and contains the full description of the object.  If the *sourcePackage* field in *description.json* is not initialized, i.e. left blanc, the contents of the (optional) *sourcePackage.json* file is used to initialize the *sourcePackage* field.  If *sourcePackage.json* does not contain an initialized "sourceCode" field, the contents of *sourceCode.js* (or sourceCode.json) are used to set the *sourceCode* field.  Note that the file *sourcecode* may end in either of prefixes *.js* or *.json* as, depending on the kind of catalogue object, the *sourceCode* field may contain a JavaScript source code, or a JSON-encoded dataschema.
+Each catalogue object's directory contains up to three files that contain the descption of the catalogue object.  *description.json* is mandatory and contains the full description of the object.  If the *sourcePackage* field in *description.json* is not initialized, i.e. left blank, the contents of the (optional) *sourcePackage.json* file is used to initialize the *sourcePackage* field.  If *sourcePackage.json* does not contain an initialized "sourceCode" field, the contents of *sourceCode.** are used to set the *sourceCode* field.  Note that the file *sourceCode* may end in either of prefixes *.js* or *.json* as, depending on the type of catalogue object, the *sourceCode* field may contain a JavaScript source code, or a JSON-encoded dataschema.
 
 The catalogue object descriptions below the *catalogue_objects* directory are read-in once while starting the reThink Catalogue Database program.
 

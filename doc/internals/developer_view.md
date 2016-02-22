@@ -164,3 +164,9 @@ Runtime.getRuntime().addShutdownHook(new Thread() {
 
 As the reThink Catalogue Database used the Leshan Client implementation without any modifications, a developer that whishes to extend the reThink Catalogue Database is unlikely change of the Leshan Client code.  In case, modification of Leshan are required, a developer is kindly asked to consult the [Leshan documentation](https://github.com/eclipse/leshan).  It should be noted though that at this point, the reThink Catalogue Database only uses Lehsan (in terms of linking against the unmodified version of it) which provides the basis to provide the reThink Cataluge under the given license terms.  Any modifications that propagate outside the scope of the rethink/dev-catalouge repository need to be evaluated agains potential impact on licensing.
 
+#### How to add a custom object type
+1. Add a new model for the type in model.json (be aware that many attributes like version, description, etc. are shared by all models)
+2. update `MODEL_IDS` in RequestHandler and CatalogueDatabase
+3. update `MODEL_NAME_TO_ID_MAP` in RequestHandler
+4. update `MODEL_ID_TO_NAME_MAP` in CatalogueDatabase
+5. update `parseFiles()` in CatalogueDatabase to support a new type folder
