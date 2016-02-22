@@ -44,6 +44,7 @@ The ```handleGET()``` method parses the received (resource) path and returns eit
         ... // error
     }
    ```
+   
 * or the requested catalogue object *or one of its resources* (e.g. `/.well-known/hyperty/FirstHyperty[/<resource>]`)
    ```
     if (resourceID != null) // resourceID is the LWM2M ID for the requested resource
