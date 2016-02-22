@@ -36,34 +36,34 @@ The ```handleGET()``` method parses the received (resource) path and returns eit
 
 * a list of all registered objects of a certain type (if only the type was provided, e.g. `/.well-known/hyperty`)
    ```
-String type = pathParts[0];
-
-Integer id = MODEL_NAME_TO_ID_MAP.get(type);
-
-if (id != null) {
-    return gson.toJson(nameToInstanceMapMap.get(id).keySet());
-} else {
-    ... // error
-}
+    String type = pathParts[0];
+    
+    Integer id = MODEL_NAME_TO_ID_MAP.get(type);
+    
+    if (id != null) {
+        return gson.toJson(nameToInstanceMapMap.get(id).keySet());
+    } else {
+        ... // error
+    }
    ```
 * or the requested catalogue object *or one of its resources* (e.g. `/.well-known/hyperty/FirstHyperty[/<resource>]`)
    ```
-if (resourceID != null) // resourceID is the LWM2M ID for the requested resource, or null if not specified
-    target += "/" + resourceID;
-
-String[] targetPaths = StringUtils.split(target, "/");
-Client client = server.getClientRegistry().get(targetPaths[0]);
-if (client != null) {
-    ReadRequest request = new ReadRequest(StringUtils.removeStart(target, "/" + targetPaths[0]));
-    ValueResponse response = server.send(client, request);
-    if (!response.getCode().equals(ResponseCode.CONTENT)) {
-        return encodeErrorResponse(createResponse(response.getCode(), "Unable to retrieve " + path));
+    if (resourceID != null) // resourceID is the LWM2M ID for the requested resource, or null if not specified
+        target += "/" + resourceID;
+    
+    String[] targetPaths = StringUtils.split(target, "/");
+    Client client = server.getClientRegistry().get(targetPaths[0]);
+    if (client != null) {
+        ReadRequest request = new ReadRequest(StringUtils.removeStart(target, "/" + targetPaths[0]));
+        ValueResponse response = server.send(client, request);
+        if (!response.getCode().equals(ResponseCode.CONTENT)) {
+            return encodeErrorResponse(createResponse(response.getCode(), "Unable to retrieve " + path));
+        } else {
+            return encodeResponse(response, modelType);
+        }
     } else {
-        return encodeResponse(response, modelType);
+        ... // error
     }
-} else {
-    ... // error
-}
    ```
 
 #### reThink Catalogue Database
