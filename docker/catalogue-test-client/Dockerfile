@@ -20,6 +20,6 @@ RUN cd /opt/reTHINK/catalogue && mvn install
 RUN ln -s /opt/reTHINK/catalogue/catalogue_test/target/rethink-catalogue-test-*-jar-with-dependencies.jar /opt/reTHINK/catalogue/catalogue_test/target/rethink-catalogue-test-jar-with-dependencies.jar
 
 
-ENTRYPOINT ["java", "-jar", "/opt/reTHINK/catalogue/catalogue_test/target/rethink-catalogue-test-latest-jar-with-dependencies.jar"]
+ENTRYPOINT ["java", "-jar", "/opt/reTHINK/catalogue/catalogue_test/target/rethink-catalogue-test-jar-with-dependencies.jar"]
 # default port used is 8090
 CMD ["8090"]
