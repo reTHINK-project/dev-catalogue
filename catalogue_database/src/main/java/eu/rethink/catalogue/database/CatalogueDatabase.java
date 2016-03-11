@@ -6,7 +6,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -73,6 +73,7 @@ public class CatalogueDatabase {
 
     // mapping of model IDs to their path names
     private static Map<Integer, String> MODEL_ID_TO_NAME_MAP = new HashMap<>();
+
     static {
         MODEL_ID_TO_NAME_MAP.put(HYPERTY_MODEL_ID, HYPERTY_TYPE_NAME);
         MODEL_ID_TO_NAME_MAP.put(PROTOSTUB_MODEL_ID, PROTOSTUB_TYPE_NAME);
@@ -128,10 +129,11 @@ public class CatalogueDatabase {
 
     /**
      * Create and start a Catalogue Database.
+     *
      * @param serverHostName - Catalogue Broker host name, e.g. "mydomain.com" or "127.0.0.1"
-     * @param serverPort - Catalogue Broker access port, by default 5683
-     * @param catObjsPath - path to the folder that contains the catalogue objects
-     * @param useHttp - whether or not to use http or https when generating the sourcePackageURLs
+     * @param serverPort     - Catalogue Broker access port, by default 5683
+     * @param catObjsPath    - path to the folder that contains the catalogue objects
+     * @param useHttp        - whether or not to use http or https when generating the sourcePackageURLs
      */
     public CatalogueDatabase(String serverHostName, int serverPort, String catObjsPath, boolean useHttp) {
         LOG.info("Starting Catalogue Database...");
@@ -253,6 +255,7 @@ public class CatalogueDatabase {
 
     /**
      * Parse all catalogue objects contained in this folder and their respective subfolders
+     *
      * @param sourcePath - path to the catalogue objects source folder (e.g. catalogue_objects)
      * @return Map containing all parsed objects as instances, mapped by model ID
      */
@@ -301,6 +304,7 @@ public class CatalogueDatabase {
 
     /**
      * Parse catalogue objects contained in the given type folder (e.g. catalogue_objects/hyperty)
+     *
      * @param typeFolder - folder that contains catalogue objects as subfolders (e.g. catalogue_objects/hyperty)
      * @return Array of parsed catalogue objects as instances
      */
@@ -324,6 +328,7 @@ public class CatalogueDatabase {
 
     /**
      * Parse catalogue object from this folder
+     *
      * @param dir - folder that contains the catalogue object files (e.g. catalogue_objects/hyperty/FirstHyperty)
      * @return instance of the parsed catalogue object
      * @throws FileNotFoundException
@@ -360,6 +365,7 @@ public class CatalogueDatabase {
 
     /**
      * Creates a RethinkInstance from a description file (or sourcePackage file)
+     *
      * @param f - file that holds the json that defines the catalogue object
      * @return A RethinkInstance based on the information of the parsed file
      * @throws FileNotFoundException
@@ -387,7 +393,7 @@ public class CatalogueDatabase {
     public static class RethinkInstance extends BaseInstanceEnabler {
 
         private Map<Integer, String> idNameMap = null;
-        private final Map<String, String> nameValueMap;
+        private Map<String, String> nameValueMap = null;
 
         private String sourceCodeKeyName = "sourceCode";
 
@@ -409,6 +415,7 @@ public class CatalogueDatabase {
 
         /**
          * Return the sourcePackage that belongs to this instance
+         *
          * @return sourcePackage - source package that belongs to this (descriptor) instance
          */
         public RethinkInstance getSourcePackage() {
@@ -417,6 +424,7 @@ public class CatalogueDatabase {
 
         /**
          * Attach sourcePackage instance to this (descriptor) instance
+         *
          * @param sourcePackage - sourcePackage that belongs to this (descriptor) instance
          */
         public void setSourcePackage(RethinkInstance sourcePackage) {
@@ -425,6 +433,7 @@ public class CatalogueDatabase {
 
         /**
          * Set the source code file for this sourcePackage instance
+         *
          * @param sourceFile - file that contains the source code of this sourcePackage
          */
         public void setSourceCodeFile(File sourceFile) {
@@ -441,6 +450,12 @@ public class CatalogueDatabase {
             this.nameValueMap = nameValueMap;
         }
 
+        /**
+         * Create a reTHINK instance. Be aware that you still need to give it a nameValueMap and a idNameMap
+         */
+        public RethinkInstance() {
+            nameValueMap = null;
+        }
 
         @Override
         public ValueResponse read(int resourceid) {
