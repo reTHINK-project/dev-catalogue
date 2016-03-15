@@ -35,6 +35,14 @@ docker run -it --net=host rethink/catalogue-database
 docker run -it --net=host rethink/catalogue-test-client
 ```
 
+If you reverse proxify your containers, you probably won't need to expose the ports on your hosts (otherwise conflicts may happen), so the "--net=host" parameter won't be necessary. The usage of -d is also usefull to keep in background the process. The correct commands are then
+```
+docker run -it -d --name="catalogue-broker" rethink/catalogue-broker
+docker run -it -d --name="catalogue-database" rethink/catalogue-database
+```
+
+
+
 Please refer to the [docker website](https://www.docker.com) on how to install and work with docker. Also, please refer to the [usage guide](./usage_guide.md) to learn about support arguments and configuration options.
 
 
