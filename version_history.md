@@ -1,36 +1,12 @@
 # version history
-## 2.0
-### user view
-* changed how catalogue objects are defined, see catalogue_objects for the new file & folder structure
-* https support
-* additional launch options for catalogue broker (set ssl port, set keystore etc)
-* support for hyperty runtimes and data schemas
-* broker runs on port 80/443 by default
-* define default hyperty/protostub etc. by naming it "default"
+## 1.0.0
+* initial public release
 
-### internal view
-* moved all sourcePackages to subpath .../sourcepackage
-* generate field "objectName" for sourcePackages (based on catalogue object it belongs to) for easy mapping in broker
-* generate sourcePackageURL based on broker address given to catalogue database on launch
-* added version field to catalogue objects
-* use self-signed certificate for ssl
-* sourceCode can be defined in separate file
+## 1.0.1
+* fixed docker images
 
-## 2.1
-### user view
-* changed how Catalogue Database is started, using optional launch options (see README.md for details)
-* Catalogue Database can be started without providing arguments (will try to connect to localhost:5683 and using "catalogue_objects" folder from current working directory.
-* the sourceCode file that can contain the source code of a catalogue object can now have any file extension (name has to be "sourceCode.*")
-* added ability to specify which protocol is used when generating sourceCodeURLs, using -usehttp flag
-
-### internal view
-* sourceCode file can have any file extension (as mentioned in user view)
-* Catalogue Database has default values for Broker hostname, port and location of catalogue objects folder, making it usable without providing launch arguments.
-
-## 2.2
-### user view
-* added support for IDP-Proxy objects
-
-### internal view
-* code refinement for Catalogue Broker & Database
-* fixed a bug that occurred when the Broker requested a resource of an Object and the Database returned with NOT_FOUND
+## 1.0.2
+* fixed pom.xml
+* fixed Catalogue Database crashing on launch
+* added mandatory attribute "language" to example catalogue objects
+* fixed NullPointerException when trying to get a list of hyperties/protostubs/etc. before any Database has registered on the server.

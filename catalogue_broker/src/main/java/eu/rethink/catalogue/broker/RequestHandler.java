@@ -6,7 +6,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -65,6 +65,7 @@ public class RequestHandler {
 
 
     private static Map<String, Integer> MODEL_NAME_TO_ID_MAP = new HashMap<>();
+    private static Map<Integer, Map<String, String>> nameToInstanceMapMap = new HashMap<>();
 
     static {
         MODEL_NAME_TO_ID_MAP.put(HYPERTY_TYPE_NAME, HYPERTY_MODEL_ID);
@@ -73,17 +74,18 @@ public class RequestHandler {
         MODEL_NAME_TO_ID_MAP.put(SCHEMA_TYPE_NAME, SCHEMA_MODEL_ID);
         MODEL_NAME_TO_ID_MAP.put(IDPPROXY_TYPE_NAME, IDPPROXY_MODEL_ID);
         MODEL_NAME_TO_ID_MAP.put(SOURCEPACKAGE_TYPE_NAME, SOURCEPACKAGE_MODEL_ID);
+
+        for (Integer modelId : MODEL_NAME_TO_ID_MAP.values()) {
+            nameToInstanceMapMap.put(modelId, new HashMap<String, String>());
+        }
     }
 
     private static final String NAME_FIELD_NAME = "objectName";
 
-
     private static final Map<Integer, Map<Integer, ResourceModel>> MODEL_MAP = new HashMap<>();
 
     private static Map<Integer, Map<String, Integer>> resourceNameToIdMapMap = new HashMap<>();
-    private static Map<Integer, Map<String, String>> nameToInstanceMapMap = new HashMap<>();
     private static Map<Client, Map<Integer, List<String>>> clientToObjectsMap = new HashMap<>();
-
 
     private LeshanServer server;
     private static final Gson gson = new GsonBuilder()
@@ -321,10 +323,7 @@ public class RequestHandler {
                                             if (resourceID == idFieldID) { //current resource is name field
                                                 String objectName = resource.getValue().value.toString();
                                                 Map<String, String> nametToInstanceMap = nameToInstanceMapMap.get(foundModelId);
-                                                if (nametToInstanceMap == null) {
-                                                    nametToInstanceMap = new HashMap<>();
-                                                    nameToInstanceMapMap.put(foundModelId, nametToInstanceMap);
-                                                }
+
                                                 nametToInstanceMap.put(objectName, "/" + client.getEndpoint() + "/" + foundModelId + "/" + instanceID);
 
                                                 newObjectNames.add(objectName);
@@ -448,7 +447,7 @@ public class RequestHandler {
      * @param response ValueResponse to be encoded to json
      * @return response as json
      */
-    private String encodeResponse(final ValueResponse response, final String modelType, final boolean isError){
+    private String encodeResponse(final ValueResponse response, final String modelType, final boolean isError) {
         LOG.debug("encoding response: " + response);
         LOG.debug("encoding response: " + gson.toJson(response));
 
