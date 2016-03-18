@@ -34,6 +34,10 @@ docker run -it --net=host rethink/catalogue-broker
 docker run -it --net=host rethink/catalogue-database
 docker run -it --net=host rethink/catalogue-test-client
 ```
+Note:  in order to provide a configuration as included in the docker files that allows a user to run the catalogue without the need to
+do any further configuration, all instances need to be accessable vie "localhost".  Hence, docker is run using the --net=host option.
+In case you defer from that way of running the images, you might have to configure the ip-addresses and ports under which each component
+can be reached from another.  Please refer to the commands' options description for details.
 
 If you reverse proxify your containers, you probably won't need to expose the ports on your hosts (otherwise conflicts may happen), so the "--net=host" parameter won't be necessary. The usage of -d is also usefull to keep in background the process. The correct commands are then
 ```
