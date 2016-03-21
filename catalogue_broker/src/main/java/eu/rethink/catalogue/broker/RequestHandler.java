@@ -367,11 +367,11 @@ public class RequestHandler {
                 t.start();
 
                 // FIXME this helps debugging, but is not necessary and costs time.
-                try {
-                    t.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+                //try {
+                //    t.join();
+                //} catch (InterruptedException e) {
+                //    e.printStackTrace();
+                //}
             }
         }
 
