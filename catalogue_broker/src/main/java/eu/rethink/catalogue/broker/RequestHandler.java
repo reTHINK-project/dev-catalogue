@@ -145,7 +145,7 @@ public class RequestHandler {
             if (id != null) {
                 return gson.toJson(nameToInstanceMapMap.get(id).keySet());
             } else {
-                String response = "Invalid resource type. Please use: hyperty | protostub | runtime | sourcepackage";
+                String response = "Invalid resource type. Please use: hyperty | protocolstub | runtime | dataschema | idp-proxy | sourcepackage";
                 ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
                 return encodeErrorResponse(errorResp);
             }
@@ -367,11 +367,11 @@ public class RequestHandler {
                 t.start();
 
                 // FIXME this helps debugging, but is not necessary and costs time.
-                try {
-                    t.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+                //try {
+                //    t.join();
+                //} catch (InterruptedException e) {
+                //    e.printStackTrace();
+                //}
             }
         }
 
