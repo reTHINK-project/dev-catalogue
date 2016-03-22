@@ -1,0 +1,9 @@
+{
+  "cguid": 99275384919876451321,
+  "hypertyType": "COMMUNICATOR",
+  "version": "1.0",
+  "objectName": "ForthHyperty",
+  "description": "This is an example hyperty that is written in an external file and contains a source package",
+  "language": "Javascript ECMA6",
+  "dataObjects": []
+}
