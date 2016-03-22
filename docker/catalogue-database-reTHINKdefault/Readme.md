@@ -1,7 +1,8 @@
 This docker image (rethink/catalogue-database-reTHINKdefault) provides a
 reTHINK database that contains default catalogue objects as developed by reTHINK.
 
-If you want to deploy your own catalogue objects (via a docker image), you may
+If you want to deploy your own (= outside the scope of the reThink project)
+catalogue objects (via a docker image), you may
 
 1) recursively copy this directory
 2) to to your copy :-=
