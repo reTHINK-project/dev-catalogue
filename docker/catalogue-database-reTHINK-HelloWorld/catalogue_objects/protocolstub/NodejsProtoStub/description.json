@@ -1,5 +1,5 @@
 {
-  "cguid": 20001,
+  "cguid": 30001,
   "version": "1.0",
   "objectName": "NodejsProtoStub",
   "description": "This is the protostub to be used by the NodeJS instance",
