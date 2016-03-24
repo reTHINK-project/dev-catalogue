@@ -1,0 +1,9 @@
+{
+  "cguid": "20001",
+  "type": "DataSchema",
+  "version": "1.0",
+  "objectName": "HelloWorldDataSchema",
+  "description": "This is a Data Schema",
+  "language": "Javascript ECMA6",
+  "accessControlPolicy": ""
+}

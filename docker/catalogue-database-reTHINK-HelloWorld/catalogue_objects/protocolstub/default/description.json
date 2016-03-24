@@ -1,0 +1,16 @@
+{
+  "cguid": 44432065498481198,
+  "version": "1.0",
+  "objectName": "default",
+  "description": "This is a protostub",
+  "language": "Javascript ECMA6",
+  "dataObjects": [],
+  "configuration": [],
+  "constraints": [],
+  "messageSchemas": [],
+  "sourcePackage": {
+    "encoding": "UTF8",
+    "sourceCodeClassname": "defaultStub",
+    "sourceCode": "alert('hello world!')"
+  }
+}
