@@ -50,7 +50,7 @@ option       | description
 -domain, -d  | specify Catalogue Broker domain/IP used for sourcePackageURL generation
 -port, -p    | specify Catalogue Broker coap port
 -objpath, -o | path of folder containing catalogue objects (e.g. provided catalogue_objects folder)
--usehttp     | change protocol of generated sourceCodeURLs to http (otherwise, https is used)
+-usehttp     | change protocol of generated sourcePackageURLs to http (otherwise, https is used)
 
 If you run the Catalogue Database without launch arguments,
 it tries to connect to the Catalogue Broker on localhost:5683 by default,
