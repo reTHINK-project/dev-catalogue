@@ -81,6 +81,7 @@ public class RequestHandler {
     }
 
     private static final String NAME_FIELD_NAME = "objectName";
+    private static final String CGUID_FIELD_NAME = "cguid";
 
     private static final Map<Integer, Map<Integer, ResourceModel>> MODEL_MAP = new HashMap<>();
 
@@ -288,7 +289,7 @@ public class RequestHandler {
                     break;
                 }
                 String linkUrl = link.getUrl();
-                LOG.debug("checking link: " + link.getUrl());
+                //LOG.debug("checking link: " + link.getUrl());
                 int i = linkUrl.indexOf("/", 1); //only supported if this returns an index
                 if (i > -1) {
                     int id = Integer.parseInt(linkUrl.substring(1, i));
@@ -311,7 +312,13 @@ public class RequestHandler {
                                 public void visit(LwM2mObject object) {
                                     Map<Integer, LwM2mObjectInstance> instances = object.getInstances();
                                     int instanceID, resourceID;
-                                    int idFieldID = resourceNameToIdMapMap.get(foundModelId).get(NAME_FIELD_NAME);
+
+                                    int idFieldID;
+                                    if (foundModelId == SOURCEPACKAGE_MODEL_ID) {
+                                        idFieldID = resourceNameToIdMapMap.get(foundModelId).get(CGUID_FIELD_NAME);
+                                    } else {
+                                        idFieldID = resourceNameToIdMapMap.get(foundModelId).get(NAME_FIELD_NAME);
+                                    }
                                     LinkedList<String> newObjectNames = new LinkedList<>();
                                     for (LwM2mObjectInstance instance : instances.values()) {
                                         instanceID = instance.getId();
@@ -320,6 +327,7 @@ public class RequestHandler {
                                         for (LwM2mResource resource : resources.values()) {
                                             resourceID = resource.getId();
                                             //LOG.debug(String.format("/%s/%s/%s = %s", foundModelId, instanceID, resourceID, resource.getValue().value));
+                                            //LOG.debug("resourceID: {}, idFieldID: {}", resourceID, idFieldID);
                                             if (resourceID == idFieldID) { //current resource is name field
                                                 String objectName = resource.getValue().value.toString();
                                                 Map<String, String> nametToInstanceMap = nameToInstanceMapMap.get(foundModelId);
@@ -327,7 +335,7 @@ public class RequestHandler {
                                                 nametToInstanceMap.put(objectName, "/" + client.getEndpoint() + "/" + foundModelId + "/" + instanceID);
 
                                                 newObjectNames.add(objectName);
-                                                //LOG.debug("Added to client map -> " + objectName + ": " + nametToInstanceMap.get(objectName));
+                                                LOG.debug("Added to client map -> " + objectName + ": " + nametToInstanceMap.get(objectName));
                                             }
 
                                         }

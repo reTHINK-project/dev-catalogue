@@ -87,6 +87,7 @@ public class CatalogueDatabase {
     private JsonParser parser = new JsonParser();
 
     private static final String NAME_FIELD_NAME = "objectName";
+    private static final String CGUID_FIELD_NAME = "cguid";
 
     private String accessURL;
 
@@ -137,7 +138,6 @@ public class CatalogueDatabase {
      */
     public CatalogueDatabase(String serverHostName, int serverPort, String catObjsPath, boolean useHttp) {
         LOG.info("Starting Catalogue Database...");
-
         // check arguments
         if (serverHostName == null)
             serverHostName = DEFAULT_SERVER_HOSTNAME;
@@ -264,7 +264,6 @@ public class CatalogueDatabase {
             sourcePath = "./";
 
         HashMap<Integer, RethinkInstance[]> resultMap = new HashMap<>();
-        Gson gson = new Gson();
 
         File catObjsFolder = new File(sourcePath);
         assert catObjsFolder.isDirectory();
@@ -286,19 +285,20 @@ public class CatalogueDatabase {
         for (Map.Entry<Integer, RethinkInstance[]> entry : resultMap.entrySet()) {
             for (RethinkInstance instance : entry.getValue()) {
                 RethinkInstance sourcePackage = instance.getSourcePackage();
-                String objectName = instance.nameValueMap.get("objectName");
                 if (instance.nameValueMap.get("sourcePackage") != null) {
-                    instance.nameValueMap.put("sourcePackageURL", String.format("%s%s/%s/sourcepackage", accessURL, MODEL_ID_TO_NAME_MAP.get(entry.getKey()), objectName));
+                    instance.nameValueMap.put("sourcePackageURL", String.format("%s%s/%s/sourcePackage", accessURL, MODEL_ID_TO_NAME_MAP.get(entry.getKey()), instance.nameValueMap.get(NAME_FIELD_NAME)));
                 } else if (sourcePackage != null) {
-                    sourcePackage.nameValueMap.put("objectName", objectName);
+                    String cguid = instance.nameValueMap.get(CGUID_FIELD_NAME);
+                    sourcePackage.nameValueMap.put("cguid", cguid);
                     sourcePackageInstances.add(sourcePackage);
-                    instance.nameValueMap.put("sourcePackageURL", String.format("%ssourcepackage/%s", accessURL, objectName));
+                    instance.nameValueMap.put("sourcePackageURL", String.format("%ssourcepackage/%s", accessURL, cguid));
                 }
             }
         }
 
         resultMap.put(SOURCEPACKAGE_MODEL_ID, sourcePackageInstances.toArray(new RethinkInstance[sourcePackageInstances.size()]));
 
+        //LOG.debug("parsed files: {}", gson.toJson(resultMap));
         return resultMap;
     }
 
@@ -477,7 +477,7 @@ public class CatalogueDatabase {
 
             //LOG.debug("nameValueMap returns: " + resourceValue);
 
-            LOG.debug(String.format("(%s) Read on %02d->%s: %s", nameValueMap.get(NAME_FIELD_NAME), resourceid, resourceName, resourceValue));
+            LOG.debug(String.format("(%s) Read on %02d->%s: %s", nameValueMap.containsKey(NAME_FIELD_NAME) ? nameValueMap.get(NAME_FIELD_NAME) : nameValueMap.get("cguid"), resourceid, resourceName, resourceValue));
             if (resourceValue != null) {
                 //LOG.debug("returning: " + resourceValue);
                 return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid, Value.newStringValue(resourceValue)));
