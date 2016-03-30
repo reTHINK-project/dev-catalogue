@@ -233,7 +233,7 @@ public class RequestHandler {
         @Override
         public void registered(final Client client) {
             LOG.info("Client registered: " + client);
-            LOG.info("Client registered:\r\n" + gson.toJson(client));
+
             try {
                 checkClient(client);
             } catch (Exception e) {
