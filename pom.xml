@@ -7,10 +7,11 @@
     <groupId>eu.rethink.catalogue</groupId>
     <artifactId>rethink-catalogue</artifactId>
     <packaging>pom</packaging>
-    <version>1.0.2</version>
+    <version>${catalogue.version}</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <catalogue.version>1.0.4</catalogue.version>
         <jetty.version>9.1.4.v20140401</jetty.version>
         <slf4j.api.version>[1.7.0, 1.8)</slf4j.api.version>
     </properties>
