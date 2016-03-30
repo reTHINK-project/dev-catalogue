@@ -89,70 +89,88 @@ public class CatalogueDatabase {
     private static final String NAME_FIELD_NAME = "objectName";
     private static final String CGUID_FIELD_NAME = "cguid";
 
-    private String accessURL;
 
     private final String DEFAULT_SERVER_HOSTNAME = "localhost";
     private final int DEFAULT_SERVER_COAP_PORT = 5683;
 
+    private String serverHostName = DEFAULT_SERVER_HOSTNAME;
+    private String serverDomain = null;
+    private String accessURL = null;
+    private String catObjsPath = "./catalogue_objects";
+    private int serverPort = DEFAULT_SERVER_COAP_PORT;
+    private boolean useHttp = false;
+
+    public void setUseHttp(boolean useHttp) {
+        this.useHttp = useHttp;
+    }
+
+    public void setServerHostName(String serverHostName) {
+        this.serverHostName = serverHostName;
+    }
+
+    public void setServerDomain(String serverDomain) {
+        this.serverDomain = serverDomain;
+    }
+
+    public void setCatObjsPath(String catObjsPath) {
+        this.catObjsPath = catObjsPath;
+    }
+
+    public void setServerPort(int serverPort) {
+        this.serverPort = serverPort;
+    }
+
     public static void main(final String[] args) {
-        String hostName = null, objPath = null;
-        boolean useHttp = false;
-        int port = -1;
+        CatalogueDatabase d = new CatalogueDatabase();
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             switch (arg) {
                 case "-h":
                 case "-host":
-                    hostName = args[++i];
+                    d.setServerHostName(args[++i]);
                     break;
                 case "-usehttp":
                     if (args.length <= i + 1 || args[i + 1].startsWith("-")) { // check if boolean value is not given, assume true
-                        useHttp = true;
+                        d.setUseHttp(true);
                     } else {
-                        useHttp = Boolean.parseBoolean(args[++i]);
+                        d.setUseHttp(Boolean.parseBoolean(args[++i]));
                     }
                     break;
                 case "-p":
                 case "-port":
-                    port = Integer.parseInt(args[++i]);
+                    d.setServerPort(Integer.parseInt(args[++i]));
                     break;
                 case "-o":
                 case "-op":
                 case "-objPath":
                 case "-objpath":
-                    objPath = args[++i];
+                    d.setCatObjsPath(args[++i]);
+                    break;
+                case "-d":
+                case "-domain":
+                    d.setServerDomain(args[++i]);
                     break;
             }
         }
-        new CatalogueDatabase(hostName, port, objPath, useHttp);
+
+        d.start();
     }
 
     /**
-     * Create and start a Catalogue Database.
-     *
-     * @param serverHostName - Catalogue Broker host name, e.g. "mydomain.com" or "127.0.0.1"
-     * @param serverPort     - Catalogue Broker access port, by default 5683
-     * @param catObjsPath    - path to the folder that contains the catalogue objects
-     * @param useHttp        - whether or not to use http or https when generating the sourcePackageURLs
+     * Start the Catalogue Database.
      */
-    public CatalogueDatabase(String serverHostName, int serverPort, String catObjsPath, boolean useHttp) {
+    public void start() {
         LOG.info("Starting Catalogue Database...");
-        // check arguments
-        if (serverHostName == null)
-            serverHostName = DEFAULT_SERVER_HOSTNAME;
 
-        if (serverPort == -1)
-            serverPort = DEFAULT_SERVER_COAP_PORT;
-
-        if (catObjsPath == null) {
-            catObjsPath = "./catalogue_objects";
+        if (serverDomain == null) {
+            serverDomain = serverHostName;
         }
 
         if (useHttp) {
-            accessURL = "http://" + serverHostName + "/.well-known/";
+            accessURL = "http://" + serverDomain + "/.well-known/";
         } else {
-            accessURL = "https://" + serverHostName + "/.well-known/";
+            accessURL = "https://" + serverDomain + "/.well-known/";
         }
 
         LOG.info("Catalogue Broker host name: " + serverHostName);
@@ -249,8 +267,6 @@ public class CatalogueDatabase {
                 }
             }
         });
-
-
     }
 
     /**

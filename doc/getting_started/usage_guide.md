@@ -47,6 +47,7 @@ You can configure the Catalogue Database using the following options:
 option       | description
 ------------ | ---------------------------
 -host, -h    | specify Catalogue Broker hostname/IP
+-domain, -d  | specify Catalogue Broker domain/IP used for sourcePackageURL generation
 -port, -p    | specify Catalogue Broker coap port
 -objpath, -o | path of folder containing catalogue objects (e.g. provided catalogue_objects folder)
 -usehttp     | change protocol of generated sourceCodeURLs to http (otherwise, https is used)
@@ -55,7 +56,9 @@ If you run the Catalogue Database without launch arguments,
 it tries to connect to the Catalogue Broker on localhost:5683 by default,
 trying to use the catalogue_objects folder in the same directory you started the jar from.
 
-Please be aware that the hostname will be used to generate the sourcePackageURL, if a sourcePackage is provided.
+Please be aware that the domain will be used to generate the sourcePackageURL, if a sourcePackage is provided.
+If no domain is specified, the hostname will be used instead.
+If your Catalogue Broker uses ports other than 80/443 for http/https, you have to provide "host:port" as domain for proper sourcePackageURL generation.
 
 
 ##### Catalogue Test WebPage
