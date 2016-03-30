@@ -40,6 +40,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -206,7 +208,8 @@ public class CatalogueDatabase {
         for (Integer modelId : MODEL_IDS) {
             RethinkInstance[] instances = resultMap.get(modelId);
 
-            if (instances != null) {
+            if (instances != null && instances.length > 0) {
+                //LOG.debug("setting instances: {}", gson.toJson(instances));
                 initializer.setInstancesForObject(modelId, instances);
                 ObjectEnabler enabler = initializer.create(modelId);
                 enablers.add(enabler);
@@ -475,25 +478,23 @@ public class CatalogueDatabase {
 
         @Override
         public ValueResponse read(int resourceid) {
-            //LOG.debug("Read on Catalogue Resource " + resourceid);
             String resourceName = idNameMap.get(resourceid);
-            String resourceValue = null;
-            //LOG.debug("idNameMap returns: " + resourceName);
+            LOG.debug(String.format("(%s) Read on %02d -> %s", nameValueMap.containsKey(NAME_FIELD_NAME) ? nameValueMap.get(NAME_FIELD_NAME) : nameValueMap.get("cguid"), resourceid, resourceName));
 
+            String resourceValue = null;
             try {
                 if (sourceCodeFile != null && resourceName.equals(sourceCodeKeyName)) {
                     //LOG.debug("getting sourceCode from file: " + sourceCodeFile);
-                    resourceValue = new Scanner(new FileInputStream(sourceCodeFile), "UTF-8").useDelimiter("\\A").next();
+                    resourceValue = new String(Files.readAllBytes(Paths.get(sourceCodeFile.toURI())), "UTF-8");
                 } else {
                     resourceValue = nameValueMap.get(resourceName);
                 }
-            } catch (FileNotFoundException e) {
+            } catch (IOException e) {
                 e.printStackTrace();
             }
 
             //LOG.debug("nameValueMap returns: " + resourceValue);
 
-            LOG.debug(String.format("(%s) Read on %02d->%s: %s", nameValueMap.containsKey(NAME_FIELD_NAME) ? nameValueMap.get(NAME_FIELD_NAME) : nameValueMap.get("cguid"), resourceid, resourceName, resourceValue));
             if (resourceValue != null) {
                 //LOG.debug("returning: " + resourceValue);
                 return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid, Value.newStringValue(resourceValue)));
