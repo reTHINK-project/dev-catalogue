@@ -40,6 +40,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -87,72 +89,90 @@ public class CatalogueDatabase {
     private JsonParser parser = new JsonParser();
 
     private static final String NAME_FIELD_NAME = "objectName";
+    private static final String CGUID_FIELD_NAME = "cguid";
 
-    private String accessURL;
 
     private final String DEFAULT_SERVER_HOSTNAME = "localhost";
     private final int DEFAULT_SERVER_COAP_PORT = 5683;
 
+    private String serverHostName = DEFAULT_SERVER_HOSTNAME;
+    private String serverDomain = null;
+    private String accessURL = null;
+    private String catObjsPath = "./catalogue_objects";
+    private int serverPort = DEFAULT_SERVER_COAP_PORT;
+    private boolean useHttp = false;
+
+    public void setUseHttp(boolean useHttp) {
+        this.useHttp = useHttp;
+    }
+
+    public void setServerHostName(String serverHostName) {
+        this.serverHostName = serverHostName;
+    }
+
+    public void setServerDomain(String serverDomain) {
+        this.serverDomain = serverDomain;
+    }
+
+    public void setCatObjsPath(String catObjsPath) {
+        this.catObjsPath = catObjsPath;
+    }
+
+    public void setServerPort(int serverPort) {
+        this.serverPort = serverPort;
+    }
+
     public static void main(final String[] args) {
-        String hostName = null, objPath = null;
-        boolean useHttp = false;
-        int port = -1;
+        CatalogueDatabase d = new CatalogueDatabase();
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             switch (arg) {
                 case "-h":
                 case "-host":
-                    hostName = args[++i];
+                    d.setServerHostName(args[++i]);
                     break;
                 case "-usehttp":
                     if (args.length <= i + 1 || args[i + 1].startsWith("-")) { // check if boolean value is not given, assume true
-                        useHttp = true;
+                        d.setUseHttp(true);
                     } else {
-                        useHttp = Boolean.parseBoolean(args[++i]);
+                        d.setUseHttp(Boolean.parseBoolean(args[++i]));
                     }
                     break;
                 case "-p":
                 case "-port":
-                    port = Integer.parseInt(args[++i]);
+                    d.setServerPort(Integer.parseInt(args[++i]));
                     break;
                 case "-o":
                 case "-op":
                 case "-objPath":
                 case "-objpath":
-                    objPath = args[++i];
+                    d.setCatObjsPath(args[++i]);
+                    break;
+                case "-d":
+                case "-domain":
+                    d.setServerDomain(args[++i]);
                     break;
             }
         }
-        new CatalogueDatabase(hostName, port, objPath, useHttp);
+
+        d.start();
     }
 
     /**
-     * Create and start a Catalogue Database.
-     *
-     * @param serverHostName - Catalogue Broker host name, e.g. "mydomain.com" or "127.0.0.1"
-     * @param serverPort     - Catalogue Broker access port, by default 5683
-     * @param catObjsPath    - path to the folder that contains the catalogue objects
-     * @param useHttp        - whether or not to use http or https when generating the sourcePackageURLs
+     * Start the Catalogue Database.
      */
-    public CatalogueDatabase(String serverHostName, int serverPort, String catObjsPath, boolean useHttp) {
+    public void start() {
         LOG.info("Starting Catalogue Database...");
 
-        // check arguments
-        if (serverHostName == null)
-            serverHostName = DEFAULT_SERVER_HOSTNAME;
-
-        if (serverPort == -1)
-            serverPort = DEFAULT_SERVER_COAP_PORT;
-
-        if (catObjsPath == null) {
-            catObjsPath = "./catalogue_objects";
+        if (serverDomain == null) {
+            serverDomain = serverHostName;
         }
 
         if (useHttp) {
-            accessURL = "http://" + serverHostName + "/.well-known/";
+            accessURL = "http://" + serverDomain + "/.well-known/";
         } else {
-            accessURL = "https://" + serverHostName + "/.well-known/";
+            accessURL = "https://" + serverDomain + "/.well-known/";
         }
 
         LOG.info("Catalogue Broker host name: " + serverHostName);
@@ -188,7 +208,8 @@ public class CatalogueDatabase {
         for (Integer modelId : MODEL_IDS) {
             RethinkInstance[] instances = resultMap.get(modelId);
 
-            if (instances != null) {
+            if (instances != null && instances.length > 0) {
+                //LOG.debug("setting instances: {}", gson.toJson(instances));
                 initializer.setInstancesForObject(modelId, instances);
                 ObjectEnabler enabler = initializer.create(modelId);
                 enablers.add(enabler);
@@ -249,8 +270,6 @@ public class CatalogueDatabase {
                 }
             }
         });
-
-
     }
 
     /**
@@ -264,7 +283,6 @@ public class CatalogueDatabase {
             sourcePath = "./";
 
         HashMap<Integer, RethinkInstance[]> resultMap = new HashMap<>();
-        Gson gson = new Gson();
 
         File catObjsFolder = new File(sourcePath);
         assert catObjsFolder.isDirectory();
@@ -286,19 +304,20 @@ public class CatalogueDatabase {
         for (Map.Entry<Integer, RethinkInstance[]> entry : resultMap.entrySet()) {
             for (RethinkInstance instance : entry.getValue()) {
                 RethinkInstance sourcePackage = instance.getSourcePackage();
-                String objectName = instance.nameValueMap.get("objectName");
                 if (instance.nameValueMap.get("sourcePackage") != null) {
-                    instance.nameValueMap.put("sourcePackageURL", String.format("%s%s/%s/sourcepackage", accessURL, MODEL_ID_TO_NAME_MAP.get(entry.getKey()), objectName));
+                    instance.nameValueMap.put("sourcePackageURL", String.format("%s%s/%s/sourcePackage", accessURL, MODEL_ID_TO_NAME_MAP.get(entry.getKey()), instance.nameValueMap.get(NAME_FIELD_NAME)));
                 } else if (sourcePackage != null) {
-                    sourcePackage.nameValueMap.put("objectName", objectName);
+                    String cguid = instance.nameValueMap.get(CGUID_FIELD_NAME);
+                    sourcePackage.nameValueMap.put("cguid", cguid);
                     sourcePackageInstances.add(sourcePackage);
-                    instance.nameValueMap.put("sourcePackageURL", String.format("%ssourcepackage/%s", accessURL, objectName));
+                    instance.nameValueMap.put("sourcePackageURL", String.format("%ssourcepackage/%s", accessURL, cguid));
                 }
             }
         }
 
         resultMap.put(SOURCEPACKAGE_MODEL_ID, sourcePackageInstances.toArray(new RethinkInstance[sourcePackageInstances.size()]));
 
+        //LOG.debug("parsed files: {}", gson.toJson(resultMap));
         return resultMap;
     }
 
@@ -459,25 +478,23 @@ public class CatalogueDatabase {
 
         @Override
         public ValueResponse read(int resourceid) {
-            //LOG.debug("Read on Catalogue Resource " + resourceid);
             String resourceName = idNameMap.get(resourceid);
-            String resourceValue = null;
-            //LOG.debug("idNameMap returns: " + resourceName);
+            LOG.debug(String.format("(%s) Read on %02d -> %s", nameValueMap.containsKey(NAME_FIELD_NAME) ? nameValueMap.get(NAME_FIELD_NAME) : nameValueMap.get("cguid"), resourceid, resourceName));
 
+            String resourceValue = null;
             try {
                 if (sourceCodeFile != null && resourceName.equals(sourceCodeKeyName)) {
                     //LOG.debug("getting sourceCode from file: " + sourceCodeFile);
-                    resourceValue = new Scanner(new FileInputStream(sourceCodeFile), "UTF-8").useDelimiter("\\A").next();
+                    resourceValue = new String(Files.readAllBytes(Paths.get(sourceCodeFile.toURI())), "UTF-8");
                 } else {
                     resourceValue = nameValueMap.get(resourceName);
                 }
-            } catch (FileNotFoundException e) {
+            } catch (IOException e) {
                 e.printStackTrace();
             }
 
             //LOG.debug("nameValueMap returns: " + resourceValue);
 
-            LOG.debug(String.format("(%s) Read on %02d->%s: %s", nameValueMap.get(NAME_FIELD_NAME), resourceid, resourceName, resourceValue));
             if (resourceValue != null) {
                 //LOG.debug("returning: " + resourceValue);
                 return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid, Value.newStringValue(resourceValue)));

@@ -724,7 +724,7 @@
       },
       {
         "id": 4,
-        "name": "objectName",
+        "name": "cguid",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": false,

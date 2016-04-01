@@ -35,6 +35,7 @@ import org.eclipse.leshan.server.client.ClientRegistryListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.UnsupportedEncodingException;
 import java.util.*;
 
 /**
@@ -81,6 +82,7 @@ public class RequestHandler {
     }
 
     private static final String NAME_FIELD_NAME = "objectName";
+    private static final String CGUID_FIELD_NAME = "cguid";
 
     private static final Map<Integer, Map<Integer, ResourceModel>> MODEL_MAP = new HashMap<>();
 
@@ -126,7 +128,7 @@ public class RequestHandler {
 
         //remove /.well-known/ from path
         path = StringUtils.removeStart(path, WELLKNOWN_PREFIX);
-        LOG.debug("adapted path: " + path);
+        //LOG.debug("adapted path: " + path);
         //split path up
         String[] pathParts = StringUtils.split(path, '/');
 
@@ -163,6 +165,10 @@ public class RequestHandler {
                 LOG.debug("resourceName: " + resourceName);
             }
 
+            if (pathParts.length > 3) {
+                LOG.debug("further specifications: " + Arrays.toString(Arrays.copyOfRange(pathParts, 3, pathParts.length)));
+            }
+
             //check if resourceName is valid
             Integer id = MODEL_NAME_TO_ID_MAP.get(modelType);
             Integer resourceID = null;
@@ -197,8 +203,11 @@ public class RequestHandler {
                     LOG.debug("checking endpoint: " + targetPaths[0]);
                     Client client = server.getClientRegistry().get(targetPaths[0]);
                     if (client != null) {
-                        ReadRequest request = new ReadRequest(StringUtils.removeStart(target, "/" + targetPaths[0]));
+                        String t = StringUtils.removeStart(target, "/" + targetPaths[0]);
+                        LOG.debug("requesting {}", t);
+                        ReadRequest request = new ReadRequest(t);
                         ValueResponse response = server.send(client, request);
+                        LOG.debug("got response: {}", response.getCode());
                         if (!response.getCode().equals(ResponseCode.CONTENT)) {
                             return encodeErrorResponse(createResponse(response.getCode(), "Unable to retrieve " + path));
                         } else {
@@ -232,7 +241,7 @@ public class RequestHandler {
         @Override
         public void registered(final Client client) {
             LOG.info("Client registered: " + client);
-            LOG.info("Client registered:\r\n" + gson.toJson(client));
+
             try {
                 checkClient(client);
             } catch (Exception e) {
@@ -278,75 +287,47 @@ public class RequestHandler {
          */
         private void checkClient(final Client client) {
 
-            Set<Integer> foundModels = new LinkedHashSet<>();
+            List<String> foundModels = new LinkedList<>();
 
             //LOG.debug("checking object links of client: " + client);
             for (LinkObject link : client.getObjectLinks()) {
-                if (foundModels.equals(MODEL_IDS)) {
-                    //exit condition
-                    //LOG.debug("all supported models found");
-                    break;
-                }
                 String linkUrl = link.getUrl();
                 LOG.debug("checking link: " + link.getUrl());
                 int i = linkUrl.indexOf("/", 1); //only supported if this returns an index
                 if (i > -1) {
                     int id = Integer.parseInt(linkUrl.substring(1, i));
                     if (MODEL_IDS.contains(id))
-                        foundModels.add(id);
+                        foundModels.add(link.getUrl());
                 }
             }
 
             //request instances of each found model
-            for (final Integer foundModelId : foundModels) {
+            for (final String foundModelLink : foundModels) {
                 Thread t = new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        ReadRequest request = new ReadRequest(foundModelId);
+                        LOG.debug("send readRequest for modelLink: {}", foundModelLink);
+
+                        final int model;
+                        if (foundModelLink.indexOf("/", 1) > -1) {
+                            model = Integer.parseInt(foundModelLink.substring(1, foundModelLink.indexOf("/", 1)));
+                        } else {
+                            LOG.error("unable to get model ID from modelLink");
+                            return;
+                        }
+
+                        Integer identifier = resourceNameToIdMapMap.get(model).get(NAME_FIELD_NAME);
+                        if (identifier == null)
+                            identifier = resourceNameToIdMapMap.get(model).get(CGUID_FIELD_NAME);
+
+                        ReadRequest request = new ReadRequest(foundModelLink + "/" + identifier);
                         ValueResponse response = server.send(client, request);
 
                         if (response.getCode() == ResponseCode.CONTENT) {
                             response.getContent().accept(new LwM2mNodeVisitor() {
                                 @Override
                                 public void visit(LwM2mObject object) {
-                                    Map<Integer, LwM2mObjectInstance> instances = object.getInstances();
-                                    int instanceID, resourceID;
-                                    int idFieldID = resourceNameToIdMapMap.get(foundModelId).get(NAME_FIELD_NAME);
-                                    LinkedList<String> newObjectNames = new LinkedList<>();
-                                    for (LwM2mObjectInstance instance : instances.values()) {
-                                        instanceID = instance.getId();
-                                        //LOG.debug("checking resources of /" + foundModelId + "/" + instanceID);
-                                        Map<Integer, LwM2mResource> resources = instance.getResources();
-                                        for (LwM2mResource resource : resources.values()) {
-                                            resourceID = resource.getId();
-                                            //LOG.debug(String.format("/%s/%s/%s = %s", foundModelId, instanceID, resourceID, resource.getValue().value));
-                                            if (resourceID == idFieldID) { //current resource is name field
-                                                String objectName = resource.getValue().value.toString();
-                                                Map<String, String> nametToInstanceMap = nameToInstanceMapMap.get(foundModelId);
-
-                                                nametToInstanceMap.put(objectName, "/" + client.getEndpoint() + "/" + foundModelId + "/" + instanceID);
-
-                                                newObjectNames.add(objectName);
-                                                //LOG.debug("Added to client map -> " + objectName + ": " + nametToInstanceMap.get(objectName));
-                                            }
-
-                                        }
-                                    }
-                                    //map object names to client, for easy removal in case of client disconnect
-                                    Map<Integer, List<String>> modelObjectsMap = clientToObjectsMap.get(client);
-                                    if (modelObjectsMap == null) {
-                                        modelObjectsMap = new HashMap<>();
-                                    }
-
-                                    List<String> objectNames = modelObjectsMap.get(foundModelId);
-                                    if (objectNames == null) {
-                                        objectNames = new LinkedList<>();
-                                    }
-
-                                    objectNames.addAll(newObjectNames);
-                                    modelObjectsMap.put(foundModelId, objectNames);
-                                    clientToObjectsMap.put(client, modelObjectsMap);
-
+                                    LOG.warn("object visit: " + object + " (this should not happen)");
                                 }
 
                                 @Override
@@ -356,7 +337,29 @@ public class RequestHandler {
 
                                 @Override
                                 public void visit(LwM2mResource resource) {
-                                    LOG.warn("resource visit: " + resource + " (this should not happen)");
+                                    //LOG.debug("resource visit: " + resource);
+                                    String objectName = resource.getValue().value.toString();
+                                    Map<String, String> nametToInstanceMap = nameToInstanceMapMap.get(model);
+
+                                    nametToInstanceMap.put(objectName, "/" + client.getEndpoint() + foundModelLink);
+
+                                    //map object names to client, for easy removal in case of client disconnect
+                                    Map<Integer, List<String>> modelObjectsMap = clientToObjectsMap.get(client);
+                                    if (modelObjectsMap == null) {
+                                        modelObjectsMap = new HashMap<>();
+                                    }
+
+                                    List<String> objectNames = modelObjectsMap.get(model);
+                                    if (objectNames == null) {
+                                        objectNames = new LinkedList<>();
+                                    }
+
+                                    objectNames.add(objectName);
+                                    modelObjectsMap.put(model, objectNames);
+                                    clientToObjectsMap.put(client, modelObjectsMap);
+
+
+                                    LOG.debug("Added to client map -> " + objectName + ": " + nametToInstanceMap.get(objectName));
                                 }
                             });
                         } else {
@@ -448,8 +451,7 @@ public class RequestHandler {
      * @return response as json
      */
     private String encodeResponse(final ValueResponse response, final String modelType, final boolean isError) {
-        LOG.debug("encoding response: " + response);
-        LOG.debug("encoding response: " + gson.toJson(response));
+        //LOG.debug("encoding response: " + gson.toJson(response));
 
         final Map<Integer, ResourceModel> model = MODEL_MAP.get(MODEL_NAME_TO_ID_MAP.get(modelType));
 
@@ -475,7 +477,18 @@ public class RequestHandler {
                 Map<Integer, LwM2mResource> resources = instance.getResources();
                 //LOG.debug("resources: " + resources);
                 for (Map.Entry<Integer, LwM2mResource> entry : resources.entrySet()) {
-                    instanceMap.put(model.get(entry.getKey()).name, (String) entry.getValue().getValue().value);
+                    String value = null;
+                    if (entry.getValue().getValue().type.equals(Value.DataType.OPAQUE))
+                        try {
+                            value = new String((byte[]) entry.getValue().getValue().value, "UTF-8");
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                            value = (String) entry.getValue().getValue().value;
+                        }
+                    else
+                        value = (String) entry.getValue().getValue().value;
+
+                    instanceMap.put(model.get(entry.getKey()).name, value);
                 }
 
                 //LOG.debug("final instanceMap: " + instanceMap);
@@ -486,6 +499,7 @@ public class RequestHandler {
             @Override
             public void visit(LwM2mResource resource) {
                 //LOG.debug("visiting resource: " + resource);
+
                 if (isError) {
                     instanceMap.put(response.getCode().name(), (String) resource.getValue().value);
 

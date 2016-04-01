@@ -58,6 +58,6 @@ public class WellKnownServlet extends HttpServlet {
         String response = requestHandler.handleGET(req.getRequestURI());
         resp.setStatus(HttpServletResponse.SC_OK);
         resp.addHeader("Access-Control-Allow-Origin", "*");
-        resp.getWriter().format(response).flush();
+        resp.getWriter().write(response);
     }
 }

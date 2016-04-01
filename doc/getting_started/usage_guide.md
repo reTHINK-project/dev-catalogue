@@ -47,15 +47,18 @@ You can configure the Catalogue Database using the following options:
 option       | description
 ------------ | ---------------------------
 -host, -h    | specify Catalogue Broker hostname/IP
+-domain, -d  | specify Catalogue Broker domain/IP used for sourcePackageURL generation
 -port, -p    | specify Catalogue Broker coap port
 -objpath, -o | path of folder containing catalogue objects (e.g. provided catalogue_objects folder)
--usehttp     | change protocol of generated sourceCodeURLs to http (otherwise, https is used)
+-usehttp     | change protocol of generated sourcePackageURLs to http (otherwise, https is used)
 
 If you run the Catalogue Database without launch arguments,
 it tries to connect to the Catalogue Broker on localhost:5683 by default,
 trying to use the catalogue_objects folder in the same directory you started the jar from.
 
-Please be aware that the hostname will be used to generate the sourcePackageURL, if a sourcePackage is provided.
+Please be aware that the domain will be used to generate the sourcePackageURL, if a sourcePackage is provided.
+If no domain is specified, the hostname will be used instead.
+If your Catalogue Broker uses ports other than 80/443 for http/https, you have to provide "host:port" as domain for proper sourcePackageURL generation.
 
 
 ##### Catalogue Test WebPage
@@ -75,17 +78,17 @@ Note: by default, the catalogue test webpage is accessible via port 8080.
 
 #### Using custom Catalogue Data Objects
 
-To use custom Catalogue Data Objects, you have to comply with a certain folder structure. Please see the provided example objects contained in *catalogue_objects*.
+To use custom Catalogue Data Objects, you have to comply with a certain folder structure. Please see the provided example objects contained in _catalogue_objects_.
 
 1. the root folder for objects must contain the type as a subfolder, e.g. "protocolstub"
 2. all elements of a catalogue object are contained in a single folder.
 3. the type folders hold the catalogue object folders
-4. the catalogue data object is primarily defined in *description.json*
-5. the sourcePackage is defined in *sourcePackage.json*
+4. the catalogue data object is primarily defined in _description.json_
+5. the sourcePackage is defined in _sourcePackage.json_
 6. if a sourcePackage is provided, then a sourcePackageURL will be generated.
-7. providing a sourcePackage is optional.  Please pay attenttion that in the case where a source package is not provided, a sourcePackageURL has to be defined in *description.json*.
-7. the source code can either be included in the sourcePackage, or contained in *sourceCode.js*
+7. providing a sourcePackage is optional. Please pay attention that in the case where a source package is not provided, a sourcePackageURL has to be defined in _description.json_.
+7. the source code can either be included in the sourcePackage, or contained in _sourceCode.*_
 8. a sourcePackage can also be included in description.json
 9. you cannot have a sourcePackage defined in description.json and have the sourceCode in a separate file
-10. please avoid duplicate entries, e.g. sourceCode in *sourcePackage.json* and *sourceCode.js*
+10. please avoid duplicate entries, e.g. sourceCode in _sourcePackage.json_ and _sourceCode.*_
 
