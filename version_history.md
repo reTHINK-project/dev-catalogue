@@ -21,3 +21,4 @@
 * changed mapping of sourcePackage to Catalogue Object to use cguid
 * updated Usage Guide
 * added -domain option to Catalogue Database
+* improved registration procedure (faster + less traffic)
