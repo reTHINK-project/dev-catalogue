@@ -538,6 +538,17 @@
         "range": "",
         "units": "",
         "description": ""
+      },
+      {
+        "id": 10,
+        "name": "scheme",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
       }
     ]
   },
