@@ -304,9 +304,7 @@ public class CatalogueDatabase {
         for (Map.Entry<Integer, RethinkInstance[]> entry : resultMap.entrySet()) {
             for (RethinkInstance instance : entry.getValue()) {
                 RethinkInstance sourcePackage = instance.getSourcePackage();
-                if (instance.nameValueMap.get("sourcePackage") != null) {
-                    instance.nameValueMap.put("sourcePackageURL", String.format("%s%s/%s/sourcePackage", accessURL, MODEL_ID_TO_NAME_MAP.get(entry.getKey()), instance.nameValueMap.get(NAME_FIELD_NAME)));
-                } else if (sourcePackage != null) {
+                if (sourcePackage != null) {
                     String cguid = instance.nameValueMap.get(CGUID_FIELD_NAME);
                     sourcePackage.nameValueMap.put("cguid", cguid);
                     sourcePackageInstances.add(sourcePackage);
@@ -360,25 +358,33 @@ public class CatalogueDatabase {
         RethinkInstance instance = createFromFile(desc);
 
         // 2. parse sourcePackage
-        if (instance.nameValueMap.get("sourcePackage") == null && pkg.exists()) {
-            RethinkInstance sourcePackage = createFromFile(pkg);
+        RethinkInstance sourcePackage = null;
+        if (pkg.exists()) {
+            sourcePackage = createFromFile(pkg);
+        } else if (instance.nameValueMap.containsKey("sourcePackage")) {
+            JsonObject jSourcePackage = gson.fromJson(instance.nameValueMap.get("sourcePackage"), JsonObject.class);
+            sourcePackage = createFromJson(jSourcePackage);
 
-            // 3. attach code to sourcePackage
-            if (sourcePackage.nameValueMap.get("sourceCode") == null) {
-                // try to get sourceCode file
-                File code = null;
-                for (File file : dir.listFiles()) {
-                    if (file.getName().startsWith("sourceCode")) {
-                        code = file;
-                        break;
-                    }
+            // remove if from nameValueMap, because it will be added with instance.setSourcePackage(sourcePackage);
+            instance.nameValueMap.remove("sourcePackage");
+        }
+
+        if (sourcePackage != null) {
+            // try to get sourceCode file
+            File code = null;
+            for (File file : dir.listFiles()) {
+                if (file.getName().startsWith("sourceCode")) {
+                    code = file;
+                    break;
                 }
-                if (code != null)
-                    sourcePackage.setSourceCodeFile(code);
             }
-            // 4. add sourcePackage to catalogue object
+            if (code != null)
+                sourcePackage.setSourceCodeFile(code);
+
+            // add sourcePackage to instance
             instance.setSourcePackage(sourcePackage);
         }
+
         return instance;
     }
 
@@ -391,6 +397,17 @@ public class CatalogueDatabase {
      */
     private RethinkInstance createFromFile(File f) throws FileNotFoundException {
         JsonObject descriptor = parser.parse(new FileReader(f)).getAsJsonObject();
+        return createFromJson(descriptor);
+    }
+
+    /**
+     * Creates a RethinkInstance from a JsonObject
+     *
+     * @param descriptor - JsonObject that defines the catalogue object
+     * @return A RethinkInstance based on the information of the parsed JsonObect
+     * @throws FileNotFoundException
+     */
+    private RethinkInstance createFromJson(JsonObject descriptor) throws FileNotFoundException {
         LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
         for (Map.Entry<String, JsonElement> entry : descriptor.entrySet()) {
             String value;
@@ -402,9 +419,10 @@ public class CatalogueDatabase {
             nameValueMap.put(entry.getKey(), value);
         }
 
-        LOG.debug(String.format("parsed %s/%s:\r\n%s", f.getParentFile().getName(), f.getName(), gson.toJson(nameValueMap)));
+        LOG.debug("parsed descriptor: {}", gson.toJson(nameValueMap));
         return new RethinkInstance(nameValueMap);
     }
+
 
     /**
      * InstanceEnabler for reTHINK resources.
