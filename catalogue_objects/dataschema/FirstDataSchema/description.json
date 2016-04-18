@@ -5,5 +5,6 @@
   "objectName": "FirstDataSchema",
   "description": "This is a Data Schema",
   "language": "Javascript ECMA6",
-  "accessControlPolicy": "somePolicy"
+  "accessControlPolicy": "somePolicy",
+  "scheme": "COMM"
 }

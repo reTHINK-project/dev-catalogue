@@ -13,7 +13,8 @@
 <body>
 <div ng-app="rethinkTest" ng-controller="myCtrl">
     <h1>reTHINK Catalogue Test Page</h1>
-    <b>Attention: Use catalogue-rethink.fokus.fraunhofer.de as a broker address to access a publicly available instance.</b>
+    <b>Attention: Use catalogue-rethink.fokus.fraunhofer.de as a broker address to access a publicly available
+        instance.</b>
     <table>
         <tr>
             <td>Catalogue Broker hostname:</td>
@@ -92,6 +93,7 @@
 
                 <!-- data schema specific -->
                 <option ng-show="kind == 'dataschema'" value="accessControlPolicy">accessControlPolicy</option>
+                <option ng-show="kind == 'dataschema'" value="scheme">scheme</option>
 
                 <!-- idp-proxy specific -->
                 <option ng-show="kind == 'idp-proxy'" value="messageSchemas">messageSchemas</option>
@@ -111,16 +113,18 @@
         <!-- TODO: improve code -->
         <h2>Generated path:<br>
             {{
-                address = protocol
-                    + "://" + host + (manualPort ? ":" + port : "")
-                    + "/.well-known/"
-                    + kind + "/"
-                    + (name == null ? '' : name);
+            address = protocol
+            + "://" + host + (manualPort ? ":" + port : "")
+            + "/.well-known/"
+            + kind + "/"
+            + (name == null ? '' : name);
 
-                address + (resourceName != null ? '/' + resourceName : '')
+            address + (resourceName != null ? '/' + resourceName : '')
             }}
         </h2>
-        <button ng-click="response = getResource(address + (resourceName != null ? '/' + resourceName : ''))" ng-init="response = null">get {{name || kind}}</button>
+        <button ng-click="response = getResource(address + (resourceName != null ? '/' + resourceName : ''))"
+                ng-init="response = null">get {{name || kind}}
+        </button>
         <button ng-click="response = getAndExecCode(getResource(address + '/sourcePackageURL'))">get & execute code
         </button>
 

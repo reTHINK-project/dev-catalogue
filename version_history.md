@@ -22,3 +22,8 @@
 * updated Usage Guide
 * added -domain option to Catalogue Database
 * improved registration procedure (faster + less traffic)
+
+## 1.0.5
+* sourcePackages are now always a separate catalogue object
+* added "scheme" attribute to dataSchema
+* updated hyperty examples to reflect change in model

@@ -1,6 +1,9 @@
 {
   "cguid": 984919876451321,
-  "hypertyType": "COMMUNICATOR",
+  "hypertyType": [
+    "audio",
+    "video"
+  ],
   "version": "1.0",
   "objectName": "FirstHyperty",
   "description": "This is an example hyperty that is written in an external file and contains a source package",
