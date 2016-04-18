@@ -27,3 +27,16 @@
 * sourcePackages are now always a separate catalogue object
 * added "scheme" attribute to dataSchema
 * updated hyperty examples to reflect change in model
+
+## 1.1.0
+* Updated leshan version to 0.1.11-M10 (currently using snapshot)
+* included rethink-catalogue-test into Catalogue Broker, it is the default website for the Broker now
+* minor changes to broker responses, tries to eliminate stringified jsons in json
+* updated model (accessControlPolicy & scheme not mandatory anymore)
+* Catalogue version set to 1.1.0
+* updated test website to automatically get list of instances if type is selected
+* fixed bug in broker that resulted in a map getting duplicate entries and growing indefinitely on every client update
+* broker may now respond with appropriate error code if an object was not found, or another kind of error occured
+* added ability to restart all connected databases, or a specific one, using either '/.well-known/restart' or '/.well-known/restart/<endpoint>'
+* improved concurrency stability
+* increased database lifetime to 60s
