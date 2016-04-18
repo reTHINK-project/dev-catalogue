@@ -53,6 +53,8 @@ public class CatalogueDatabase {
     private String registrationID;
     private static final Logger LOG = LoggerFactory.getLogger(CatalogueDatabase.class);
 
+    public static CatalogueDatabase instance;
+
     // model IDs that define the custom models inside model.json
     private static final int HYPERTY_MODEL_ID = 1337;
     private static final int PROTOSTUB_MODEL_ID = 1338;
@@ -95,6 +97,7 @@ public class CatalogueDatabase {
 
     private final String DEFAULT_SERVER_HOSTNAME = "localhost";
     private final int DEFAULT_SERVER_COAP_PORT = 5683;
+    private LeshanClient client;
 
     private String serverHostName = DEFAULT_SERVER_HOSTNAME;
     private String serverDomain = null;
@@ -102,6 +105,8 @@ public class CatalogueDatabase {
     private String catObjsPath = "./catalogue_objects";
     private int serverPort = DEFAULT_SERVER_COAP_PORT;
     private boolean useHttp = false;
+
+    private Thread hook = null;
 
     public void setUseHttp(boolean useHttp) {
         this.useHttp = useHttp;
@@ -197,10 +202,12 @@ public class CatalogueDatabase {
         String serverURI = String.format("coap://%s:%s", serverHostName, serverPort);
 
         initializer.setInstancesForObject(LwM2mId.SECURITY, noSec(serverURI, 123));
-        initializer.setInstancesForObject(LwM2mId.SERVER, new Server(123, 2, BindingMode.U, false));
+        initializer.setInstancesForObject(LwM2mId.SERVER, new Server(123, 60, BindingMode.U, false));
 
         // set dummy Device
-        initializer.setClassForObject(3, Device.class);
+        Device device = new Device();
+        device.setDatabase(this);
+        initializer.setInstancesForObject(LwM2mId.DEVICE, device);
 
         List<LwM2mObjectEnabler> enablers = initializer.create(LwM2mId.SECURITY, LwM2mId.SERVER, LwM2mId.DEVICE);
 
@@ -233,25 +240,36 @@ public class CatalogueDatabase {
             }
         }
 
-        //final LeshanClient client = new LeshanClient(clientAddress, serverAddress, new ArrayList<LwM2mObjectEnabler>(
-        //        enablers));
-        LeshanClientBuilder builder = new LeshanClientBuilder("Database " + new Random().nextInt(Integer.MAX_VALUE));
+        String endpoint = "DB_" + new Random().nextInt(Integer.MAX_VALUE);
+        LOG.info("I am '{}'", endpoint);
+
+        LeshanClientBuilder builder = new LeshanClientBuilder(endpoint);
         builder.setObjects(enablers);
 
-        final LeshanClient client = builder.build();
+        client = builder.build();
 
         // Start the client
         client.start();
 
+        final CatalogueDatabase ref = this;
 
         // Deregister on shutdown and stop client.
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                LOG.info("Device: Deregistering Client");
-                client.destroy(true);
-            }
-        });
+        // add hook only if not set already (important if database was restarted using execute command)
+        if (hook == null) {
+            hook = new Thread() {
+                @Override
+                public void run() {
+                    ref.stop();
+                }
+            };
+            Runtime.getRuntime().addShutdownHook(hook);
+        }
+    }
+
+    public void stop() {
+        LOG.info("Device: Deregistering Client");
+        if (client != null)
+            client.destroy(true);
     }
 
     /**
@@ -495,7 +513,7 @@ public class CatalogueDatabase {
                 e.printStackTrace();
             }
 
-            LOG.debug("nameValueMap returns: " + resourceValue);
+            //LOG.debug("nameValueMap returns: " + resourceValue);
 
             if (resourceValue != null) {
 
@@ -518,6 +536,12 @@ public class CatalogueDatabase {
 
         public Device() {
 
+        }
+
+        private CatalogueDatabase database = null;
+
+        public void setDatabase(CatalogueDatabase database) {
+            this.database = database;
         }
 
         @Override
@@ -555,7 +579,32 @@ public class CatalogueDatabase {
         @Override
         public ExecuteResponse execute(int resourceid, String params) {
             LOG.debug("Execute on Device resource ({}, {})", resourceid, params);
-            return super.execute(resourceid, params);
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    if (database != null) {
+                        database.stop();
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        database.start();
+                    } else {
+                        LOG.warn("database reference not set!");
+                    }
+                }
+            }).start();
+            if (database != null) {
+                return ExecuteResponse.success();
+            } else {
+                return ExecuteResponse.internalServerError("Missing Database reference. Please set via setDatabase()");
+            }
         }
 
         @Override

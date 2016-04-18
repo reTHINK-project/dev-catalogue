@@ -40,6 +40,7 @@ public class WellKnownServlet extends HttpServlet {
 
     static {
         coap2httpCodeMap.put(ResponseCode.CONTENT, HttpServletResponse.SC_OK);
+        coap2httpCodeMap.put(ResponseCode.CHANGED, HttpServletResponse.SC_OK);
         coap2httpCodeMap.put(ResponseCode.INTERNAL_SERVER_ERROR, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         coap2httpCodeMap.put(ResponseCode.METHOD_NOT_ALLOWED, HttpServletResponse.SC_METHOD_NOT_ALLOWED);
         coap2httpCodeMap.put(ResponseCode.NOT_FOUND, HttpServletResponse.SC_NOT_FOUND);
@@ -68,14 +69,21 @@ public class WellKnownServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         LOG.info("GOT GET");
+
         RequestHandler.RequestResponse response = requestHandler.handleGET(req.getRequestURI());
         resp.addHeader("Access-Control-Allow-Origin", "*");
+        Integer code = coap2httpCodeMap.get(response.getCode());
+        if (code == null) {
+            LOG.warn("HTTP Code is null! Coap code: {}", response.getCode());
+            code = response.isSuccess() ? HttpServletResponse.SC_OK : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+        }
         if (response.isSuccess()) {
-            resp.setStatus(HttpServletResponse.SC_OK);
+            resp.setStatus(code);
             resp.getWriter().write(response.getJsonResponse());
         } else {
-            resp.sendError(coap2httpCodeMap.get(response.getCode()), response.getJsonResponse());
+            resp.sendError(code, response.getJsonResponse());
         }
-
     }
+
+
 }
