@@ -40,8 +40,8 @@
         </tr>
         <tr>
             <td>Catalogue Object type:</td>
-            <td><select name="singleSelect" ng-model="kind" ng-init="kind = 'hyperty'"
-                        ng-change="name = null; resourceName = null">
+            <td><select name="singleSelect" ng-model="kind" ng-init="kind = 'hyperty'; getInstanceList(kind)"
+                        ng-change="name = null; resourceName = null; getInstanceList(kind)">
                 <option value="hyperty">Hyperty</option>
                 <option value="protocolstub">Protostub</option>
                 <option value="runtime">Hyperty Runtime</option>
@@ -51,9 +51,11 @@
             </select></td>
         </tr>
         <tr ng-show="kind != null">
-            <td>(optional) Object name:</td>
-            <td><input size="30" type="text" ng-model="name" ng-init="name = 'FirstHyperty'"
-                       ng-change="name = name == '' ? null : name"></td>
+            <!--<td>(optional) Object name:</td>-->
+            <!--<td><input size="30" type="text" ng-model="name" ng-init="name = 'FirstHyperty'"-->
+            <!--ng-change="name = name == '' ? null : name"></td>-->
+            <td>Catalogue Object name:</td>
+            <td><select name="singleSelect" ng-model="name" ng-options="name for name in names"></select></td>
         </tr>
         <tr ng-show="name != null">
             <td>(optional) Resource name:</td>
@@ -190,10 +192,11 @@
                 xmlHttp.open("GET", url, false); // false for synchronous request
                 xmlHttp.send();
             } catch (e) {
-                console.error(e);
+                console.error("hello error: " + e);
                 alert("Error while trying to get resource:\r\n" + e);
                 return;
             }
+
             console.log("got response: " + xmlHttp.responseText);
             var resp = xmlHttp.responseText;
 
@@ -206,6 +209,15 @@
 
 
             return resp;
+        };
+
+        $scope.getInstanceList = function (kind) {
+            console.log("trying to get instances of %s", kind);
+            address = $scope.protocol
+                    + "://" + $scope.host + ($scope.manualPort ? ":" + $scope.port : "")
+                    + "/.well-known/"
+                    + kind + "/";
+            $scope.names = $scope.getResource(address);
         };
 
 

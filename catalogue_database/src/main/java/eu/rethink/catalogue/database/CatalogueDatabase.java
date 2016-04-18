@@ -18,32 +18,33 @@
 package eu.rethink.catalogue.database;
 
 import com.google.gson.*;
-import org.eclipse.leshan.ResponseCode;
+import org.eclipse.leshan.LwM2mId;
 import org.eclipse.leshan.client.californium.LeshanClient;
+import org.eclipse.leshan.client.californium.LeshanClientBuilder;
+import org.eclipse.leshan.client.object.Server;
 import org.eclipse.leshan.client.resource.BaseInstanceEnabler;
 import org.eclipse.leshan.client.resource.LwM2mObjectEnabler;
-import org.eclipse.leshan.client.resource.ObjectEnabler;
 import org.eclipse.leshan.client.resource.ObjectsInitializer;
 import org.eclipse.leshan.core.model.LwM2mModel;
 import org.eclipse.leshan.core.model.ObjectLoader;
 import org.eclipse.leshan.core.model.ObjectModel;
 import org.eclipse.leshan.core.model.ResourceModel;
 import org.eclipse.leshan.core.node.LwM2mResource;
-import org.eclipse.leshan.core.node.Value;
-import org.eclipse.leshan.core.request.DeregisterRequest;
-import org.eclipse.leshan.core.request.RegisterRequest;
-import org.eclipse.leshan.core.response.LwM2mResponse;
-import org.eclipse.leshan.core.response.RegisterResponse;
-import org.eclipse.leshan.core.response.ValueResponse;
+import org.eclipse.leshan.core.request.BindingMode;
+import org.eclipse.leshan.core.response.ExecuteResponse;
+import org.eclipse.leshan.core.response.ReadResponse;
+import org.eclipse.leshan.core.response.WriteResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
+
+import static org.eclipse.leshan.client.object.Security.noSec;
+
 
 /**
  * A reference implementation for a reTHINK Catalogue Database
@@ -189,18 +190,20 @@ public class CatalogueDatabase {
         InputStream modelStream = getClass().getResourceAsStream("/model.json");
         objectModels.addAll(ObjectLoader.loadJsonStream(modelStream));
 
-        // map object models by ID
-        HashMap<Integer, ObjectModel> map = new HashMap<>();
-        for (ObjectModel objectModel : objectModels) {
-            map.put(objectModel.id, objectModel);
-        }
-
         // Initialize object list
-        ObjectsInitializer initializer = new ObjectsInitializer(new LwM2mModel(map));
+        ObjectsInitializer initializer = new ObjectsInitializer(new LwM2mModel(objectModels));
+
+        // add broker address to intializer
+        String serverURI = String.format("coap://%s:%s", serverHostName, serverPort);
+
+        initializer.setInstancesForObject(LwM2mId.SECURITY, noSec(serverURI, 123));
+        initializer.setInstancesForObject(LwM2mId.SERVER, new Server(123, 2, BindingMode.U, false));
 
         // set dummy Device
         initializer.setClassForObject(3, Device.class);
-        List<ObjectEnabler> enablers = initializer.createMandatory();
+
+        List<LwM2mObjectEnabler> enablers = initializer.create(LwM2mId.SECURITY, LwM2mId.SERVER, LwM2mId.DEVICE);
+
 
         // iterate through supported models,
         // set parsed instances of those models in initializer,
@@ -211,7 +214,7 @@ public class CatalogueDatabase {
             if (instances != null && instances.length > 0) {
                 //LOG.debug("setting instances: {}", gson.toJson(instances));
                 initializer.setInstancesForObject(modelId, instances);
-                ObjectEnabler enabler = initializer.create(modelId);
+                LwM2mObjectEnabler enabler = initializer.create(modelId);
                 enablers.add(enabler);
 
                 // create id:name map for the current model
@@ -230,44 +233,23 @@ public class CatalogueDatabase {
             }
         }
 
-        // Create client
-        final InetSocketAddress clientAddress = new InetSocketAddress("0", 0);
-        final InetSocketAddress serverAddress = new InetSocketAddress(serverHostName, serverPort);
+        //final LeshanClient client = new LeshanClient(clientAddress, serverAddress, new ArrayList<LwM2mObjectEnabler>(
+        //        enablers));
+        LeshanClientBuilder builder = new LeshanClientBuilder("Database " + new Random().nextInt(Integer.MAX_VALUE));
+        builder.setObjects(enablers);
 
-        final LeshanClient client = new LeshanClient(clientAddress, serverAddress, new ArrayList<LwM2mObjectEnabler>(
-                enablers));
+        final LeshanClient client = builder.build();
 
         // Start the client
         client.start();
 
-        // Register to the server
-        LOG.info(String.format("Registering on %s...", serverAddress));
-        final String endpointIdentifier = UUID.randomUUID().toString();
-        RegisterResponse response = client.send(new RegisterRequest(endpointIdentifier));
-        if (response == null) {
-            LOG.warn("Registration request timeout");
-            return;
-        }
-
-        LOG.debug("Device Registration (Success? " + response.getCode() + ")");
-        if (response.getCode() != ResponseCode.CREATED) {
-            System.err.println("If you're having issues connecting to the LWM2M endpoint, try using the DTLS port instead");
-            return;
-        }
-
-        registrationID = response.getRegistrationID();
-
-        LOG.info("Device: Registered Client Catalogue '" + registrationID + "'");
 
         // Deregister on shutdown and stop client.
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
-                if (registrationID != null) {
-                    LOG.info("Device: Deregistering Client '" + registrationID + "'");
-                    client.send(new DeregisterRequest(registrationID), 1000);
-                    client.stop();
-                }
+                LOG.info("Device: Deregistering Client");
+                client.destroy(true);
             }
         });
     }
@@ -411,11 +393,13 @@ public class CatalogueDatabase {
         LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
         for (Map.Entry<String, JsonElement> entry : descriptor.entrySet()) {
             String value;
-            try {
+            if (entry.getValue().isJsonPrimitive())
                 value = entry.getValue().getAsString();
-            } catch (Exception e) {
+            else if (entry.getValue().isJsonArray())
+                value = entry.getValue().getAsJsonArray().toString();
+            else
                 value = entry.getValue().toString();
-            }
+
             nameValueMap.put(entry.getKey(), value);
         }
 
@@ -495,7 +479,7 @@ public class CatalogueDatabase {
         }
 
         @Override
-        public ValueResponse read(int resourceid) {
+        public ReadResponse read(int resourceid) {
             String resourceName = idNameMap.get(resourceid);
             LOG.debug(String.format("(%s) Read on %02d -> %s", nameValueMap.containsKey(NAME_FIELD_NAME) ? nameValueMap.get(NAME_FIELD_NAME) : nameValueMap.get("cguid"), resourceid, resourceName));
 
@@ -511,14 +495,15 @@ public class CatalogueDatabase {
                 e.printStackTrace();
             }
 
-            //LOG.debug("nameValueMap returns: " + resourceValue);
+            LOG.debug("nameValueMap returns: " + resourceValue);
 
             if (resourceValue != null) {
-                //LOG.debug("returning: " + resourceValue);
-                return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid, Value.newStringValue(resourceValue)));
+
+                return ReadResponse.success(resourceid, resourceValue);
             } else
                 return super.read(resourceid);
         }
+
 
         @Override
         public String toString() {
@@ -532,132 +517,100 @@ public class CatalogueDatabase {
     public static class Device extends BaseInstanceEnabler {
 
         public Device() {
-            // notify new date each 5 second
-            Timer timer = new Timer();
-            timer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    fireResourceChange(13);
-                }
-            }, 5000, 5000);
+
         }
 
         @Override
-        public ValueResponse read(int resourceid) {
+        public ReadResponse read(int resourceid) {
             LOG.debug("Read on Device Resource " + resourceid);
             switch (resourceid) {
                 case 0:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getManufacturer())));
+                    return ReadResponse.success(resourceid, getManufacturer());
                 case 1:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getModelNumber())));
+                    return ReadResponse.success(resourceid, getModelNumber());
                 case 2:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getSerialNumber())));
+                    return ReadResponse.success(resourceid, getSerialNumber());
                 case 3:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getFirmwareVersion())));
+                    return ReadResponse.success(resourceid, getFirmwareVersion());
                 case 9:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newIntegerValue(getBatteryLevel())));
+                    return ReadResponse.success(resourceid, getBatteryLevel());
                 case 10:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newIntegerValue(getMemoryFree())));
+                    return ReadResponse.success(resourceid, getMemoryFree());
                 case 11:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            new Value<?>[]{Value.newIntegerValue(getErrorCode())}));
+                    return ReadResponse.success(resourceid, getErrorCode());
                 case 13:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newDateValue(getCurrentTime())));
+                    return ReadResponse.success(resourceid, getCurrentTime());
                 case 14:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getUtcOffset())));
+                    return ReadResponse.success(resourceid, getUtcOffset());
                 case 15:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getTimezone())));
+                    return ReadResponse.success(resourceid, getTimezone());
                 case 16:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getSupportedBinding())));
+                    return ReadResponse.success(resourceid, getSupportedBinding());
                 default:
+
                     return super.read(resourceid);
             }
         }
 
         @Override
-        public LwM2mResponse execute(int resourceid, byte[] params) {
-            LOG.debug("Execute on Device resource " + resourceid);
-            if (params != null && params.length != 0)
-                LOG.debug("\t params " + new String(params));
-            return new LwM2mResponse(ResponseCode.CHANGED);
+        public ExecuteResponse execute(int resourceid, String params) {
+            LOG.debug("Execute on Device resource ({}, {})", resourceid, params);
+            return super.execute(resourceid, params);
         }
 
         @Override
-        public LwM2mResponse write(int resourceid, LwM2mResource value) {
-            LOG.debug("Write on Device Resource " + resourceid + " value " + value);
-            switch (resourceid) {
-                case 13:
-                    return new LwM2mResponse(ResponseCode.NOT_FOUND);
-                case 14:
-                    setUtcOffset((String) value.getValue().value);
-                    fireResourceChange(resourceid);
-                    return new LwM2mResponse(ResponseCode.CHANGED);
-                case 15:
-                    setTimezone((String) value.getValue().value);
-                    fireResourceChange(resourceid);
-                    return new LwM2mResponse(ResponseCode.CHANGED);
-                default:
-                    return super.write(resourceid, value);
-            }
+        public WriteResponse write(int resourceid, LwM2mResource value) {
+            LOG.debug("Write on Device resource ({}, {})", resourceid, value);
+            return super.write(resourceid, value);
         }
 
-        private String getManufacturer() {
+        private static String getManufacturer() {
             return "Rethink Example Catalogue";
         }
 
-        private String getModelNumber() {
+        private static String getModelNumber() {
             return "Model 1337";
         }
 
-        private String getSerialNumber() {
+        private static String getSerialNumber() {
             return "RT-500-000-0001";
         }
 
-        private String getFirmwareVersion() {
+        private static String getFirmwareVersion() {
             return "0.1.0";
         }
 
-        private int getErrorCode() {
+        private static int getErrorCode() {
             return 0;
         }
 
-        private int getBatteryLevel() {
+        private static int getBatteryLevel() {
             final Random rand = new Random();
             return rand.nextInt(100);
         }
 
-        private int getMemoryFree() {
+        private static int getMemoryFree() {
             final Random rand = new Random();
             return rand.nextInt(50) + 114;
         }
 
-        private Date getCurrentTime() {
+        private static Date getCurrentTime() {
             return new Date();
         }
 
-        private String utcOffset = new SimpleDateFormat("X").format(Calendar.getInstance().getTime());
+        private static String utcOffset = new SimpleDateFormat("X").format(Calendar.getInstance().getTime());
 
-        private String getUtcOffset() {
+        private static String getUtcOffset() {
             return utcOffset;
         }
 
-        private void setUtcOffset(String t) {
+        private static void setUtcOffset(String t) {
             utcOffset = t;
         }
 
-        private String timeZone = TimeZone.getDefault().getID();
+        private static String timeZone = TimeZone.getDefault().getID();
 
-        private String getTimezone() {
+        private static String getTimezone() {
             return timeZone;
         }
 
@@ -665,9 +618,10 @@ public class CatalogueDatabase {
             timeZone = t;
         }
 
-        private String getSupportedBinding() {
+        private static String getSupportedBinding() {
             return "U";
         }
+
     }
 
     private FileFilter dirFilter = new FileFilter() {

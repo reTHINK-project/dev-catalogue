@@ -6,7 +6,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -37,6 +37,7 @@ public class WellKnownCoapResource extends CoapResource {
      * Create proxy coap resource that takes all requests for /.well-known/ and its sub-resources.
      * Does not handle requests itself.
      * Pushes incoming requests into request handler and returns the result to the request source.
+     *
      * @param requestHandler handles requests on /.well-known/*
      */
     public WellKnownCoapResource(RequestHandler requestHandler) {
@@ -46,8 +47,8 @@ public class WellKnownCoapResource extends CoapResource {
 
     @Override
     public void handleGET(CoapExchange exchange) {
-        String resp = requestHandler.handleGET(exchange.getRequestOptions().getUriPathString());
-        exchange.respond(resp);
+        RequestHandler.RequestResponse resp = requestHandler.handleGET(exchange.getRequestOptions().getUriPathString());
+        exchange.respond(resp.getJsonResponse());
     }
 
     /**
@@ -55,7 +56,7 @@ public class WellKnownCoapResource extends CoapResource {
      */
     @Override
     public Resource getChild(String name) {
-//        LOG.info("REQUESTING CHILD: " + name);
+        //        LOG.info("REQUESTING CHILD: " + name);
         return this;
     }
 }

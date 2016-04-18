@@ -6,7 +6,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,9 +22,9 @@ import eu.rethink.catalogue.broker.model.RethinkModelProvider;
 import eu.rethink.catalogue.broker.servlet.WellKnownServlet;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.*;
-import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.webapp.WebAppContext;
 import org.eclipse.leshan.server.californium.LeshanServerBuilder;
 import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.slf4j.Logger;
@@ -41,6 +41,7 @@ public class CatalogueBroker {
     private LeshanServer lwServer;
     private final int DEFAULT_HTTP_PORT = 80;
     private final int DEFAULT_SSL_PORT = 443;
+
     private int httpPort = DEFAULT_HTTP_PORT;
     private int sslPort = DEFAULT_SSL_PORT;
     private String coapAddress = null;
@@ -91,7 +92,6 @@ public class CatalogueBroker {
     private String truststorePath = "ssl/keystore";
     private String truststorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
 
-
     public void start() {
         // check http ports
         if (httpPort < 0) {
@@ -127,8 +127,7 @@ public class CatalogueBroker {
                 // only port -> prepend localhost
                 coapsAddress = "localhost:" + coapAddress;
             }
-
-            builder.setLocalAddressSecure(coapsAddress.substring(0, coapsAddress.lastIndexOf(':')),
+            builder.setLocalSecureAddress(coapsAddress.substring(0, coapsAddress.lastIndexOf(':')),
                     Integer.parseInt(coapsAddress.substring(coapsAddress.lastIndexOf(':') + 1, coapsAddress.length())));
         }
 
@@ -148,7 +147,6 @@ public class CatalogueBroker {
         http.setPort(httpPort);
         http.setIdleTimeout(30000);
         server.addConnector(http);
-
 
         // === jetty-https.xml ===
         // SSL Context Factory
@@ -180,11 +178,21 @@ public class CatalogueBroker {
         // rethink request handler
         RequestHandler rethinkRequestHandler = new RequestHandler(lwServer);
 
-        ServletContextHandler servletContextHandler = new ServletContextHandler(server, "/", true, false);
+        //ServletContextHandler servletContextHandler = new ServletContextHandler(server, "/", true, false);
         ServletHolder servletHolder = new ServletHolder(new WellKnownServlet(lwServer, rethinkRequestHandler));
-        servletContextHandler.addServlet(servletHolder, "/.well-known/*");
+        //servletContextHandler.addServlet(servletHolder, "/.well-known/*");
 
-        // Start jetty
+        // WebApp stuff
+        WebAppContext root = new WebAppContext();
+        root.setContextPath("/");
+        root.setResourceBase(getClass().getClassLoader().getResource("webapp").toExternalForm());
+        root.setParentLoaderPriority(true);
+        root.addServlet(servletHolder, "/.well-known/*");
+
+        server.setHandler(root);
+
+
+        // Start jetty & webApp
         try {
             LOG.info("Server should be available at: " + server.getURI() + ". http on port " + httpPort + ", https on " + sslPort);
             LOG.info("Starting server...");
@@ -210,7 +218,7 @@ public class CatalogueBroker {
             String arg = args[i];
             arg = arg.toLowerCase();
 
-            switch(arg) {
+            switch (arg) {
                 case "-httpport":
                 case "-http":
                 case "-h":
@@ -220,7 +228,7 @@ public class CatalogueBroker {
                     try {
                         httpPort = Integer.parseInt(rawHttpPort.substring(rawHttpPort.lastIndexOf(':') + 1, rawHttpPort.length()));
                     } catch (IndexOutOfBoundsException e) {
-//                        e.printStackTrace();
+                        //                        e.printStackTrace();
                     }
                     broker.setHttpPort(httpPort);
                     break;

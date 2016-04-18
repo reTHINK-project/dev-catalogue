@@ -6,7 +6,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,10 +25,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * The Rethink Model Provider is almost identical to the Standard Model Provider, but also adds the custom models
@@ -48,15 +47,15 @@ public class RethinkModelProvider extends StandardModelProvider {
         InputStream modelStream = getClass().getResourceAsStream("/model.json");
         models.addAll(ObjectLoader.loadJsonStream(modelStream));
 
-        Map<Integer, ObjectModel> map = new HashMap<>();
+        HashSet<ObjectModel> set = new HashSet<>();
         for (ObjectModel model : models) {
-//            LOG.debug("Loading object: {}", model);
-            ObjectModel old = map.put(model.id, model);
-            if (old != null) {
+            //            LOG.debug("Loading object: {}", model);
+            boolean isNew = set.add(model);
+            if (!isNew) {
                 LOG.debug("Model already exists for object {}. Overriding it.", model.id);
             }
         }
-        this.model = new LwM2mModel(map);
+        this.model = new LwM2mModel(set);
     }
 
     @Override

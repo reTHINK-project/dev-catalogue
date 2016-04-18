@@ -12,6 +12,21 @@
     <artifactId>rethink-catalogue-broker</artifactId>
     <name>reTHINK Catalogue Broker</name>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.eclipse.leshan</groupId>
+            <artifactId>leshan-core</artifactId>
+            <version>0.1.11-M10-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.leshan</groupId>
+            <artifactId>leshan-server-cf</artifactId>
+            <version>0.1.11-M10-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
+
     <build>
         <plugins>
             <plugin>

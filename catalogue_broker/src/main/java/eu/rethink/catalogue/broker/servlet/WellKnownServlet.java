@@ -6,7 +6,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,6 +19,7 @@ package eu.rethink.catalogue.broker.servlet;
 
 import eu.rethink.catalogue.broker.RequestHandler;
 import eu.rethink.catalogue.broker.coap.WellKnownCoapResource;
+import org.eclipse.leshan.ResponseCode;
 import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,11 +29,24 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A reTHINK specific HTTP servlet for handling requests on /.well-known/*
  */
 public class WellKnownServlet extends HttpServlet {
+    private static Map<ResponseCode, Integer> coap2httpCodeMap = new HashMap<>();
+
+    static {
+        coap2httpCodeMap.put(ResponseCode.CONTENT, HttpServletResponse.SC_OK);
+        coap2httpCodeMap.put(ResponseCode.INTERNAL_SERVER_ERROR, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        coap2httpCodeMap.put(ResponseCode.METHOD_NOT_ALLOWED, HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+        coap2httpCodeMap.put(ResponseCode.NOT_FOUND, HttpServletResponse.SC_NOT_FOUND);
+        coap2httpCodeMap.put(ResponseCode.UNAUTHORIZED, HttpServletResponse.SC_UNAUTHORIZED);
+    }
+
+
     private RequestHandler requestHandler;
     private static final Logger LOG = LoggerFactory.getLogger(WellKnownServlet.class);
 
@@ -54,10 +68,14 @@ public class WellKnownServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         LOG.info("GOT GET");
-//        ValueResponse response = requestHandler.handleGET(req.getRequestURI());
-        String response = requestHandler.handleGET(req.getRequestURI());
-        resp.setStatus(HttpServletResponse.SC_OK);
+        RequestHandler.RequestResponse response = requestHandler.handleGET(req.getRequestURI());
         resp.addHeader("Access-Control-Allow-Origin", "*");
-        resp.getWriter().write(response);
+        if (response.isSuccess()) {
+            resp.setStatus(HttpServletResponse.SC_OK);
+            resp.getWriter().write(response.getJsonResponse());
+        } else {
+            resp.sendError(coap2httpCodeMap.get(response.getCode()), response.getJsonResponse());
+        }
+
     }
 }
