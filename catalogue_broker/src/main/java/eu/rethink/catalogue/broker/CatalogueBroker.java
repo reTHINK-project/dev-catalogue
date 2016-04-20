@@ -232,6 +232,9 @@ public class CatalogueBroker {
                     }
                     broker.setHttpPort(httpPort);
                     break;
+                case "-httpsport":
+                case "-https":
+                case "-hs":
                 case "-sslport":
                 case "-ssl":
                 case "-s":

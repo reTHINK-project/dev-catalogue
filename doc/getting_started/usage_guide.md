@@ -44,13 +44,14 @@ Example:
 
 You can configure the Catalogue Database using the following options:
 
-option       | description
------------- | ---------------------------
--host, -h    | specify Catalogue Broker hostname/IP
--domain, -d  | specify Catalogue Broker domain/IP used for sourcePackageURL generation
--port, -p    | specify Catalogue Broker coap port
--objpath, -o | path of folder containing catalogue objects (e.g. provided catalogue_objects folder)
--usehttp     | change protocol of generated sourcePackageURLs to http (otherwise, https is used)
+option        | description
+------------- | ---------------------------
+-host, -h     | specify Catalogue Broker hostname/IP
+-domain, -d   | specify Catalogue Broker domain/IP used for sourcePackageURL generation
+-port, -p     | specify Catalogue Broker coap port
+-objpath, -o  | path of folder containing catalogue objects (e.g. provided catalogue_objects folder)
+-usehttp      | change protocol of generated sourcePackageURLs to http (otherwise, https is used)
+-lifetime, -t | set the time between client updates (default = 60)
 
 If you run the Catalogue Database without launch arguments,
 it tries to connect to the Catalogue Broker on localhost:5683 by default,

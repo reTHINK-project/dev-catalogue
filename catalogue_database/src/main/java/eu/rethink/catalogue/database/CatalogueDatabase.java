@@ -105,6 +105,9 @@ public class CatalogueDatabase {
     private String catObjsPath = "./catalogue_objects";
     private int serverPort = DEFAULT_SERVER_COAP_PORT;
     private boolean useHttp = false;
+    private int lifetime = 60;
+
+    private String endpoint = "DB_" + new Random().nextInt(Integer.MAX_VALUE);
 
     private Thread hook = null;
 
@@ -126,6 +129,10 @@ public class CatalogueDatabase {
 
     public void setServerPort(int serverPort) {
         this.serverPort = serverPort;
+    }
+
+    public void setLifetime(int lifetime) {
+        this.lifetime = lifetime;
     }
 
     public static void main(final String[] args) {
@@ -158,6 +165,10 @@ public class CatalogueDatabase {
                 case "-d":
                 case "-domain":
                     d.setServerDomain(args[++i]);
+                    break;
+                case "-lifetime":
+                case "-t":
+                    d.setLifetime(Integer.parseInt(args[++i]));
                     break;
             }
         }
@@ -202,7 +213,7 @@ public class CatalogueDatabase {
         String serverURI = String.format("coap://%s:%s", serverHostName, serverPort);
 
         initializer.setInstancesForObject(LwM2mId.SECURITY, noSec(serverURI, 123));
-        initializer.setInstancesForObject(LwM2mId.SERVER, new Server(123, 60, BindingMode.U, false));
+        initializer.setInstancesForObject(LwM2mId.SERVER, new Server(123, lifetime, BindingMode.U, false));
 
         // set dummy Device
         Device device = new Device();
@@ -240,7 +251,6 @@ public class CatalogueDatabase {
             }
         }
 
-        String endpoint = "DB_" + new Random().nextInt(Integer.MAX_VALUE);
         LOG.info("I am '{}'", endpoint);
 
         LeshanClientBuilder builder = new LeshanClientBuilder(endpoint);
@@ -436,12 +446,11 @@ public class CatalogueDatabase {
 
         private String sourceCodeKeyName = "sourceCode";
 
-        // source code file if this instance is a sourcePackage
+        // sourceCode file if this instance is a sourcePackage
         private File sourceCodeFile = null;
 
-        // source package if this instance is a catalogue object
+        // attached sourcePackage if this instance is a catalogue object
         private RethinkInstance sourcePackage = null;
-
 
         /**
          * Set id:name map so instance knows which id corresponds to the correct field. (based on model.json)
@@ -479,6 +488,9 @@ public class CatalogueDatabase {
             sourceCodeFile = sourceFile;
         }
 
+        private String getName() {
+            return nameValueMap.containsKey(NAME_FIELD_NAME) ? nameValueMap.get(NAME_FIELD_NAME) : nameValueMap.get("cguid");
+        }
 
         /**
          * Create a reTHINK instance with name:value mapping from a parsed catalogue object file
@@ -499,8 +511,6 @@ public class CatalogueDatabase {
         @Override
         public ReadResponse read(int resourceid) {
             String resourceName = idNameMap.get(resourceid);
-            LOG.debug(String.format("(%s) Read on %02d -> %s", nameValueMap.containsKey(NAME_FIELD_NAME) ? nameValueMap.get(NAME_FIELD_NAME) : nameValueMap.get("cguid"), resourceid, resourceName));
-
             String resourceValue = null;
             try {
                 if (sourceCodeFile != null && resourceName.equals(sourceCodeKeyName)) {
@@ -514,12 +524,17 @@ public class CatalogueDatabase {
             }
 
             //LOG.debug("nameValueMap returns: " + resourceValue);
-
+            LOG.debug(String.format("(%s) Read on %02d -> %s %s",
+                    getName(),
+                    resourceid,
+                    resourceName,
+                    resourceValue != null ? "[OK]" : "[NOT FOUND]"
+            ));
             if (resourceValue != null) {
-
                 return ReadResponse.success(resourceid, resourceValue);
-            } else
+            } else {
                 return super.read(resourceid);
+            }
         }
 
 

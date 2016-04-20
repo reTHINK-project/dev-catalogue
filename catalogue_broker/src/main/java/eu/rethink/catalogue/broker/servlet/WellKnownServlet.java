@@ -18,7 +18,6 @@
 package eu.rethink.catalogue.broker.servlet;
 
 import eu.rethink.catalogue.broker.RequestHandler;
-import eu.rethink.catalogue.broker.coap.WellKnownCoapResource;
 import org.eclipse.leshan.ResponseCode;
 import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.slf4j.Logger;
@@ -60,7 +59,7 @@ public class WellKnownServlet extends HttpServlet {
      */
     public WellKnownServlet(LeshanServer server, RequestHandler requestHandler) {
         this.requestHandler = requestHandler;
-        server.getCoapServer().add(new WellKnownCoapResource(requestHandler));
+        //server.getCoapServer().add(new WellKnownCoapResource(requestHandler));
     }
 
     /**
@@ -79,9 +78,9 @@ public class WellKnownServlet extends HttpServlet {
         }
         if (response.isSuccess()) {
             resp.setStatus(code);
-            resp.getWriter().write(response.getJsonResponse());
+            resp.getWriter().write(response.getJsonString());
         } else {
-            resp.sendError(code, response.getJsonResponse());
+            resp.sendError(code, response.getJsonString());
         }
     }
 

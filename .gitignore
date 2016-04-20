@@ -6,7 +6,6 @@ gen
 # Created by .ignore support plugin (hsz.mobi)
 
 # manual additions
-/Californium.properties
 /catalogue_database/target
 /catalogue_broker/target
 /catalogue_test/target

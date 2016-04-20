@@ -1,0 +1,15 @@
+{
+  "name": "myschema",
+  "description": "schema description",
+  "attr1": "my attribute",
+  "attr2": {
+    "hello": "world",
+    "list": [
+      "some",
+      "thing",
+      "in",
+      "this",
+      "list"
+    ]
+  }
+}
