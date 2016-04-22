@@ -315,7 +315,7 @@ public class RequestHandler {
 
         @Override
         public void updated(ClientUpdate update, Client clientUpdated) {
-            LOG.info("'{}' updated", clientUpdated.getEndpoint());
+            LOG.debug("'{}' updated", clientUpdated.getEndpoint());
 
             //try {
             //    removeClient(clientUpdated);
@@ -368,7 +368,7 @@ public class RequestHandler {
             Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    final Map<String, String> generatedMapping = new HashMap<>();
+                    final Map<String, String> generatedMapping = new LinkedHashMap<>();
                     for (final String foundModelLink : foundModels) {
                         //LOG.debug("send readRequest for modelLink: {}", foundModelLink);
 
