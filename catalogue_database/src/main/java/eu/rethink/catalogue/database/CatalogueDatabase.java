@@ -18,6 +18,7 @@
 package eu.rethink.catalogue.database;
 
 import com.google.gson.*;
+import eu.rethink.catalogue.database.exception.CatalogueObjectParsingException;
 import org.eclipse.leshan.LwM2mId;
 import org.eclipse.leshan.client.californium.LeshanClient;
 import org.eclipse.leshan.client.californium.LeshanClientBuilder;
@@ -36,6 +37,7 @@ import org.eclipse.leshan.core.response.ReadResponse;
 import org.eclipse.leshan.core.response.WriteResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -45,15 +47,19 @@ import java.util.*;
 
 import static org.eclipse.leshan.client.object.Security.noSec;
 
-
 /**
  * A reference implementation for a reTHINK Catalogue Database
  */
 public class CatalogueDatabase {
-    private String registrationID;
     private static final Logger LOG = LoggerFactory.getLogger(CatalogueDatabase.class);
 
-    public static CatalogueDatabase instance;
+    // directory filter used in CatalogueObjectInstance class
+    private static final FileFilter dirFilter = new FileFilter() {
+        @Override
+        public boolean accept(File file) {
+            return file.isDirectory();
+        }
+    };
 
     // model IDs that define the custom models inside model.json
     private static final int HYPERTY_MODEL_ID = 1337;
@@ -77,15 +83,16 @@ public class CatalogueDatabase {
     private static final String SOURCEPACKAGE_TYPE_NAME = "sourcepackage";
 
     // mapping of model IDs to their path names
-    private static Map<Integer, String> MODEL_ID_TO_NAME_MAP = new HashMap<>();
+    private static Map<String, Integer> MODEL_NAME_TO_ID_MAP = new LinkedHashMap<>();
+    private Map<Integer, Map<Integer, ResourceModel>> MODEL_ID_TO_RESOURCES_MAP_MAP = new LinkedHashMap<>();
 
     static {
-        MODEL_ID_TO_NAME_MAP.put(HYPERTY_MODEL_ID, HYPERTY_TYPE_NAME);
-        MODEL_ID_TO_NAME_MAP.put(PROTOSTUB_MODEL_ID, PROTOSTUB_TYPE_NAME);
-        MODEL_ID_TO_NAME_MAP.put(RUNTIME_MODEL_ID, RUNTIME_TYPE_NAME);
-        MODEL_ID_TO_NAME_MAP.put(SCHEMA_MODEL_ID, SCHEMA_TYPE_NAME);
-        MODEL_ID_TO_NAME_MAP.put(IDPPROXY_MODEL_ID, IDPPROXY_TYPE_NAME);
-        MODEL_ID_TO_NAME_MAP.put(SOURCEPACKAGE_MODEL_ID, SOURCEPACKAGE_TYPE_NAME);
+        MODEL_NAME_TO_ID_MAP.put(HYPERTY_TYPE_NAME, HYPERTY_MODEL_ID);
+        MODEL_NAME_TO_ID_MAP.put(PROTOSTUB_TYPE_NAME, PROTOSTUB_MODEL_ID);
+        MODEL_NAME_TO_ID_MAP.put(RUNTIME_TYPE_NAME, RUNTIME_MODEL_ID);
+        MODEL_NAME_TO_ID_MAP.put(SCHEMA_TYPE_NAME, SCHEMA_MODEL_ID);
+        MODEL_NAME_TO_ID_MAP.put(IDPPROXY_TYPE_NAME, IDPPROXY_MODEL_ID);
+        MODEL_NAME_TO_ID_MAP.put(SOURCEPACKAGE_TYPE_NAME, SOURCEPACKAGE_MODEL_ID);
     }
 
     private static Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -110,6 +117,8 @@ public class CatalogueDatabase {
     private String endpoint = "DB_" + new Random().nextInt(Integer.MAX_VALUE);
 
     private Thread hook = null;
+
+    private Map<Integer, ObjectModel> objectModelMap = new HashMap<>(MODEL_IDS.size());
 
     public void setUseHttp(boolean useHttp) {
         this.useHttp = useHttp;
@@ -136,6 +145,9 @@ public class CatalogueDatabase {
     }
 
     public static void main(final String[] args) {
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        SLF4JBridgeHandler.install();
+
         CatalogueDatabase d = new CatalogueDatabase();
 
         for (int i = 0; i < args.length; i++) {
@@ -173,13 +185,17 @@ public class CatalogueDatabase {
             }
         }
 
-        d.start();
+        try {
+            d.start();
+        } catch (Exception e) {
+            LOG.error("Unable to start Catalogue Database", e);
+        }
     }
 
     /**
      * Start the Catalogue Database.
      */
-    public void start() {
+    public void start() throws CatalogueObjectParsingException {
         LOG.info("Starting Catalogue Database...");
 
         if (serverDomain == null) {
@@ -197,14 +213,31 @@ public class CatalogueDatabase {
         LOG.info("Catalogue Objects location: " + catObjsPath);
 
         // parse all catalogue objects
-        Map<Integer, RethinkInstance[]> resultMap = parseFiles(catObjsPath);
+        File catObjs = new File(catObjsPath);
+        if (!catObjs.exists() || !catObjs.isDirectory()) {
+            LOG.error("No Catalogue Objects folder at " + catObjsPath);
+            return;
+        }
 
         // get default models
         List<ObjectModel> objectModels = ObjectLoader.loadDefault();
 
         // add custom models from model.json
-        InputStream modelStream = getClass().getResourceAsStream("/model.json");
-        objectModels.addAll(ObjectLoader.loadJsonStream(modelStream));
+        List<ObjectModel> customObjectModels = getCustomObjectModels();
+        objectModels.addAll(customObjectModels);
+
+        // setup objectModelMap
+        for (ObjectModel objectModel : customObjectModels) {
+            objectModelMap.put(objectModel.id, objectModel);
+        }
+
+        // setup MODEL_ID_TO_RESOURCES_MAP
+        for (ObjectModel customObjectModel : customObjectModels) {
+            MODEL_ID_TO_RESOURCES_MAP_MAP.put(customObjectModel.id, customObjectModel.resources);
+        }
+
+        // parse catalogue objects
+        Map<Integer, Set<CatalogueObjectInstance>> parsedObjects = parseObjects(catObjs);
 
         // Initialize object list
         ObjectsInitializer initializer = new ObjectsInitializer(new LwM2mModel(objectModels));
@@ -222,33 +255,10 @@ public class CatalogueDatabase {
 
         List<LwM2mObjectEnabler> enablers = initializer.create(LwM2mId.SECURITY, LwM2mId.SERVER, LwM2mId.DEVICE);
 
-
-        // iterate through supported models,
-        // set parsed instances of those models in initializer,
-        // and finally give the instances the id:name map from the model
-        for (Integer modelId : MODEL_IDS) {
-            RethinkInstance[] instances = resultMap.get(modelId);
-
-            if (instances != null && instances.length > 0) {
-                //LOG.debug("setting instances: {}", gson.toJson(instances));
-                initializer.setInstancesForObject(modelId, instances);
-                LwM2mObjectEnabler enabler = initializer.create(modelId);
-                enablers.add(enabler);
-
-                // create id:name map for the current model
-                LinkedHashMap<Integer, String> idNameMap = new LinkedHashMap<>();
-                Map<Integer, ResourceModel> model = enabler.getObjectModel().resources;
-
-                // populate id:name map from resources
-                for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
-                    idNameMap.put(entry.getKey(), entry.getValue().name);
-                }
-
-                // set id:name map on all instances of that model
-                for (RethinkInstance instance : instances) {
-                    instance.setIdNameMap(idNameMap);
-                }
-            }
+        for (Map.Entry<Integer, Set<CatalogueObjectInstance>> entry : parsedObjects.entrySet()) {
+            //LOG.debug("setting instances: {}", gson.toJson(entry.getValue()));
+            initializer.setInstancesForObject(entry.getKey(), entry.getValue().toArray(new CatalogueObjectInstance[entry.getValue().size()]));
+            enablers.add(initializer.create(entry.getKey()));
         }
 
         LOG.info("I am '{}'", endpoint);
@@ -282,267 +292,201 @@ public class CatalogueDatabase {
             client.destroy(true);
     }
 
-    /**
-     * Parse all catalogue objects contained in this folder and their respective subfolders
-     *
-     * @param sourcePath - path to the catalogue objects source folder (e.g. catalogue_objects)
-     * @return Map containing all parsed objects as instances, mapped by model ID
-     */
-    private Map<Integer, RethinkInstance[]> parseFiles(String sourcePath) {
-        if (sourcePath == null)
-            sourcePath = "./";
-
-        HashMap<Integer, RethinkInstance[]> resultMap = new HashMap<>();
-
-        File catObjsFolder = new File(sourcePath);
-        assert catObjsFolder.isDirectory();
-
-        File hypertyFolder = new File(catObjsFolder, "hyperty");
-        File stubFolder = new File(catObjsFolder, "protocolstub");
-        File runtimeFolder = new File(catObjsFolder, "runtime");
-        File schemaFolder = new File(catObjsFolder, "dataschema");
-        File idpProxyFolder = new File(catObjsFolder, "idpproxy");
-
-        resultMap.put(HYPERTY_MODEL_ID, generateInstances(hypertyFolder));
-        resultMap.put(PROTOSTUB_MODEL_ID, generateInstances(stubFolder));
-        resultMap.put(RUNTIME_MODEL_ID, generateInstances(runtimeFolder));
-        resultMap.put(SCHEMA_MODEL_ID, generateInstances(schemaFolder));
-        resultMap.put(IDPPROXY_MODEL_ID, generateInstances(idpProxyFolder));
-
-        // gather sourcePackages, update sourcePackageURL
-        LinkedList<RethinkInstance> sourcePackageInstances = new LinkedList<>();
-        for (Map.Entry<Integer, RethinkInstance[]> entry : resultMap.entrySet()) {
-            for (RethinkInstance instance : entry.getValue()) {
-                RethinkInstance sourcePackage = instance.getSourcePackage();
-                if (sourcePackage != null) {
-                    String cguid = instance.nameValueMap.get(CGUID_FIELD_NAME);
-                    sourcePackage.nameValueMap.put("cguid", cguid);
-                    sourcePackageInstances.add(sourcePackage);
-                    instance.nameValueMap.put("sourcePackageURL", String.format("%ssourcepackage/%s", accessURL, cguid));
-                }
-            }
-        }
-
-        resultMap.put(SOURCEPACKAGE_MODEL_ID, sourcePackageInstances.toArray(new RethinkInstance[sourcePackageInstances.size()]));
-
-        //LOG.debug("parsed files: {}", gson.toJson(resultMap));
-        return resultMap;
+    private List<ObjectModel> getCustomObjectModels() {
+        InputStream modelStream = getClass().getResourceAsStream("/model.json");
+        return ObjectLoader.loadJsonStream(modelStream);
     }
 
-    /**
-     * Parse catalogue objects contained in the given type folder (e.g. catalogue_objects/hyperty)
-     *
-     * @param typeFolder - folder that contains catalogue objects as subfolders (e.g. catalogue_objects/hyperty)
-     * @return Array of parsed catalogue objects as instances
-     */
-    private RethinkInstance[] generateInstances(File typeFolder) {
-        Set<RethinkInstance> instances = new HashSet<>();
+    private JsonObject parseJson(File f) throws FileNotFoundException, JsonParseException {
+        return parser.parse(new FileReader(f)).getAsJsonObject();
+    }
 
-        if (typeFolder.exists()) {
-            for (File dir : typeFolder.listFiles(dirFilter)) {
+    private Map<Integer, Set<CatalogueObjectInstance>> parseObjects(File dir) throws CatalogueObjectParsingException {
+        if (!dir.exists() || !dir.isDirectory())
+            throw new CatalogueObjectParsingException("catalogue objects folder '" + dir + "' does not exist or is not a directory");
+
+        File[] typeFolders = dir.listFiles(dirFilter);
+        Map<Integer, Set<CatalogueObjectInstance>> modelObjectsMap = new LinkedHashMap<>(MODEL_IDS.size());
+
+        // setup modelObjectsMap
+        for (Integer modelId : MODEL_IDS) {
+            modelObjectsMap.put(modelId, new LinkedHashSet<CatalogueObjectInstance>());
+        }
+
+        for (File typeFolder : typeFolders) {
+            Integer modelId = MODEL_NAME_TO_ID_MAP.get(typeFolder.getName());
+
+            if (modelId == null) {
+                throw new CatalogueObjectParsingException("No model ID found for folder '" + typeFolder + "'");
+            }
+
+            File[] instanceFolders = typeFolder.listFiles(dirFilter);
+
+            for (File instanceFolder : instanceFolders) {
                 try {
-                    RethinkInstance instance = parseCatalogueObject(dir);
-                    instances.add(instance);
+                    File desc = new File(instanceFolder, "description.json");
+                    if (!desc.exists()) {
+                        throw new CatalogueObjectParsingException("description.json not found in " + typeFolder);
+                    }
+
+                    JsonObject jDesc = parseJson(desc);
+
+                    File pkg = new File(instanceFolder, "sourcePackage.json");
+                    if (pkg.exists()) {
+                        JsonObject jPkg = parseJson(pkg);
+
+                        // put cguid from descriptor into sourcePackage
+                        String cguid = jDesc.get("cguid").getAsString();
+                        jPkg.addProperty("cguid", cguid);
+
+                        // put sourcePackageURL that references this sourcePackage into descriptor
+                        jDesc.addProperty("sourcePackageURL", accessURL + "sourcepackage/" + cguid);
+
+                        // check if there is a sourceCode file
+                        File code = null;
+                        for (File file : instanceFolder.listFiles()) {
+                            if (file.getName().startsWith("sourceCode")) {
+                                code = file;
+                                break;
+                            }
+                        }
+
+                        CatalogueObjectInstance sourcePackage = new CatalogueObjectInstance(SOURCEPACKAGE_MODEL_ID, jPkg, code);
+
+                        if (sourcePackage.isValid()) {
+                            modelObjectsMap.get(SOURCEPACKAGE_MODEL_ID).add(sourcePackage);
+                        } else {
+                            LOG.warn("Validation failed for sourcePackage " + jPkg.toString() + " and will be ignored");
+                        }
+                    }
+
+                    CatalogueObjectInstance descriptor = null;
+                    descriptor = new CatalogueObjectInstance(modelId, jDesc);
+
+                    if (descriptor.isValid) {
+                        modelObjectsMap.get(modelId).add(descriptor);
+                    } else {
+                        LOG.warn("Validation failed for descriptor " + jDesc.toString() + " and will be ignored");
+                    }
+
                 } catch (FileNotFoundException e) {
+                    // should never occur
                     e.printStackTrace();
                 }
             }
         }
-
-        return instances.toArray(new RethinkInstance[instances.size()]);
+        return modelObjectsMap;
     }
 
-
     /**
-     * Parse catalogue object from this folder
-     *
-     * @param dir - folder that contains the catalogue object files (e.g. catalogue_objects/hyperty/FirstHyperty)
-     * @return instance of the parsed catalogue object
-     * @throws FileNotFoundException
+     * InstanceEnabler for reTHINK Catalogue Object instances.
      */
-    private RethinkInstance parseCatalogueObject(File dir) throws FileNotFoundException {
-        File desc = new File(dir, "description.json");
-        File pkg = new File(dir, "sourcePackage.json");
+    public class CatalogueObjectInstance extends BaseInstanceEnabler {
+        private Logger LOG;
+        private JsonObject descriptor = null;
+        private File sourceCode = null;
+        private int model;
+        private boolean isValid = true;
+        private String name = "unknown";
 
-        // 1. parse catalogue object
-        RethinkInstance instance = createFromFile(desc);
-
-        // 2. parse sourcePackage
-        RethinkInstance sourcePackage = null;
-        if (pkg.exists()) {
-            sourcePackage = createFromFile(pkg);
-        } else if (instance.nameValueMap.containsKey("sourcePackage")) {
-            JsonObject jSourcePackage = gson.fromJson(instance.nameValueMap.get("sourcePackage"), JsonObject.class);
-            sourcePackage = createFromJson(jSourcePackage);
-
-            // remove if from nameValueMap, because it will be added with instance.setSourcePackage(sourcePackage);
-            instance.nameValueMap.remove("sourcePackage");
+        public JsonObject getDescriptor() {
+            return descriptor;
         }
 
-        if (sourcePackage != null) {
-            // try to get sourceCode file
-            File code = null;
-            for (File file : dir.listFiles()) {
-                if (file.getName().startsWith("sourceCode")) {
-                    code = file;
-                    break;
+        public File getSourceCode() {
+            return sourceCode;
+        }
+
+        public int getModel() {
+            return model;
+        }
+
+        public boolean isValid() {
+            return isValid;
+        }
+
+        public CatalogueObjectInstance(int model, JsonObject descriptor, File sourceCode) {
+            this.model = model;
+            this.descriptor = descriptor;
+            this.sourceCode = sourceCode;
+
+            setup();
+        }
+
+        public CatalogueObjectInstance(int model, JsonObject descriptor) {
+            this.model = model;
+            this.descriptor = descriptor;
+
+            setup();
+        }
+
+        public CatalogueObjectInstance() {
+            setup();
+        }
+
+        private String findName() {
+            JsonElement name = descriptor.get("objectName");
+            if (name == null)
+                name = descriptor.get("cguid");
+
+            if (name != null)
+                this.name = name.getAsString();
+
+            return this.name;
+        }
+
+        private void setup() {
+            findName();
+            LOG = LoggerFactory.getLogger(this.getClass().getPackage().getName() + "." + this.name);
+            isValid = validate();
+
+        }
+
+        private boolean validate() {
+            //LOG.debug("validating {} against model {}", gson.toJson(json), modelId);
+
+            if (model == 0) {
+                LOG.warn("Unable to validate instance: modelId not set!");
+                return false;
+            }
+
+            if (descriptor == null) {
+                LOG.debug("Unable to validate instance: descriptor json not set!");
+                return false;
+            }
+
+            for (Map.Entry<Integer, ResourceModel> entry : objectModelMap.get(model).resources.entrySet()) {
+                String name = entry.getValue().name;
+                if (entry.getValue().mandatory && (!descriptor.has(name) && (name.equals("sourceCode") && sourceCode == null))) {
+                    LOG.warn("Validation of {} (has sourceCode file: {}) against model {} failed. '{}' is mandatory, but not included", descriptor, sourceCode != null, model);
+                    return false;
                 }
             }
-            if (code != null)
-                sourcePackage.setSourceCodeFile(code);
-
-            // add sourcePackage to instance
-            instance.setSourcePackage(sourcePackage);
-        }
-
-        return instance;
-    }
-
-    /**
-     * Creates a RethinkInstance from a description file (or sourcePackage file)
-     *
-     * @param f - file that holds the json that defines the catalogue object
-     * @return A RethinkInstance based on the information of the parsed file
-     * @throws FileNotFoundException
-     */
-    private RethinkInstance createFromFile(File f) throws FileNotFoundException {
-        JsonObject descriptor = parser.parse(new FileReader(f)).getAsJsonObject();
-        return createFromJson(descriptor);
-    }
-
-    /**
-     * Creates a RethinkInstance from a JsonObject
-     *
-     * @param descriptor - JsonObject that defines the catalogue object
-     * @return A RethinkInstance based on the information of the parsed JsonObect
-     * @throws FileNotFoundException
-     */
-    private RethinkInstance createFromJson(JsonObject descriptor) throws FileNotFoundException {
-        LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
-        for (Map.Entry<String, JsonElement> entry : descriptor.entrySet()) {
-            String value;
-            if (entry.getValue().isJsonPrimitive())
-                value = entry.getValue().getAsString();
-            else if (entry.getValue().isJsonArray())
-                value = entry.getValue().getAsJsonArray().toString();
-            else
-                value = entry.getValue().toString();
-
-            nameValueMap.put(entry.getKey(), value);
-        }
-
-        LOG.debug("parsed descriptor: {}", gson.toJson(nameValueMap));
-        return new RethinkInstance(nameValueMap);
-    }
-
-
-    /**
-     * InstanceEnabler for reTHINK resources.
-     */
-    public static class RethinkInstance extends BaseInstanceEnabler {
-
-        private Map<Integer, String> idNameMap = null;
-        private Map<String, String> nameValueMap = null;
-
-        private String sourceCodeKeyName = "sourceCode";
-
-        // sourceCode file if this instance is a sourcePackage
-        private File sourceCodeFile = null;
-
-        // attached sourcePackage if this instance is a catalogue object
-        private RethinkInstance sourcePackage = null;
-
-        /**
-         * Set id:name map so instance knows which id corresponds to the correct field. (based on model.json)
-         *
-         * @param idNameMap - id:name mapping of the model this is an instance of (based on model.json)
-         */
-        public void setIdNameMap(Map<Integer, String> idNameMap) {
-            this.idNameMap = idNameMap;
-        }
-
-        /**
-         * Return the sourcePackage that belongs to this instance
-         *
-         * @return sourcePackage - source package that belongs to this (descriptor) instance
-         */
-        public RethinkInstance getSourcePackage() {
-            return sourcePackage;
-        }
-
-        /**
-         * Attach sourcePackage instance to this (descriptor) instance
-         *
-         * @param sourcePackage - sourcePackage that belongs to this (descriptor) instance
-         */
-        public void setSourcePackage(RethinkInstance sourcePackage) {
-            this.sourcePackage = sourcePackage;
-        }
-
-        /**
-         * Set the source code file for this sourcePackage instance
-         *
-         * @param sourceFile - file that contains the source code of this sourcePackage
-         */
-        public void setSourceCodeFile(File sourceFile) {
-            sourceCodeFile = sourceFile;
-        }
-
-        private String getName() {
-            return nameValueMap.containsKey(NAME_FIELD_NAME) ? nameValueMap.get(NAME_FIELD_NAME) : nameValueMap.get("cguid");
-        }
-
-        /**
-         * Create a reTHINK instance with name:value mapping from a parsed catalogue object file
-         *
-         * @param nameValueMap - name:value mapping based on parsed catalogue object file
-         */
-        public RethinkInstance(Map<String, String> nameValueMap) {
-            this.nameValueMap = nameValueMap;
-        }
-
-        /**
-         * Create a reTHINK instance. Be aware that you still need to give it a nameValueMap and a idNameMap
-         */
-        public RethinkInstance() {
-            nameValueMap = null;
+            return true;
         }
 
         @Override
         public ReadResponse read(int resourceid) {
-            String resourceName = idNameMap.get(resourceid);
-            String resourceValue = null;
-            try {
-                if (sourceCodeFile != null && resourceName.equals(sourceCodeKeyName)) {
-                    //LOG.debug("getting sourceCode from file: " + sourceCodeFile);
-                    resourceValue = new String(Files.readAllBytes(Paths.get(sourceCodeFile.toURI())), "UTF-8");
-                } else {
-                    resourceValue = nameValueMap.get(resourceName);
+            String resourceName = MODEL_ID_TO_RESOURCES_MAP_MAP.get(model).get(resourceid).name;
+            ReadResponse response;
+            if (descriptor.has(resourceName)) {
+                JsonElement element = descriptor.get(resourceName);
+                response = ReadResponse.success(resourceid, element.isJsonPrimitive() ? element.getAsString() : element.toString());
+            } else if (resourceName.equals("sourceCode")) {
+                try {
+                    response = ReadResponse.success(resourceid, new String(Files.readAllBytes(Paths.get(sourceCode.toURI())), "UTF-8"));
+                } catch (IOException e) {
+                    LOG.error("Unable to read sourceCode file of " + descriptor.toString(), e);
+                    response = ReadResponse.internalServerError("Unable to read sourceCode file: " + e.getMessage());
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            //LOG.debug("nameValueMap returns: " + resourceValue);
-            LOG.debug(String.format("(%s) Read on %02d -> %s %s",
-                    getName(),
-                    resourceid,
-                    resourceName,
-                    resourceValue != null ? "[OK]" : "[NOT FOUND]"
-            ));
-            if (resourceValue != null) {
-                return ReadResponse.success(resourceid, resourceValue);
             } else {
-                return super.read(resourceid);
+                response = ReadResponse.notFound();
             }
-        }
-
-
-        @Override
-        public String toString() {
-            return nameValueMap.toString();
+            LOG.debug("Read on {} ({})", resourceid, resourceName);
+            return response;
         }
     }
+
 
     /**
      * Provides the default device description of a Database instance.
@@ -609,7 +553,11 @@ public class CatalogueDatabase {
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
-                        database.start();
+                        try {
+                            database.start();
+                        } catch (CatalogueObjectParsingException e) {
+                            LOG.error("Unable to restart database", e);
+                        }
                     } else {
                         LOG.warn("database reference not set!");
                     }
@@ -687,12 +635,4 @@ public class CatalogueDatabase {
         }
 
     }
-
-    private FileFilter dirFilter = new FileFilter() {
-        @Override
-        public boolean accept(File file) {
-            return file.isDirectory();
-        }
-    };
-
 }

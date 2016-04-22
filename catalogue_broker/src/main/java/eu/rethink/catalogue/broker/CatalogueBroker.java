@@ -29,6 +29,7 @@ import org.eclipse.leshan.server.californium.LeshanServerBuilder;
 import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 /**
  * The reTHINK Catalogue Broker
@@ -212,6 +213,9 @@ public class CatalogueBroker {
     }
 
     public static void main(String[] args) {
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        SLF4JBridgeHandler.install();
+
         CatalogueBroker broker = new CatalogueBroker();
 
         for (int i = 0; i < args.length; i++) {

@@ -3,7 +3,7 @@
 
     <Appenders>
         <Appender type="Console" name="STDOUT">
-            <Layout type="PatternLayout" pattern="%d %-5level %c{1} %m%n"/>
+            <Layout type="PatternLayout" pattern="%d %-5level %-18c{1} %m%n"/>
         </Appender>
     </Appenders>
 
