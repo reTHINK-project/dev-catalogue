@@ -67,15 +67,22 @@ public class WellKnownServlet extends HttpServlet {
      */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        LOG.info("GOT GET");
+        LOG.info("GOT GET: {}", req);
 
+        // let it be handled by RequestHandler
         RequestHandler.RequestResponse response = requestHandler.handleGET(req.getRequestURI());
+
+        // set header so cross-domain requests work
         resp.addHeader("Access-Control-Allow-Origin", "*");
         Integer code = coap2httpCodeMap.get(response.getCode());
+
+        // try to map CoAP response code to http
         if (code == null) {
             LOG.warn("HTTP Code is null! Coap code: {}", response.getCode());
             code = response.isSuccess() ? HttpServletResponse.SC_OK : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
         }
+
+        // forward response
         if (response.isSuccess()) {
             resp.setStatus(code);
             resp.getWriter().write(response.getJsonString());

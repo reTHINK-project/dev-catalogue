@@ -47,20 +47,22 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * reTHINK specific Request Handler for requests on /.well-known/*
  */
 public class RequestHandler {
-    //model IDs that define the custom models inside model.json
+    private static final Logger LOG = LoggerFactory.getLogger(RequestHandler.class);
+
+    // model IDs that define the custom models inside model.json
     private static final int HYPERTY_MODEL_ID = 1337;
     private static final int PROTOSTUB_MODEL_ID = 1338;
     private static final int RUNTIME_MODEL_ID = 1339;
     private static final int SCHEMA_MODEL_ID = 1340;
     private static final int IDPPROXY_MODEL_ID = 1341;
-
     private static final int SOURCEPACKAGE_MODEL_ID = 1350;
 
-
+    // set of model IDs
     private static final Set<Integer> MODEL_IDS = new LinkedHashSet<>(Arrays.asList(HYPERTY_MODEL_ID, PROTOSTUB_MODEL_ID, RUNTIME_MODEL_ID, SCHEMA_MODEL_ID, IDPPROXY_MODEL_ID, SOURCEPACKAGE_MODEL_ID));
 
     private static final String WELLKNOWN_PREFIX = "/.well-known/";
 
+    // types as defined in catalogue object folders and url paths
     private static final String HYPERTY_TYPE_NAME = "hyperty";
     private static final String PROTOSTUB_TYPE_NAME = "protocolstub";
     private static final String RUNTIME_TYPE_NAME = "runtime";
@@ -69,11 +71,11 @@ public class RequestHandler {
 
     private static final String SOURCEPACKAGE_TYPE_NAME = "sourcepackage";
 
-
+    // name to ID map
     private static Map<String, Integer> MODEL_NAME_TO_ID_MAP = new HashMap<>();
-    private static Map<Integer, Map<String, String>> nameToInstanceMapMap = new HashMap<>();
 
-    private static Set<String> jsonNames = new HashSet<>();
+    // {MODEL_ID : { INSTANCE_NAME : INSTANCE_PATH}}
+    private static Map<Integer, Map<String, String>> nameToInstanceMapMap = new HashMap<>();
 
     static {
         MODEL_NAME_TO_ID_MAP.put(HYPERTY_TYPE_NAME, HYPERTY_MODEL_ID);
@@ -86,36 +88,35 @@ public class RequestHandler {
         for (Integer modelId : MODEL_NAME_TO_ID_MAP.values()) {
             nameToInstanceMapMap.put(modelId, new HashMap<String, String>());
         }
-
-        jsonNames.add("hypertyType");
-        jsonNames.add("dataObjects");
-        jsonNames.add("constraints");
-        jsonNames.add("hypertyCapabilities");
-        jsonNames.add("protocolCapabilities");
     }
 
-    private static final String NAME_FIELD_NAME = "objectName";
-    private static final String CGUID_FIELD_NAME = "cguid";
+    // fields that define the name of the catalogue object when requesting it using the http interface
+    private static final String NAME_FIELD_NAME = "objectName"; // for all objects except sourcePackage
+    private static final String CGUID_FIELD_NAME = "cguid"; // for sourcePackages
 
+    // {MODEL_ID : MODEL}
     private static final Map<Integer, Map<Integer, ResourceModel>> MODEL_MAP = new HashMap<>();
 
+    // {MODEL_ID : {RESOURCE_NAME : RESOURCE_ID}}
     private static Map<Integer, Map<String, Integer>> resourceNameToIdMapMap = new ConcurrentHashMap<>();
+
+    // {CLIENT_REG_ID : {MODEL_ID : [INSTANCE_NAME]}
     private static Map<String, Map<Integer, List<String>>> clientToObjectsMap = new ConcurrentHashMap<>();
 
-    private LeshanServer server;
     private static final Gson gson = new GsonBuilder()
             .setPrettyPrinting()
             .setDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX")
             .create();
 
-    private static final Logger LOG = LoggerFactory.getLogger(RequestHandler.class);
+    private LeshanServer server;
 
     public RequestHandler(LeshanServer server) {
         this.server = server;
 
-        // get LwM2mModel from modelprovider
+        // get LwM2mModel from model provider
         LwM2mModel customModel = server.getModelProvider().getObjectModel(null);
 
+        // setup MODEL_MAP and resourceNameToIdMapMap (which is basically the inverse of it)
         for (Integer modelId : MODEL_IDS) {
             Map<Integer, ResourceModel> model = customModel.getObjectModel(modelId).resources;
             MODEL_MAP.put(modelId, model);
@@ -132,51 +133,62 @@ public class RequestHandler {
         server.getClientRegistry().addListener(clientRegistryListener);
     }
 
+    /**
+     * Makes a ReadRequest via CoAP to a client based on the provided URL path
+     *
+     * @param path - URL GET request path, e.g. /.well-known/hyperty/myHyperty/version
+     * @return CoAP ReadResponse that the client returned, or an error message as ReadResponse
+     */
     public RequestResponse handleGET(String path) {
         LOG.info("Handling GET for: " + path);
-        //path should start with /.well-known/
-        //but coap has no slash at the start, so check for it and prepend it if necessary.
+        // path should start with /.well-known/
+        // but coap has no slash at the start, so check for it and prepend it if necessary.
         if (!path.startsWith("/"))
             path = "/" + path;
 
-        //remove /.well-known/ from path
+        // remove /.well-known/ from path
         path = StringUtils.removeStart(path, WELLKNOWN_PREFIX);
-        //LOG.debug("adapted path: " + path);
-        //split path up
+        // LOG.debug("adapted path: " + path);
+        // split path up
         String[] pathParts = StringUtils.split(path, '/');
 
-        //example path: <endpoint>/<objectID>/<instance>/<resourceID>
+        // example path: <objectType>/<instanceName>/<resourceName>
 
-        //TODO: no endpoint given -> return all clients or ask for more info?
         if (pathParts.length == 0) {
-            String response = "Please provide resource type and (optional) name and (optional) resource name. Example: /hyperty/MyHyperty/sourceCode";
-            //ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
-
+            String response = String.format("Please provide at least a type from %s or 'restart' or 'client'", MODEL_NAME_TO_ID_MAP.keySet());
+            LOG.warn(response);
             return new RequestResponse(ReadResponse.internalServerError(response));
-        } else if (pathParts.length == 1) { //hyperty | protostub | sourcepackage etc. only
+        } else if (pathParts.length == 1) { // hyperty | protostub | sourcepackage etc. only
 
             String type = pathParts[0];
 
             Integer id = MODEL_NAME_TO_ID_MAP.get(type);
 
             if (id != null) {
-                return new RequestResponse(ReadResponse.success(0, gson.toJson(nameToInstanceMapMap.get(id).keySet())), id);
+                String response = gson.toJson(nameToInstanceMapMap.get(id).keySet());
+                LOG.info("Returning list: " + response);
+                return new RequestResponse(ReadResponse.success(0, response), id);
             } else if (type.equals("restart")) {
                 try {
                     restartClients();
-                    return new RequestResponse(ReadResponse.success(0, "Restart executed on all connected clients"));
+                    String response = "Restart executed on all connected clients";
+                    LOG.info(response);
+                    return new RequestResponse(ReadResponse.success(0, response));
                 } catch (InterruptedException e) {
                     LOG.warn("Restarting clients failed", e);
-                    return new RequestResponse(ReadResponse.internalServerError(e.getMessage()));
+                    return new RequestResponse(ReadResponse.internalServerError("Restarting clients failed: " + e.getMessage()));
                 }
             } else if (type.equals("client")) {
                 List<String> clients = new LinkedList<>();
                 for (Client client : server.getClientRegistry().allClients()) {
                     clients.add(client.getEndpoint() + " (" + client.getRegistrationId() + ")");
                 }
-                return new RequestResponse(ReadResponse.success(0, gson.toJson(clients)));
+                String response = gson.toJson(clients);
+                LOG.info("Returinging client list: " + response);
+                return new RequestResponse(ReadResponse.success(0, response));
             } else {
-                String response = "Invalid resource type. Please use: hyperty | protocolstub | runtime | dataschema | idp-proxy | sourcepackage";
+                String response = String.format("Unknown object type, please use one of: %s or 'restart' or 'client'", MODEL_NAME_TO_ID_MAP.keySet());
+                LOG.warn(response);
                 return new RequestResponse(ReadResponse.internalServerError(response), -1);
             }
 
@@ -211,6 +223,7 @@ public class RequestHandler {
                 //resource name was given, but not found in the name:id map
                 if (resourceName != null && resourceID == null) {
                     String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, resourceNameToIdMap.keySet());
+                    LOG.warn(response);
                     return new RequestResponse(ReadResponse.internalServerError(response), id);
 
                 }
@@ -245,27 +258,31 @@ public class RequestHandler {
                                     // assume json objects down the "detail" route
                                     JsonElement current = response.getJson();
                                     for (String detail : details) {
-                                        LOG.debug("current: {}", current);
+                                        //LOG.debug("current: {}", current);
                                         current = current.getAsJsonObject().get(detail);
                                     }
-                                    LOG.debug("final current: {}");
+                                    //LOG.debug("final current: {}");
                                     // now current is what we want
-                                    return new RequestResponse(ReadResponse.success(0, current.toString()));
+                                    String sResp = current.toString();
+                                    LOG.info("Returning: " + sResp);
+                                    return new RequestResponse(ReadResponse.success(0, sResp));
                                 } catch (Exception e) {
                                     //e.printStackTrace();
                                     String detailPath = "";
                                     for (String detail : details) {
                                         detailPath += "/" + detail;
                                     }
-                                    LOG.warn(detailPath + " not found in " + resourceName);
-                                    return new RequestResponse(ReadResponse.notFound());
+                                    String error = detailPath + " not found in " + resourceName;
+                                    LOG.warn(error, e);
+                                    return new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, error));
                                 }
                             } else {
                                 return response;
                             }
                         } catch (InterruptedException e) {
-                            LOG.error("unable request " + t + " from client " + client, e);
-                            return new RequestResponse(ReadResponse.internalServerError(e.getMessage()), id);
+                            String error = "unable to request " + t + " from client " + client;
+                            LOG.warn(error, e);
+                            return new RequestResponse(ReadResponse.internalServerError(error + ": " + e.getMessage()), id);
                         }
                     } else {
                         String response = String.format("Found target for '%s', but endpoint is invalid. Redundany error? Requested endpoint: %s", instanceName, targetPaths[0]);
@@ -274,6 +291,7 @@ public class RequestHandler {
                     }
                 } else {
                     String response = String.format("Could not find instance: %s", instanceName);
+                    LOG.warn(response);
                     return new RequestResponse(ReadResponse.internalServerError(response), id);
 
                 }
@@ -283,15 +301,34 @@ public class RequestHandler {
                 LOG.debug("search for client {} returned {}", instanceName, client);
                 if (client != null) {
                     try {
-                        return new RequestResponse(restartClient(client));
+                        ExecuteResponse executeResponse = restartClient(client);
+                        LOG.info("Restarting client {} {}", client.getEndpoint(), executeResponse.isSuccess() ? "succeeded" : "failed");
+                        return new RequestResponse(executeResponse);
                     } catch (InterruptedException e) {
-                        return new RequestResponse(ReadResponse.internalServerError("Unable to restart client " + client.getEndpoint() + ": " + e.getMessage()));
+                        String errorMessage = "Unable to restart client " + client.getEndpoint() + ": " + e.getMessage();
+                        LOG.warn(errorMessage, e);
+                        return new RequestResponse(ReadResponse.internalServerError(errorMessage));
                     }
                 } else {
-                    return new RequestResponse(ReadResponse.internalServerError("Client " + instanceName + " not found"));
+                    String errorMessage = "Client " + instanceName + " not found";
+                    LOG.warn(errorMessage);
+                    return new RequestResponse(ReadResponse.internalServerError(errorMessage));
+                }
+            } else if (pathParts[0].equals("client")) {
+                LOG.info("trying to get information about client {}", instanceName);
+                Client client = server.getClientRegistry().get(instanceName);
+                if (client != null) {
+                    String response = client.toString();
+                    LOG.info("client " + instanceName + " found: {}", response);
+                    return new RequestResponse(ReadResponse.success(0, response));
+                } else {
+                    String errorMessage = "client " + instanceName + " not found";
+                    LOG.warn(errorMessage);
+                    return new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, errorMessage));
                 }
             } else {
-                String response = String.format("invalid object type, please use one of: %s", MODEL_NAME_TO_ID_MAP.keySet());
+                String response = String.format("Unknown object type, please use one of: %s or 'restart'", MODEL_NAME_TO_ID_MAP.keySet());
+                LOG.warn(response);
                 return new RequestResponse(ReadResponse.internalServerError(response));
             }
         }
@@ -307,7 +344,7 @@ public class RequestHandler {
             try {
                 checkClient(client);
             } catch (Exception e) {
-                LOG.error("Something went wrong while checking the client.", e);
+                LOG.error("Something went wrong while checking the client", e);
                 //e.printStackTrace();
             }
 
@@ -315,19 +352,19 @@ public class RequestHandler {
 
         @Override
         public void updated(ClientUpdate update, Client clientUpdated) {
-            LOG.debug("'{}' updated", clientUpdated.getEndpoint());
+            LOG.info("'{}' updated", clientUpdated.getEndpoint());
 
             //try {
             //    removeClient(clientUpdated);
             //} catch (Exception e) {
-            //    LOG.error("Something went wrong while removing the client.", e);
+            //    LOG.error("Something went wrong while removing the client", e);
             //    //e.printStackTrace();
             //}
             //
             //try {
             //    checkClient(clientUpdated);
             //} catch (Exception e) {
-            //    LOG.error("Something went wrong while checking the client.", e);
+            //    LOG.error("Something went wrong while checking the client", e);
             //    //e.printStackTrace();
             //}
         }
@@ -339,7 +376,7 @@ public class RequestHandler {
             try {
                 removeClient(client);
             } catch (Exception e) {
-                LOG.error("Something went wrong while removing the client.", e);
+                LOG.error("Something went wrong while removing the client", e);
                 e.printStackTrace();
             }
         }
@@ -408,7 +445,7 @@ public class RequestHandler {
 
                                 @Override
                                 public void visit(LwM2mResource resource) {
-                                    //LOG.debug("resource visit: " + resource);
+                                    LOG.debug("resource visit: " + resource);
                                     String objectName = resource.getValue().toString();
                                     Map<String, String> nametToInstanceMap = nameToInstanceMapMap.get(model);
                                     String instanceVal = "/" + client.getEndpoint() + foundModelLink;
@@ -431,14 +468,14 @@ public class RequestHandler {
 
                                     generatedMapping.put(foundModelLink, objectName);
 
-                                    //LOG.debug("Added to client map -> " + objectName + ": " + nametToInstanceMap.get(objectName));
+                                    LOG.debug("Added to client map -> " + objectName + ": " + nametToInstanceMap.get(objectName));
                                 }
                             });
                         } else {
                             LOG.warn("'{}' contained object links on register, but requesting them failed with: " + gson.toJson(response), client.getEndpoint());
                         }
                     }
-                    LOG.debug("'{}' contains: {}", client.getEndpoint(), gson.toJson(generatedMapping));
+                    LOG.info("'{}' contains: {}", client.getEndpoint(), gson.toJson(generatedMapping));
                 }
             });
             t.start();
@@ -469,9 +506,7 @@ public class RequestHandler {
     public void restartClients() throws InterruptedException {
         LOG.info("Restarting all clients...");
         for (Client client : server.getClientRegistry().allClients()) {
-            ExecuteRequest executeRequest = new ExecuteRequest(3, 0, 4);
-            ExecuteResponse response = server.send(client, executeRequest);
-            LOG.debug("Restarting client '{}' " + (response.isSuccess() ? "succeeded" : ("failed: " + response.getCode())), client.getEndpoint());
+            restartClient(client);
         }
     }
 
@@ -483,9 +518,9 @@ public class RequestHandler {
      * @throws InterruptedException
      */
     public ExecuteResponse restartClient(Client client) throws InterruptedException {
-        LOG.info("Trying to restart '{}'", client.getEndpoint());
+        //LOG.info("Trying to restart {}", client.getEndpoint());
         ExecuteResponse response = server.send(client, new ExecuteRequest(3, 0, 4));
-        LOG.debug("got response: {}", response);
+        LOG.info("Restarting client {} " + (response.isSuccess() ? "succeeded" : ("failed: " + response.getCode())), client.getEndpoint());
         return response;
     }
 
@@ -520,9 +555,10 @@ public class RequestHandler {
             final JsonElement[] resp = new JsonElement[1];
 
             if (response.isFailure()) {
-                JsonObject errorObject = new JsonObject();
-                errorObject.addProperty("error", response.getErrorMessage());
-                return errorObject;
+                if (response.getErrorMessage() != null)
+                    return new JsonPrimitive(response.getErrorMessage());
+                else
+                    return new JsonPrimitive("");
             }
 
             final Map<Integer, ResourceModel> modelMap = MODEL_MAP.get(model);
@@ -537,7 +573,7 @@ public class RequestHandler {
 
                     @Override
                     public void visit(LwM2mObjectInstance instance) {
-                        //LOG.debug("visiting instance {}", instance);
+                        LOG.debug("visiting instance {}", instance);
                         JsonObject jResponse = new JsonObject();
                         Map<Integer, LwM2mResource> resources = instance.getResources();
                         // parse resources into json
@@ -555,7 +591,7 @@ public class RequestHandler {
 
                     @Override
                     public void visit(LwM2mResource resource) {
-                        //LOG.debug("visiting resource {}", resource);
+                        LOG.debug("visiting resource {}", resource);
                         String val = resource.getValue().toString();
                         //LOG.debug("value: {}", val);
 

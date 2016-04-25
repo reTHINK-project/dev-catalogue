@@ -19,6 +19,10 @@ package eu.rethink.catalogue.database;
 
 import com.google.gson.*;
 import eu.rethink.catalogue.database.exception.CatalogueObjectParsingException;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configuration;
 import org.eclipse.leshan.LwM2mId;
 import org.eclipse.leshan.client.californium.LeshanClient;
 import org.eclipse.leshan.client.californium.LeshanClientBuilder;
@@ -182,6 +186,13 @@ public class CatalogueDatabase {
                 case "-t":
                     d.setLifetime(Integer.parseInt(args[++i]));
                     break;
+                case "-v":
+                    // increase log level
+                    LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+                    Configuration conf = ctx.getConfiguration();
+                    conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
+                    ctx.updateLoggers(conf);
+                    break;
             }
         }
 
@@ -215,7 +226,7 @@ public class CatalogueDatabase {
         // parse all catalogue objects
         File catObjs = new File(catObjsPath);
         if (!catObjs.exists() || !catObjs.isDirectory()) {
-            LOG.error("No Catalogue Objects folder at " + catObjsPath);
+            LOG.warn("No Catalogue Objects folder at " + catObjsPath);
             return;
         }
 
@@ -261,7 +272,6 @@ public class CatalogueDatabase {
             enablers.add(initializer.create(entry.getKey()));
         }
 
-        LOG.info("I am '{}'", endpoint);
 
         LeshanClientBuilder builder = new LeshanClientBuilder(endpoint);
         builder.setObjects(enablers);
@@ -270,6 +280,9 @@ public class CatalogueDatabase {
 
         // Start the client
         client.start();
+        LOG.info("I am {}", endpoint);
+        LOG.info(" CoAP port: {}", client.getNonSecureAddress().getPort());
+        LOG.info("CoAPs port: {}", client.getSecureAddress().getPort());
 
         final CatalogueDatabase ref = this;
 
@@ -451,7 +464,7 @@ public class CatalogueDatabase {
             }
 
             if (descriptor == null) {
-                LOG.debug("Unable to validate instance: descriptor json not set!");
+                LOG.warn("Unable to validate instance: descriptor json not set!");
                 return false;
             }
 
@@ -482,7 +495,7 @@ public class CatalogueDatabase {
             } else {
                 response = ReadResponse.notFound();
             }
-            LOG.debug("Read on {} ({})", resourceid, resourceName);
+            LOG.info("Read on {} ({})", resourceid, resourceName);
             return response;
         }
     }
@@ -505,7 +518,7 @@ public class CatalogueDatabase {
 
         @Override
         public ReadResponse read(int resourceid) {
-            LOG.debug("Read on Device Resource " + resourceid);
+            LOG.info("Read on Device Resource " + resourceid);
             switch (resourceid) {
                 case 0:
                     return ReadResponse.success(resourceid, getManufacturer());
@@ -537,7 +550,7 @@ public class CatalogueDatabase {
 
         @Override
         public ExecuteResponse execute(int resourceid, String params) {
-            LOG.debug("Execute on Device resource ({}, {})", resourceid, params);
+            LOG.info("Execute on Device resource ({}, {})", resourceid, params);
             new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -572,7 +585,7 @@ public class CatalogueDatabase {
 
         @Override
         public WriteResponse write(int resourceid, LwM2mResource value) {
-            LOG.debug("Write on Device resource ({}, {})", resourceid, value);
+            LOG.info("Write on Device resource ({}, {})", resourceid, value);
             return super.write(resourceid, value);
         }
 

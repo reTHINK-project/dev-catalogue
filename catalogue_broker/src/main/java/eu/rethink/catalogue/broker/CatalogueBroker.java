@@ -20,6 +20,10 @@ package eu.rethink.catalogue.broker;
 
 import eu.rethink.catalogue.broker.model.RethinkModelProvider;
 import eu.rethink.catalogue.broker.servlet.WellKnownServlet;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configuration;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.*;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -273,6 +277,13 @@ public class CatalogueBroker {
                 case "-truststorePassword":
                 case "-tpw":
                     broker.setTruststorePassword(args[++i]);
+                    break;
+                case "-v":
+                    // increase log level
+                    LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+                    Configuration conf = ctx.getConfiguration();
+                    conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
+                    ctx.updateLoggers(conf);
                     break;
             }
         }
