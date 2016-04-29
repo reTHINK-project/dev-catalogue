@@ -47,6 +47,7 @@ option        | description
 -usehttp      | change protocol of generated sourcePackageURLs to http (otherwise, https is used)
 -lifetime, -t | set the time between client updates (default = 60)
 -v            | increase logging level to DEBUG
+-endpoint, -e | set Catalogue Database endpoint name
 
 If you run the Catalogue Database without launch arguments,
 it tries to connect to the Catalogue Broker on localhost:5683 by default,

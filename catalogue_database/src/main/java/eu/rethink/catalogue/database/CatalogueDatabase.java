@@ -148,6 +148,10 @@ public class CatalogueDatabase {
         this.lifetime = lifetime;
     }
 
+    public void setEndpoint(String endpoint) {
+        this.endpoint = endpoint;
+    }
+
     public static void main(final String[] args) {
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         SLF4JBridgeHandler.install();
@@ -192,6 +196,10 @@ public class CatalogueDatabase {
                     Configuration conf = ctx.getConfiguration();
                     conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
                     ctx.updateLoggers(conf);
+                    break;
+                case "-endpoint":
+                case "-e":
+                    d.setEndpoint(args[++i]);
                     break;
             }
         }
