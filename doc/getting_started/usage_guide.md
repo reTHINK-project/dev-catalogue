@@ -13,10 +13,15 @@ You can configure the Catalogue Broker using the following options:
 
 option                      | description
 --------------------------- | ---------------------------
+-host                       | set coap & http host name
 -http, -h                   | set http port
 -ssl, -s, -https, -hs       | set https port
--coap, -c                   | set coap address (hostname + port, or just port)
--coaps, -cs                 | set coap address (hostname + port, or just port)
+-coap, -c                   | set coap address (host[:port])
+-coaps, -cs                 | set coap address (host[:port])
+-coaphost, -ch              | set coap host
+-coapport, -cp              | set coap port
+-coapshost, -ch             | set coaps host
+-coapsport, -cp             | set coaps port
 -keystorePath, -kp          | set keystore path
 -truststorePath, -tp        | set truststore path
 -keystorePassword, -kpw     | set keystore password
@@ -38,16 +43,22 @@ Example:
 
 You can configure the Catalogue Database using the following options:
 
-option        | description
-------------- | ---------------------------
--host, -h     | specify Catalogue Broker hostname/IP
--domain, -d   | specify Catalogue Broker domain/IP used for sourcePackageURL generation
--port, -p     | specify Catalogue Broker coap port
--objpath, -o  | path of folder containing catalogue objects (e.g. provided catalogue_objects folder)
--usehttp      | change protocol of generated sourcePackageURLs to http (otherwise, https is used)
--lifetime, -t | set the time between client updates (default = 60)
--v            | increase logging level to DEBUG
--endpoint, -e | set Catalogue Database endpoint name
+option              | description
+------------------- | ---------------------------
+-host, -h           | specify Catalogue Broker hostname/IP
+-domain, -d         | specify Catalogue Broker domain/IP used for sourcePackageURL generation
+-port, -p           | specify Catalogue Broker coap port
+-coapaddress, -ca   | set Database CoAP address (host[:port])
+-coaphost, -ch      | set Database CoAP host name
+-coapport, -cp      | set Database CoAP port
+-coapsaddress, -csa | set Database CoAPs address (host[:port])
+-coapshost, -ch     | set Database CoAPs host name
+-coapsport, -cp     | set Database CoAPs port
+-objpath, -o        | path of folder containing catalogue objects (e.g. provided catalogue_objects folder)
+-usehttp            | change protocol of generated sourcePackageURLs to http (otherwise, https is used)
+-lifetime, -t       | set the time between client updates (default = 60)
+-endpoint, -e       | set Catalogue Database endpoint name
+-v                  | increase logging level to DEBUG
 
 If you run the Catalogue Database without launch arguments,
 it tries to connect to the Catalogue Broker on localhost:5683 by default,
