@@ -49,14 +49,31 @@ public class CatalogueBroker {
 
     private int httpPort = DEFAULT_HTTP_PORT;
     private int sslPort = DEFAULT_SSL_PORT;
-    private String coapAddress = null;
+    private String host = null;
+    private String coapHost = null;
+    private String coapsHost = null;
 
-    public void setCoapsAddress(String coapsAddress) {
-        this.coapsAddress = coapsAddress;
+    private int coapPort = 5683;
+    private int coapsPort = 5684;
+
+    public void setHost(String host) {
+        this.host = host;
     }
 
-    public void setCoapAddress(String coapAddress) {
-        this.coapAddress = coapAddress;
+    public void setCoapHost(String coapHost) {
+        this.coapHost = coapHost;
+    }
+
+    public void setCoapsHost(String coapsHost) {
+        this.coapsHost = coapsHost;
+    }
+
+    public void setCoapPort(int coapPort) {
+        this.coapPort = coapPort;
+    }
+
+    public void setCoapsPort(int coapsPort) {
+        this.coapsPort = coapsPort;
     }
 
     public void setSslPort(int sslPort) {
@@ -66,8 +83,6 @@ public class CatalogueBroker {
     public void setHttpPort(int httpPort) {
         this.httpPort = httpPort;
     }
-
-    private String coapsAddress = null;
 
     public void setKeystorePath(String keystorePath) {
         this.keystorePath = keystorePath;
@@ -111,33 +126,31 @@ public class CatalogueBroker {
             LOG.warn("Using default port for http or https. Please make sure you have the required privileges.");
         }
 
+        if (host != null && coapHost == null)
+            coapHost = host;
+
+        if (host != null && coapsHost == null)
+            coapsHost = host;
+
+        if (coapHost != null && coapsHost == null) {
+            coapsHost = coapHost;
+        }
+
         // Build LWM2M server
         LeshanServerBuilder builder = new LeshanServerBuilder();
         builder.setObjectModelProvider(new RethinkModelProvider());
-        if (coapAddress != null && !coapAddress.isEmpty()) {
-            // check if coapAddress is only port or host:port
-            if (!coapAddress.contains(":")) {
-                // only port -> prepend localhost
-                coapAddress = "localhost:" + coapAddress;
-            }
-
-            builder.setLocalAddress(coapAddress.substring(0, coapAddress.lastIndexOf(':')),
-                    Integer.parseInt(coapAddress.substring(coapAddress.lastIndexOf(':') + 1, coapAddress.length())));
-        }
-
-
-        if (coapsAddress != null && !coapsAddress.isEmpty()) {
-            // check if coapsAddress is only port or host:port
-            if (!coapsAddress.contains(":")) {
-                // only port -> prepend localhost
-                coapsAddress = "localhost:" + coapAddress;
-            }
-            builder.setLocalSecureAddress(coapsAddress.substring(0, coapsAddress.lastIndexOf(':')),
-                    Integer.parseInt(coapsAddress.substring(coapsAddress.lastIndexOf(':') + 1, coapsAddress.length())));
-        }
+        builder.setLocalAddress(coapHost, coapPort);
+        builder.setLocalSecureAddress(coapsHost, coapsPort);
 
         lwServer = builder.build();
-        lwServer.start();
+
+        try {
+            LOG.info("Starting CoAP Server...");
+            lwServer.start();
+        } catch (Exception e) {
+            LOG.error("CoAP Server error", e);
+            System.exit(1);
+        }
 
         // Now prepare and start jetty
         server = new Server();
@@ -149,6 +162,7 @@ public class CatalogueBroker {
         // === jetty-http.xml ===
         ServerConnector http = new ServerConnector(server,
                 new HttpConnectionFactory(http_config));
+        http.setHost(host);
         http.setPort(httpPort);
         http.setIdleTimeout(30000);
         server.addConnector(http);
@@ -177,6 +191,7 @@ public class CatalogueBroker {
         ServerConnector sslConnector = new ServerConnector(server,
                 new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
                 new HttpConnectionFactory(https_config));
+        sslConnector.setHost(host);
         sslConnector.setPort(sslPort);
         server.addConnector(sslConnector);
 
@@ -199,18 +214,40 @@ public class CatalogueBroker {
 
         // Start jetty & webApp
         try {
-            LOG.info("Server should be available at: " + server.getURI() + ". http on port " + httpPort + ", https on " + sslPort);
-            LOG.info("Starting server...");
+            LOG.info("Starting HTTP Server...");
             server.start();
         } catch (Exception e) {
-            LOG.error("jetty error", e);
+            LOG.error("HTTP Server error", e);
+            System.exit(1);
         }
+
+        LOG.info("Catalogue Broker is running");
+        LOG.info(" HTTP Host: " + server.getURI().getHost());
+        LOG.info(" HTTP Port: " + httpPort);
+        LOG.info("HTTPS Port: " + sslPort);
+        if (coapHost != null)
+            LOG.info(" CoAP Host: " + coapHost);
+        if (coapsHost != null)
+            LOG.info("CoAPs Host: " + coapsHost);
+        LOG.info(" CoAP Port: " + coapPort);
+        LOG.info("CoAPs Port: " + coapsPort);
+
+        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+            @Override
+            public void run() {
+                stop();
+            }
+        }));
     }
 
     public void stop() {
+        LOG.info("Stopping Catalogue Broker...");
+
         try {
+            lwServer.stop();
             lwServer.destroy();
             server.stop();
+            server.destroy();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -227,6 +264,9 @@ public class CatalogueBroker {
             arg = arg.toLowerCase();
 
             switch (arg) {
+                case "-host":
+                    broker.setHost(args[++i]);
+                    break;
                 case "-httpport":
                 case "-http":
                 case "-h":
@@ -251,12 +291,38 @@ public class CatalogueBroker {
                 case "-coapaddress":
                 case "-coap":
                 case "-c":
-                    broker.setCoapAddress(args[++i]);
+                    String[] addr = args[++i].split(":");
+                    broker.setCoapHost(addr[0]);
+                    if (addr.length > 1)
+                        broker.setCoapPort(Integer.parseInt(addr[1]));
+                    else
+                        LOG.warn("used -coapaddress without providing port!");
                     break;
                 case "-coapsaddress":
                 case "-coaps":
                 case "-cs":
-                    broker.setCoapsAddress(args[++i]);
+                    String[] sAddr = args[++i].split(":");
+                    broker.setCoapsHost(sAddr[0]);
+                    if (sAddr.length > 1)
+                        broker.setCoapsPort(Integer.parseInt(sAddr[1]));
+                    else
+                        LOG.warn("used -coapsaddress without providing port!");
+                    break;
+                case "-coaphost":
+                case "-ch":
+                    broker.setCoapHost(args[++i]);
+                    break;
+                case "-coapport":
+                case "-cp":
+                    broker.setCoapPort(Integer.parseInt(args[++i]));
+                    break;
+                case "-coapshost":
+                case "-csh":
+                    broker.setCoapsHost(args[++i]);
+                    break;
+                case "-coapsport":
+                case "-csp":
+                    broker.setCoapsPort(Integer.parseInt(args[++i]));
                     break;
                 case "-keystorePath":
                 case "-kp":
