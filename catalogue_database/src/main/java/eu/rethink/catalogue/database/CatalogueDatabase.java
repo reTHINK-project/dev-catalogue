@@ -114,6 +114,10 @@ public class CatalogueDatabase {
     private String serverDomain = null;
     private String accessURL = null;
     private String catObjsPath = "./catalogue_objects";
+    private String localHost = null;
+    private int localPort = 0;
+    private String localSecureHost = null;
+    private int localSecurePort = 0;
     private int serverPort = DEFAULT_SERVER_COAP_PORT;
     private boolean useHttp = false;
     private int lifetime = 60;
@@ -152,56 +156,110 @@ public class CatalogueDatabase {
         this.endpoint = endpoint;
     }
 
+    public void setLocalHost(String localHost) {
+        this.localHost = localHost;
+    }
+
+    public void setLocalPort(int localPort) {
+        this.localPort = localPort;
+    }
+
+    public void setLocalSecureHost(String localSecureHost) {
+        this.localSecureHost = localSecureHost;
+    }
+
+    public void setLocalSecurePort(int localSecurePort) {
+        this.localSecurePort = localSecurePort;
+    }
+
     public static void main(final String[] args) {
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         SLF4JBridgeHandler.install();
 
         CatalogueDatabase d = new CatalogueDatabase();
 
-        for (int i = 0; i < args.length; i++) {
-            String arg = args[i];
-            switch (arg) {
-                case "-h":
-                case "-host":
-                    d.setServerHostName(args[++i]);
-                    break;
-                case "-usehttp":
-                    if (args.length <= i + 1 || args[i + 1].startsWith("-")) { // check if boolean value is not given, assume true
-                        d.setUseHttp(true);
-                    } else {
-                        d.setUseHttp(Boolean.parseBoolean(args[++i]));
-                    }
-                    break;
-                case "-p":
-                case "-port":
-                    d.setServerPort(Integer.parseInt(args[++i]));
-                    break;
-                case "-o":
-                case "-op":
-                case "-objPath":
-                case "-objpath":
-                    d.setCatObjsPath(args[++i]);
-                    break;
-                case "-d":
-                case "-domain":
-                    d.setServerDomain(args[++i]);
-                    break;
-                case "-lifetime":
-                case "-t":
-                    d.setLifetime(Integer.parseInt(args[++i]));
-                    break;
-                case "-v":
-                    // increase log level
-                    LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-                    Configuration conf = ctx.getConfiguration();
-                    conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
-                    ctx.updateLoggers(conf);
-                    break;
-                case "-endpoint":
-                case "-e":
-                    d.setEndpoint(args[++i]);
-                    break;
+        try {
+            for (int i = 0; i < args.length; i++) {
+                String arg = args[i];
+                switch (arg) {
+                    case "-h":
+                    case "-host":
+                        d.setServerHostName(args[++i]);
+                        break;
+                    case "-usehttp":
+                        if (args.length <= i + 1 || args[i + 1].startsWith("-")) { // check if boolean value is not given, assume true
+                            d.setUseHttp(true);
+                        } else {
+                            d.setUseHttp(Boolean.parseBoolean(args[++i]));
+                        }
+                        break;
+                    case "-p":
+                    case "-port":
+                        d.setServerPort(Integer.parseInt(args[++i]));
+                        break;
+                    case "-o":
+                    case "-op":
+                    case "-objpath":
+                        d.setCatObjsPath(args[++i]);
+                        break;
+                    case "-d":
+                    case "-domain":
+                        d.setServerDomain(args[++i]);
+                        break;
+                    case "-lifetime":
+                    case "-t":
+                        d.setLifetime(Integer.parseInt(args[++i]));
+                        break;
+                    case "-v":
+                        // increase log level
+                        LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+                        Configuration conf = ctx.getConfiguration();
+                        conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
+                        ctx.updateLoggers(conf);
+                        break;
+                    case "-endpoint":
+                    case "-e":
+                        d.setEndpoint(args[++i]);
+                        break;
+                    case "-coapaddress":
+                    case "-ca":
+                        String[] addr = args[++i].split(":");
+                        d.setLocalHost(addr[0]);
+                        if (addr.length > 1)
+                            d.setLocalPort(Integer.parseInt(addr[1]));
+                        else
+                            LOG.warn("used -coapaddress without providing port!");
+                        break;
+                    case "-coaphost":
+                    case "-ch":
+                        d.setLocalHost(args[++i]);
+                        break;
+                    case "-coapport":
+                    case "-cp":
+                        d.setLocalPort(Integer.parseInt(args[++i]));
+                        break;
+                    case "-coapsaddress":
+                    case "-csa":
+                        String[] sAddr = args[++i].split(":");
+                        d.setLocalSecureHost(sAddr[0]);
+                        if (sAddr.length > 1)
+                            d.setLocalSecurePort(Integer.parseInt(sAddr[1]));
+                        else
+                            LOG.warn("used -coapsecureaddress without providing port!");
+                        break;
+                    case "-coapshost":
+                    case "-csh":
+                        d.setLocalSecureHost(args[++i]);
+                        break;
+                    case "-coapsport":
+                    case "-csp":
+                        d.setLocalSecurePort(Integer.parseInt(args[++i]));
+                        break;
+                }
             }
+        } catch (Exception e) {
+            LOG.error("Error parsing launch options: " + Arrays.toString(args), e);
+            return;
         }
 
         try {
@@ -275,14 +333,15 @@ public class CatalogueDatabase {
         List<LwM2mObjectEnabler> enablers = initializer.create(LwM2mId.SECURITY, LwM2mId.SERVER, LwM2mId.DEVICE);
 
         for (Map.Entry<Integer, Set<CatalogueObjectInstance>> entry : parsedObjects.entrySet()) {
-            //LOG.debug("setting instances: {}", gson.toJson(entry.getValue()));
+            LOG.debug("setting instances: {}", gson.toJson(entry.getValue()));
             initializer.setInstancesForObject(entry.getKey(), entry.getValue().toArray(new CatalogueObjectInstance[entry.getValue().size()]));
             enablers.add(initializer.create(entry.getKey()));
         }
 
-
         LeshanClientBuilder builder = new LeshanClientBuilder(endpoint);
         builder.setObjects(enablers);
+        builder.setLocalAddress(localHost, localPort);
+        builder.setLocalSecureAddress(localSecureHost, localSecurePort);
 
         client = builder.build();
 
@@ -319,10 +378,12 @@ public class CatalogueDatabase {
     }
 
     private JsonObject parseJson(File f) throws FileNotFoundException, JsonParseException {
+        LOG.debug("parsing to JSON: " + f.getName());
         return parser.parse(new FileReader(f)).getAsJsonObject();
     }
 
     private Map<Integer, Set<CatalogueObjectInstance>> parseObjects(File dir) throws CatalogueObjectParsingException {
+        LOG.debug("parsing objects in " + dir.getName());
         if (!dir.exists() || !dir.isDirectory())
             throw new CatalogueObjectParsingException("catalogue objects folder '" + dir + "' does not exist or is not a directory");
 
@@ -335,6 +396,7 @@ public class CatalogueDatabase {
         }
 
         for (File typeFolder : typeFolders) {
+            LOG.debug("parsing type folder " + typeFolder.getName());
             Integer modelId = MODEL_NAME_TO_ID_MAP.get(typeFolder.getName());
 
             if (modelId == null) {
@@ -344,6 +406,7 @@ public class CatalogueDatabase {
             File[] instanceFolders = typeFolder.listFiles(dirFilter);
 
             for (File instanceFolder : instanceFolders) {
+                LOG.debug("parsing instance folder" + instanceFolder.getName());
                 try {
                     File desc = new File(instanceFolder, "description.json");
                     if (!desc.exists()) {
@@ -354,6 +417,7 @@ public class CatalogueDatabase {
 
                     File pkg = new File(instanceFolder, "sourcePackage.json");
                     if (pkg.exists()) {
+                        LOG.debug("parsing sourcePackage");
                         JsonObject jPkg = parseJson(pkg);
 
                         // put cguid from descriptor into sourcePackage
@@ -367,6 +431,7 @@ public class CatalogueDatabase {
                         File code = null;
                         for (File file : instanceFolder.listFiles()) {
                             if (file.getName().startsWith("sourceCode")) {
+                                LOG.debug("found sourceCode for instance " + instanceFolder.getName());
                                 code = file;
                                 break;
                             }
@@ -464,7 +529,7 @@ public class CatalogueDatabase {
         }
 
         private boolean validate() {
-            //LOG.debug("validating {} against model {}", gson.toJson(json), modelId);
+            LOG.debug("validating {} against model {}", gson.toJson(descriptor), model);
 
             if (model == 0) {
                 LOG.warn("Unable to validate instance: modelId not set!");
@@ -483,12 +548,14 @@ public class CatalogueDatabase {
                     return false;
                 }
             }
+            LOG.debug("validation succeeded");
             return true;
         }
 
         @Override
         public ReadResponse read(int resourceid) {
             String resourceName = MODEL_ID_TO_RESOURCES_MAP_MAP.get(model).get(resourceid).name;
+            LOG.info("Read on {} ({})", resourceid, resourceName);
             ReadResponse response;
             if (descriptor.has(resourceName)) {
                 JsonElement element = descriptor.get(resourceName);
@@ -503,7 +570,6 @@ public class CatalogueDatabase {
             } else {
                 response = ReadResponse.notFound();
             }
-            LOG.info("Read on {} ({})", resourceid, resourceName);
             return response;
         }
     }
