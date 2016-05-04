@@ -215,6 +215,7 @@ public class CatalogueDatabase {
                         LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
                         Configuration conf = ctx.getConfiguration();
                         conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
+                        conf.getRootLogger().setLevel(Level.DEBUG);
                         ctx.updateLoggers(conf);
                         break;
                     case "-endpoint":
@@ -350,7 +351,6 @@ public class CatalogueDatabase {
         LOG.info("I am {}", endpoint);
         LOG.info(" CoAP port: {}", client.getNonSecureAddress().getPort());
         LOG.info("CoAPs port: {}", client.getSecureAddress().getPort());
-
         final CatalogueDatabase ref = this;
 
         // Deregister on shutdown and stop client.
@@ -378,12 +378,12 @@ public class CatalogueDatabase {
     }
 
     private JsonObject parseJson(File f) throws FileNotFoundException, JsonParseException {
-        LOG.debug("parsing to JSON: " + f.getName());
+        LOG.debug("parsing to JSON: " + f.getPath());
         return parser.parse(new FileReader(f)).getAsJsonObject();
     }
 
     private Map<Integer, Set<CatalogueObjectInstance>> parseObjects(File dir) throws CatalogueObjectParsingException {
-        LOG.debug("parsing objects in " + dir.getName());
+        LOG.debug("parsing objects in " + dir.getPath());
         if (!dir.exists() || !dir.isDirectory())
             throw new CatalogueObjectParsingException("catalogue objects folder '" + dir + "' does not exist or is not a directory");
 
@@ -396,7 +396,7 @@ public class CatalogueDatabase {
         }
 
         for (File typeFolder : typeFolders) {
-            LOG.debug("parsing type folder " + typeFolder.getName());
+            LOG.debug("parsing type folder " + typeFolder.getPath());
             Integer modelId = MODEL_NAME_TO_ID_MAP.get(typeFolder.getName());
 
             if (modelId == null) {
@@ -406,7 +406,7 @@ public class CatalogueDatabase {
             File[] instanceFolders = typeFolder.listFiles(dirFilter);
 
             for (File instanceFolder : instanceFolders) {
-                LOG.debug("parsing instance folder" + instanceFolder.getName());
+                LOG.debug("parsing instance folder " + instanceFolder.getPath());
                 try {
                     File desc = new File(instanceFolder, "description.json");
                     if (!desc.exists()) {
@@ -418,7 +418,7 @@ public class CatalogueDatabase {
 
                     File pkg = new File(instanceFolder, "sourcePackage.json");
                     if (pkg.exists()) {
-                        LOG.debug("parsing sourcePackage.json");
+                        LOG.debug("parsing " + pkg.getPath());
                         jPkg = parseJson(pkg);
                     } else if (jDesc.has("sourcePackage")) {
                         jPkg = jDesc.remove("sourcePackage").getAsJsonObject();
@@ -436,7 +436,7 @@ public class CatalogueDatabase {
                         File code = null;
                         for (File file : instanceFolder.listFiles()) {
                             if (file.getName().startsWith("sourceCode")) {
-                                LOG.debug("found sourceCode for instance " + instanceFolder.getName());
+                                LOG.debug("found sourceCode for instance " + instanceFolder.getPath());
                                 code = file;
                                 break;
                             }
@@ -534,7 +534,7 @@ public class CatalogueDatabase {
         }
 
         private boolean validate() {
-            LOG.debug("validating {} against model {}", gson.toJson(descriptor), model);
+            LOG.debug("validating {} against model {}", descriptor.toString(), model);
 
             if (model == 0) {
                 LOG.warn("Unable to validate instance: modelId not set!");
