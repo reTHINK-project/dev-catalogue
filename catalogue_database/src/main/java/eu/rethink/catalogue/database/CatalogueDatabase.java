@@ -414,12 +414,17 @@ public class CatalogueDatabase {
                     }
 
                     JsonObject jDesc = parseJson(desc);
+                    JsonObject jPkg = null;
 
                     File pkg = new File(instanceFolder, "sourcePackage.json");
                     if (pkg.exists()) {
-                        LOG.debug("parsing sourcePackage");
-                        JsonObject jPkg = parseJson(pkg);
+                        LOG.debug("parsing sourcePackage.json");
+                        jPkg = parseJson(pkg);
+                    } else if (jDesc.has("sourcePackage")) {
+                        jPkg = jDesc.remove("sourcePackage").getAsJsonObject();
+                    }
 
+                    if (jPkg != null) {
                         // put cguid from descriptor into sourcePackage
                         String cguid = jDesc.get("cguid").getAsString();
                         jPkg.addProperty("cguid", cguid);
