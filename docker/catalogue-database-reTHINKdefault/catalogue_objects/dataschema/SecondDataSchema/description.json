@@ -1,9 +1,0 @@
-{
-  "cguid": "9834r519113587321",
-  "type": "DataSchema",
-  "version": "1.0",
-  "objectName": "SecondDataSchema",
-  "description": "This is a Data Schema",
-  "language": "Javascript ECMA6",
-  "accessControlPolicy": "somePolicy"
-}
