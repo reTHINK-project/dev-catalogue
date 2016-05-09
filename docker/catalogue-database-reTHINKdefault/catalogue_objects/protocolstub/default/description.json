@@ -1,0 +1,16 @@
+{
+  "cguid": "40001",
+  "version": "1.0",
+  "objectName": "default",
+  "description": "This is a default protocolstub",
+  "language": "Javascript ECMA6",
+  "dataObjects": [],
+  "configuration": [],
+  "constraints": [],
+  "messageSchemas": [],
+  "sourcePackage": {
+    "encoding": "UTF8",
+    "sourceCodeClassname": "defaultStub",
+    "sourceCode": "alert('hello world!')"
+  }
+}
