@@ -316,7 +316,6 @@ public class CatalogueDatabase {
 
         // parse catalogue objects
         Map<Integer, Set<CatalogueObjectInstance>> parsedObjects = parseObjects(catObjs);
-
         // Initialize object list
         ObjectsInitializer initializer = new ObjectsInitializer(new LwM2mModel(objectModels));
 
@@ -334,9 +333,14 @@ public class CatalogueDatabase {
         List<LwM2mObjectEnabler> enablers = initializer.create(LwM2mId.SECURITY, LwM2mId.SERVER, LwM2mId.DEVICE);
 
         for (Map.Entry<Integer, Set<CatalogueObjectInstance>> entry : parsedObjects.entrySet()) {
-            LOG.debug("setting instances: {}", gson.toJson(entry.getValue()));
-            initializer.setInstancesForObject(entry.getKey(), entry.getValue().toArray(new CatalogueObjectInstance[entry.getValue().size()]));
-            enablers.add(initializer.create(entry.getKey()));
+            if (!entry.getValue().isEmpty()) {
+                LOG.debug("setting instances: {}", gson.toJson(entry.getValue()));
+                initializer.setInstancesForObject(entry.getKey(), entry.getValue().toArray(new CatalogueObjectInstance[entry.getValue().size()]));
+                enablers.add(initializer.create(entry.getKey()));
+            } else {
+                LOG.debug("no instances for model {}", entry.getKey());
+            }
+
         }
 
         LeshanClientBuilder builder = new LeshanClientBuilder(endpoint);
