@@ -145,7 +145,7 @@
             <tr>
                 <td align="right">response</td>
                 <td>
-                    <pre>{{response | json}}</pre>
+                    <pre>{{response}}</pre>
                 </td>
             </tr>
         </table>
@@ -180,7 +180,7 @@
                 resp = JSON.parse(xmlHttp.responseText);
             } catch (e) {
 //                alert("Error trying to parse json:\r\n" + resp + "\r\nerror: " + e);
-                console.log("json parsing failed, probably not json:", resp);
+                console.log("json parsing failed, probably not json");
             }
 
             if (xmlHttp.status != 200) {
