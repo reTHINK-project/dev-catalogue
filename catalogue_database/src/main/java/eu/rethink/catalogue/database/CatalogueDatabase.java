@@ -215,7 +215,7 @@ public class CatalogueDatabase {
                         LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
                         Configuration conf = ctx.getConfiguration();
                         conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
-                        conf.getRootLogger().setLevel(Level.DEBUG);
+                        conf.getRootLogger().setLevel(Level.INFO);
                         ctx.updateLoggers(conf);
                         break;
                     case "-endpoint":

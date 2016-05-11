@@ -87,6 +87,7 @@ public class WellKnownServlet extends HttpServlet {
             resp.setStatus(code);
             resp.getWriter().write(response.getJsonString());
         } else {
+            LOG.debug("returning error ({}): {}", code, response.getJsonString());
             resp.sendError(code, response.getJsonString());
         }
     }

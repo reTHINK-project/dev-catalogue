@@ -173,7 +173,7 @@
                 return;
             }
 
-            console.log("got response: " + xmlHttp.responseText);
+            console.log("got response:", xmlHttp);
             var resp = xmlHttp.responseText;
 
             try {
@@ -183,6 +183,9 @@
                 console.log("json parsing failed, probably not json:", resp);
             }
 
+            if (xmlHttp.status != 200) {
+                resp = "error (" + xmlHttp.status + ") " + xmlHttp.statusText;
+            }
 
             return resp;
         };
