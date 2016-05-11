@@ -293,7 +293,7 @@ public class CatalogueDatabase {
         // parse all catalogue objects
         File catObjs = new File(catObjsPath);
         if (!catObjs.exists() || !catObjs.isDirectory()) {
-            LOG.warn("No Catalogue Objects folder at " + catObjsPath);
+            LOG.error("Catalogue Objects folder '" + catObjsPath + "' does not exist or is not a directory!");
             return;
         }
 
