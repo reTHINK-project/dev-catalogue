@@ -1,8 +1,8 @@
 {
-  "cguid": 44432065498481198,
+  "cguid": "40001",
   "version": "1.0",
   "objectName": "default",
-  "description": "This is a protostub",
+  "description": "This is a default protocolstub",
   "language": "Javascript ECMA6",
   "dataObjects": [],
   "configuration": [],
