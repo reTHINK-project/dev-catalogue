@@ -29,7 +29,7 @@
 * updated hyperty examples to reflect change in model
 
 ## 1.1.0
-* Updated leshan version to 0.1.11-M10 (currently using snapshot)
+* Updated leshan version to 0.1.11-M10
 * updated model (accessControlPolicy & scheme not mandatory anymore)
 * added ability to restart all connected databases, or a specific one, using either '/.well-known/restart' or '/.well-known/restart/<endpoint>'
 * renamed folder for idp proxy object from "idpproxy" to "idp-proxy" (how you specify it in URL)
@@ -53,3 +53,4 @@
   * added -lifetime option for Database, setting the interval of sending keep-alives
   * added -endpoint option to set database endpoint name
   * added options for setting coap(s) host name and port
+  * fixed database initialization failing if there is no instance for a model
