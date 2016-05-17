@@ -18,39 +18,52 @@
 package eu.rethink.catalogue.database;
 
 import com.google.gson.*;
-import org.eclipse.leshan.ResponseCode;
+import eu.rethink.catalogue.database.exception.CatalogueObjectParsingException;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.eclipse.leshan.LwM2mId;
 import org.eclipse.leshan.client.californium.LeshanClient;
+import org.eclipse.leshan.client.californium.LeshanClientBuilder;
+import org.eclipse.leshan.client.object.Server;
 import org.eclipse.leshan.client.resource.BaseInstanceEnabler;
 import org.eclipse.leshan.client.resource.LwM2mObjectEnabler;
-import org.eclipse.leshan.client.resource.ObjectEnabler;
 import org.eclipse.leshan.client.resource.ObjectsInitializer;
 import org.eclipse.leshan.core.model.LwM2mModel;
 import org.eclipse.leshan.core.model.ObjectLoader;
 import org.eclipse.leshan.core.model.ObjectModel;
 import org.eclipse.leshan.core.model.ResourceModel;
 import org.eclipse.leshan.core.node.LwM2mResource;
-import org.eclipse.leshan.core.node.Value;
-import org.eclipse.leshan.core.request.DeregisterRequest;
-import org.eclipse.leshan.core.request.RegisterRequest;
-import org.eclipse.leshan.core.response.LwM2mResponse;
-import org.eclipse.leshan.core.response.RegisterResponse;
-import org.eclipse.leshan.core.response.ValueResponse;
+import org.eclipse.leshan.core.request.BindingMode;
+import org.eclipse.leshan.core.response.ExecuteResponse;
+import org.eclipse.leshan.core.response.ReadResponse;
+import org.eclipse.leshan.core.response.WriteResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.*;
-import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static org.eclipse.leshan.client.object.Security.noSec;
+
 /**
  * A reference implementation for a reTHINK Catalogue Database
  */
 public class CatalogueDatabase {
-    private String registrationID;
     private static final Logger LOG = LoggerFactory.getLogger(CatalogueDatabase.class);
+
+    // directory filter used in CatalogueObjectInstance class
+    private static final FileFilter dirFilter = new FileFilter() {
+        @Override
+        public boolean accept(File file) {
+            return file.isDirectory();
+        }
+    };
 
     // model IDs that define the custom models inside model.json
     private static final int HYPERTY_MODEL_ID = 1337;
@@ -74,15 +87,16 @@ public class CatalogueDatabase {
     private static final String SOURCEPACKAGE_TYPE_NAME = "sourcepackage";
 
     // mapping of model IDs to their path names
-    private static Map<Integer, String> MODEL_ID_TO_NAME_MAP = new HashMap<>();
+    private static Map<String, Integer> MODEL_NAME_TO_ID_MAP = new LinkedHashMap<>();
+    private Map<Integer, Map<Integer, ResourceModel>> MODEL_ID_TO_RESOURCES_MAP_MAP = new LinkedHashMap<>();
 
     static {
-        MODEL_ID_TO_NAME_MAP.put(HYPERTY_MODEL_ID, HYPERTY_TYPE_NAME);
-        MODEL_ID_TO_NAME_MAP.put(PROTOSTUB_MODEL_ID, PROTOSTUB_TYPE_NAME);
-        MODEL_ID_TO_NAME_MAP.put(RUNTIME_MODEL_ID, RUNTIME_TYPE_NAME);
-        MODEL_ID_TO_NAME_MAP.put(SCHEMA_MODEL_ID, SCHEMA_TYPE_NAME);
-        MODEL_ID_TO_NAME_MAP.put(IDPPROXY_MODEL_ID, IDPPROXY_TYPE_NAME);
-        MODEL_ID_TO_NAME_MAP.put(SOURCEPACKAGE_MODEL_ID, SOURCEPACKAGE_TYPE_NAME);
+        MODEL_NAME_TO_ID_MAP.put(HYPERTY_TYPE_NAME, HYPERTY_MODEL_ID);
+        MODEL_NAME_TO_ID_MAP.put(PROTOSTUB_TYPE_NAME, PROTOSTUB_MODEL_ID);
+        MODEL_NAME_TO_ID_MAP.put(RUNTIME_TYPE_NAME, RUNTIME_MODEL_ID);
+        MODEL_NAME_TO_ID_MAP.put(SCHEMA_TYPE_NAME, SCHEMA_MODEL_ID);
+        MODEL_NAME_TO_ID_MAP.put(IDPPROXY_TYPE_NAME, IDPPROXY_MODEL_ID);
+        MODEL_NAME_TO_ID_MAP.put(SOURCEPACKAGE_TYPE_NAME, SOURCEPACKAGE_MODEL_ID);
     }
 
     private static Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -94,13 +108,25 @@ public class CatalogueDatabase {
 
     private final String DEFAULT_SERVER_HOSTNAME = "localhost";
     private final int DEFAULT_SERVER_COAP_PORT = 5683;
+    private LeshanClient client;
 
     private String serverHostName = DEFAULT_SERVER_HOSTNAME;
     private String serverDomain = null;
     private String accessURL = null;
     private String catObjsPath = "./catalogue_objects";
+    private String localHost = null;
+    private int localPort = 0;
+    private String localSecureHost = null;
+    private int localSecurePort = 0;
     private int serverPort = DEFAULT_SERVER_COAP_PORT;
     private boolean useHttp = false;
+    private int lifetime = 60;
+
+    private String endpoint = "DB_" + new Random().nextInt(Integer.MAX_VALUE);
+
+    private Thread hook = null;
+
+    private Map<Integer, ObjectModel> objectModelMap = new HashMap<>(MODEL_IDS.size());
 
     public void setUseHttp(boolean useHttp) {
         this.useHttp = useHttp;
@@ -122,47 +148,132 @@ public class CatalogueDatabase {
         this.serverPort = serverPort;
     }
 
+    public void setLifetime(int lifetime) {
+        this.lifetime = lifetime;
+    }
+
+    public void setEndpoint(String endpoint) {
+        this.endpoint = endpoint;
+    }
+
+    public void setLocalHost(String localHost) {
+        this.localHost = localHost;
+    }
+
+    public void setLocalPort(int localPort) {
+        this.localPort = localPort;
+    }
+
+    public void setLocalSecureHost(String localSecureHost) {
+        this.localSecureHost = localSecureHost;
+    }
+
+    public void setLocalSecurePort(int localSecurePort) {
+        this.localSecurePort = localSecurePort;
+    }
+
     public static void main(final String[] args) {
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        SLF4JBridgeHandler.install();
+
         CatalogueDatabase d = new CatalogueDatabase();
 
-        for (int i = 0; i < args.length; i++) {
-            String arg = args[i];
-            switch (arg) {
-                case "-h":
-                case "-host":
-                    d.setServerHostName(args[++i]);
-                    break;
-                case "-usehttp":
-                    if (args.length <= i + 1 || args[i + 1].startsWith("-")) { // check if boolean value is not given, assume true
-                        d.setUseHttp(true);
-                    } else {
-                        d.setUseHttp(Boolean.parseBoolean(args[++i]));
-                    }
-                    break;
-                case "-p":
-                case "-port":
-                    d.setServerPort(Integer.parseInt(args[++i]));
-                    break;
-                case "-o":
-                case "-op":
-                case "-objPath":
-                case "-objpath":
-                    d.setCatObjsPath(args[++i]);
-                    break;
-                case "-d":
-                case "-domain":
-                    d.setServerDomain(args[++i]);
-                    break;
+        try {
+            for (int i = 0; i < args.length; i++) {
+                String arg = args[i];
+                switch (arg) {
+                    case "-h":
+                    case "-host":
+                        d.setServerHostName(args[++i]);
+                        break;
+                    case "-usehttp":
+                        if (args.length <= i + 1 || args[i + 1].startsWith("-")) { // check if boolean value is not given, assume true
+                            d.setUseHttp(true);
+                        } else {
+                            d.setUseHttp(Boolean.parseBoolean(args[++i]));
+                        }
+                        break;
+                    case "-p":
+                    case "-port":
+                        d.setServerPort(Integer.parseInt(args[++i]));
+                        break;
+                    case "-o":
+                    case "-op":
+                    case "-objpath":
+                        d.setCatObjsPath(args[++i]);
+                        break;
+                    case "-d":
+                    case "-domain":
+                        d.setServerDomain(args[++i]);
+                        break;
+                    case "-lifetime":
+                    case "-t":
+                        d.setLifetime(Integer.parseInt(args[++i]));
+                        break;
+                    case "-v":
+                        // increase log level
+                        LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+                        Configuration conf = ctx.getConfiguration();
+                        conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
+                        conf.getRootLogger().setLevel(Level.INFO);
+                        ctx.updateLoggers(conf);
+                        break;
+                    case "-endpoint":
+                    case "-e":
+                        d.setEndpoint(args[++i]);
+                        break;
+                    case "-coapaddress":
+                    case "-ca":
+                        String[] addr = args[++i].split(":");
+                        d.setLocalHost(addr[0]);
+                        if (addr.length > 1)
+                            d.setLocalPort(Integer.parseInt(addr[1]));
+                        else
+                            LOG.warn("used -coapaddress without providing port!");
+                        break;
+                    case "-coaphost":
+                    case "-ch":
+                        d.setLocalHost(args[++i]);
+                        break;
+                    case "-coapport":
+                    case "-cp":
+                        d.setLocalPort(Integer.parseInt(args[++i]));
+                        break;
+                    case "-coapsaddress":
+                    case "-csa":
+                        String[] sAddr = args[++i].split(":");
+                        d.setLocalSecureHost(sAddr[0]);
+                        if (sAddr.length > 1)
+                            d.setLocalSecurePort(Integer.parseInt(sAddr[1]));
+                        else
+                            LOG.warn("used -coapsecureaddress without providing port!");
+                        break;
+                    case "-coapshost":
+                    case "-csh":
+                        d.setLocalSecureHost(args[++i]);
+                        break;
+                    case "-coapsport":
+                    case "-csp":
+                        d.setLocalSecurePort(Integer.parseInt(args[++i]));
+                        break;
+                }
             }
+        } catch (Exception e) {
+            LOG.error("Error parsing launch options: " + Arrays.toString(args), e);
+            return;
         }
 
-        d.start();
+        try {
+            d.start();
+        } catch (Exception e) {
+            LOG.error("Unable to start Catalogue Database", e);
+        }
     }
 
     /**
      * Start the Catalogue Database.
      */
-    public void start() {
+    public void start() throws CatalogueObjectParsingException {
         LOG.info("Starting Catalogue Database...");
 
         if (serverDomain == null) {
@@ -180,351 +291,298 @@ public class CatalogueDatabase {
         LOG.info("Catalogue Objects location: " + catObjsPath);
 
         // parse all catalogue objects
-        Map<Integer, RethinkInstance[]> resultMap = parseFiles(catObjsPath);
+        File catObjs = new File(catObjsPath);
+        if (!catObjs.exists() || !catObjs.isDirectory()) {
+            LOG.error("Catalogue Objects folder '" + catObjsPath + "' does not exist or is not a directory!");
+            return;
+        }
 
         // get default models
         List<ObjectModel> objectModels = ObjectLoader.loadDefault();
 
         // add custom models from model.json
-        InputStream modelStream = getClass().getResourceAsStream("/model.json");
-        objectModels.addAll(ObjectLoader.loadJsonStream(modelStream));
+        List<ObjectModel> customObjectModels = getCustomObjectModels();
+        objectModels.addAll(customObjectModels);
 
-        // map object models by ID
-        HashMap<Integer, ObjectModel> map = new HashMap<>();
-        for (ObjectModel objectModel : objectModels) {
-            map.put(objectModel.id, objectModel);
+        // setup objectModelMap
+        for (ObjectModel objectModel : customObjectModels) {
+            objectModelMap.put(objectModel.id, objectModel);
         }
 
+        // setup MODEL_ID_TO_RESOURCES_MAP
+        for (ObjectModel customObjectModel : customObjectModels) {
+            MODEL_ID_TO_RESOURCES_MAP_MAP.put(customObjectModel.id, customObjectModel.resources);
+        }
+
+        // parse catalogue objects
+        Map<Integer, Set<CatalogueObjectInstance>> parsedObjects = parseObjects(catObjs);
         // Initialize object list
-        ObjectsInitializer initializer = new ObjectsInitializer(new LwM2mModel(map));
+        ObjectsInitializer initializer = new ObjectsInitializer(new LwM2mModel(objectModels));
+
+        // add broker address to intializer
+        String serverURI = String.format("coap://%s:%s", serverHostName, serverPort);
+
+        initializer.setInstancesForObject(LwM2mId.SECURITY, noSec(serverURI, 123));
+        initializer.setInstancesForObject(LwM2mId.SERVER, new Server(123, lifetime, BindingMode.U, false));
 
         // set dummy Device
-        initializer.setClassForObject(3, Device.class);
-        List<ObjectEnabler> enablers = initializer.createMandatory();
+        Device device = new Device();
+        device.setDatabase(this);
+        initializer.setInstancesForObject(LwM2mId.DEVICE, device);
 
-        // iterate through supported models,
-        // set parsed instances of those models in initializer,
-        // and finally give the instances the id:name map from the model
-        for (Integer modelId : MODEL_IDS) {
-            RethinkInstance[] instances = resultMap.get(modelId);
+        List<LwM2mObjectEnabler> enablers = initializer.create(LwM2mId.SECURITY, LwM2mId.SERVER, LwM2mId.DEVICE);
 
-            if (instances != null && instances.length > 0) {
-                //LOG.debug("setting instances: {}", gson.toJson(instances));
-                initializer.setInstancesForObject(modelId, instances);
-                ObjectEnabler enabler = initializer.create(modelId);
-                enablers.add(enabler);
-
-                // create id:name map for the current model
-                LinkedHashMap<Integer, String> idNameMap = new LinkedHashMap<>();
-                Map<Integer, ResourceModel> model = enabler.getObjectModel().resources;
-
-                // populate id:name map from resources
-                for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
-                    idNameMap.put(entry.getKey(), entry.getValue().name);
-                }
-
-                // set id:name map on all instances of that model
-                for (RethinkInstance instance : instances) {
-                    instance.setIdNameMap(idNameMap);
-                }
+        for (Map.Entry<Integer, Set<CatalogueObjectInstance>> entry : parsedObjects.entrySet()) {
+            if (!entry.getValue().isEmpty()) {
+                LOG.debug("setting instances: {}", gson.toJson(entry.getValue()));
+                initializer.setInstancesForObject(entry.getKey(), entry.getValue().toArray(new CatalogueObjectInstance[entry.getValue().size()]));
+                enablers.add(initializer.create(entry.getKey()));
+            } else {
+                LOG.debug("no instances for model {}", entry.getKey());
             }
+
         }
 
-        // Create client
-        final InetSocketAddress clientAddress = new InetSocketAddress("0", 0);
-        final InetSocketAddress serverAddress = new InetSocketAddress(serverHostName, serverPort);
+        LeshanClientBuilder builder = new LeshanClientBuilder(endpoint);
+        builder.setObjects(enablers);
+        builder.setLocalAddress(localHost, localPort);
+        builder.setLocalSecureAddress(localSecureHost, localSecurePort);
 
-        final LeshanClient client = new LeshanClient(clientAddress, serverAddress, new ArrayList<LwM2mObjectEnabler>(
-                enablers));
+        client = builder.build();
 
         // Start the client
         client.start();
-
-        // Register to the server
-        LOG.info(String.format("Registering on %s...", serverAddress));
-        final String endpointIdentifier = UUID.randomUUID().toString();
-        RegisterResponse response = client.send(new RegisterRequest(endpointIdentifier));
-        if (response == null) {
-            LOG.warn("Registration request timeout");
-            return;
-        }
-
-        LOG.debug("Device Registration (Success? " + response.getCode() + ")");
-        if (response.getCode() != ResponseCode.CREATED) {
-            System.err.println("If you're having issues connecting to the LWM2M endpoint, try using the DTLS port instead");
-            return;
-        }
-
-        registrationID = response.getRegistrationID();
-
-        LOG.info("Device: Registered Client Catalogue '" + registrationID + "'");
+        LOG.info("I am {}", endpoint);
+        LOG.info(" CoAP port: {}", client.getNonSecureAddress().getPort());
+        LOG.info("CoAPs port: {}", client.getSecureAddress().getPort());
+        final CatalogueDatabase ref = this;
 
         // Deregister on shutdown and stop client.
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                if (registrationID != null) {
-                    LOG.info("Device: Deregistering Client '" + registrationID + "'");
-                    client.send(new DeregisterRequest(registrationID), 1000);
-                    client.stop();
+        // add hook only if not set already (important if database was restarted using execute command)
+        if (hook == null) {
+            hook = new Thread() {
+                @Override
+                public void run() {
+                    ref.stop();
                 }
-            }
-        });
+            };
+            Runtime.getRuntime().addShutdownHook(hook);
+        }
     }
 
-    /**
-     * Parse all catalogue objects contained in this folder and their respective subfolders
-     *
-     * @param sourcePath - path to the catalogue objects source folder (e.g. catalogue_objects)
-     * @return Map containing all parsed objects as instances, mapped by model ID
-     */
-    private Map<Integer, RethinkInstance[]> parseFiles(String sourcePath) {
-        if (sourcePath == null)
-            sourcePath = "./";
+    public void stop() {
+        LOG.info("Device: Deregistering Client");
+        if (client != null)
+            client.destroy(true);
+    }
 
-        HashMap<Integer, RethinkInstance[]> resultMap = new HashMap<>();
+    private List<ObjectModel> getCustomObjectModels() {
+        InputStream modelStream = getClass().getResourceAsStream("/model.json");
+        return ObjectLoader.loadJsonStream(modelStream);
+    }
 
-        File catObjsFolder = new File(sourcePath);
-        assert catObjsFolder.isDirectory();
+    private JsonObject parseJson(File f) throws FileNotFoundException, JsonParseException {
+        LOG.debug("parsing to JSON: " + f.getPath());
+        return parser.parse(new FileReader(f)).getAsJsonObject();
+    }
 
-        File hypertyFolder = new File(catObjsFolder, "hyperty");
-        File stubFolder = new File(catObjsFolder, "protocolstub");
-        File runtimeFolder = new File(catObjsFolder, "runtime");
-        File schemaFolder = new File(catObjsFolder, "dataschema");
-        File idpProxyFolder = new File(catObjsFolder, "idpproxy");
+    private Map<Integer, Set<CatalogueObjectInstance>> parseObjects(File dir) throws CatalogueObjectParsingException {
+        LOG.debug("parsing objects in " + dir.getPath());
+        if (!dir.exists() || !dir.isDirectory())
+            throw new CatalogueObjectParsingException("catalogue objects folder '" + dir + "' does not exist or is not a directory");
 
-        resultMap.put(HYPERTY_MODEL_ID, generateInstances(hypertyFolder));
-        resultMap.put(PROTOSTUB_MODEL_ID, generateInstances(stubFolder));
-        resultMap.put(RUNTIME_MODEL_ID, generateInstances(runtimeFolder));
-        resultMap.put(SCHEMA_MODEL_ID, generateInstances(schemaFolder));
-        resultMap.put(IDPPROXY_MODEL_ID, generateInstances(idpProxyFolder));
+        File[] typeFolders = dir.listFiles(dirFilter);
+        Map<Integer, Set<CatalogueObjectInstance>> modelObjectsMap = new LinkedHashMap<>(MODEL_IDS.size());
 
-        // gather sourcePackages, update sourcePackageURL
-        LinkedList<RethinkInstance> sourcePackageInstances = new LinkedList<>();
-        for (Map.Entry<Integer, RethinkInstance[]> entry : resultMap.entrySet()) {
-            for (RethinkInstance instance : entry.getValue()) {
-                RethinkInstance sourcePackage = instance.getSourcePackage();
-                if (sourcePackage != null) {
-                    String cguid = instance.nameValueMap.get(CGUID_FIELD_NAME);
-                    sourcePackage.nameValueMap.put("cguid", cguid);
-                    sourcePackageInstances.add(sourcePackage);
-                    instance.nameValueMap.put("sourcePackageURL", String.format("%ssourcepackage/%s", accessURL, cguid));
-                }
-            }
+        // setup modelObjectsMap
+        for (Integer modelId : MODEL_IDS) {
+            modelObjectsMap.put(modelId, new LinkedHashSet<CatalogueObjectInstance>());
         }
 
-        resultMap.put(SOURCEPACKAGE_MODEL_ID, sourcePackageInstances.toArray(new RethinkInstance[sourcePackageInstances.size()]));
+        for (File typeFolder : typeFolders) {
+            LOG.debug("parsing type folder " + typeFolder.getPath());
+            Integer modelId = MODEL_NAME_TO_ID_MAP.get(typeFolder.getName());
 
-        //LOG.debug("parsed files: {}", gson.toJson(resultMap));
-        return resultMap;
-    }
+            if (modelId == null) {
+                throw new CatalogueObjectParsingException("No model ID found for folder '" + typeFolder + "'");
+            }
 
-    /**
-     * Parse catalogue objects contained in the given type folder (e.g. catalogue_objects/hyperty)
-     *
-     * @param typeFolder - folder that contains catalogue objects as subfolders (e.g. catalogue_objects/hyperty)
-     * @return Array of parsed catalogue objects as instances
-     */
-    private RethinkInstance[] generateInstances(File typeFolder) {
-        Set<RethinkInstance> instances = new HashSet<>();
+            File[] instanceFolders = typeFolder.listFiles(dirFilter);
 
-        if (typeFolder.exists()) {
-            for (File dir : typeFolder.listFiles(dirFilter)) {
+            for (File instanceFolder : instanceFolders) {
+                LOG.debug("parsing instance folder " + instanceFolder.getPath());
                 try {
-                    RethinkInstance instance = parseCatalogueObject(dir);
-                    instances.add(instance);
+                    File desc = new File(instanceFolder, "description.json");
+                    if (!desc.exists()) {
+                        throw new CatalogueObjectParsingException("description.json not found in " + typeFolder);
+                    }
+
+                    JsonObject jDesc = parseJson(desc);
+                    JsonObject jPkg = null;
+
+                    File pkg = new File(instanceFolder, "sourcePackage.json");
+                    if (pkg.exists()) {
+                        LOG.debug("parsing " + pkg.getPath());
+                        jPkg = parseJson(pkg);
+                    } else if (jDesc.has("sourcePackage")) {
+                        jPkg = jDesc.remove("sourcePackage").getAsJsonObject();
+                    }
+
+                    if (jPkg != null) {
+                        // put cguid from descriptor into sourcePackage
+                        String cguid = jDesc.get("cguid").getAsString();
+                        jPkg.addProperty("cguid", cguid);
+
+                        // put sourcePackageURL that references this sourcePackage into descriptor
+                        jDesc.addProperty("sourcePackageURL", accessURL + "sourcepackage/" + cguid);
+
+                        // check if there is a sourceCode file
+                        File code = null;
+                        for (File file : instanceFolder.listFiles()) {
+                            if (file.getName().startsWith("sourceCode")) {
+                                LOG.debug("found sourceCode for instance " + instanceFolder.getPath());
+                                code = file;
+                                break;
+                            }
+                        }
+
+                        CatalogueObjectInstance sourcePackage = new CatalogueObjectInstance(SOURCEPACKAGE_MODEL_ID, jPkg, code);
+
+                        if (sourcePackage.isValid()) {
+                            modelObjectsMap.get(SOURCEPACKAGE_MODEL_ID).add(sourcePackage);
+                        } else {
+                            LOG.warn("Validation failed for sourcePackage " + jPkg.toString() + " and will be ignored");
+                        }
+                    }
+
+                    CatalogueObjectInstance descriptor = null;
+                    descriptor = new CatalogueObjectInstance(modelId, jDesc);
+
+                    if (descriptor.isValid) {
+                        modelObjectsMap.get(modelId).add(descriptor);
+                    } else {
+                        LOG.warn("Validation failed for descriptor " + jDesc.toString() + " and will be ignored");
+                    }
+
                 } catch (FileNotFoundException e) {
+                    // should never occur
                     e.printStackTrace();
                 }
             }
         }
-
-        return instances.toArray(new RethinkInstance[instances.size()]);
+        return modelObjectsMap;
     }
 
-
     /**
-     * Parse catalogue object from this folder
-     *
-     * @param dir - folder that contains the catalogue object files (e.g. catalogue_objects/hyperty/FirstHyperty)
-     * @return instance of the parsed catalogue object
-     * @throws FileNotFoundException
+     * InstanceEnabler for reTHINK Catalogue Object instances.
      */
-    private RethinkInstance parseCatalogueObject(File dir) throws FileNotFoundException {
-        File desc = new File(dir, "description.json");
-        File pkg = new File(dir, "sourcePackage.json");
+    public class CatalogueObjectInstance extends BaseInstanceEnabler {
+        private Logger LOG;
+        private JsonObject descriptor = null;
+        private File sourceCode = null;
+        private int model;
+        private boolean isValid = true;
+        private String name = "unknown";
 
-        // 1. parse catalogue object
-        RethinkInstance instance = createFromFile(desc);
-
-        // 2. parse sourcePackage
-        RethinkInstance sourcePackage = null;
-        if (pkg.exists()) {
-            sourcePackage = createFromFile(pkg);
-        } else if (instance.nameValueMap.containsKey("sourcePackage")) {
-            JsonObject jSourcePackage = gson.fromJson(instance.nameValueMap.get("sourcePackage"), JsonObject.class);
-            sourcePackage = createFromJson(jSourcePackage);
-
-            // remove if from nameValueMap, because it will be added with instance.setSourcePackage(sourcePackage);
-            instance.nameValueMap.remove("sourcePackage");
+        public JsonObject getDescriptor() {
+            return descriptor;
         }
 
-        if (sourcePackage != null) {
-            // try to get sourceCode file
-            File code = null;
-            for (File file : dir.listFiles()) {
-                if (file.getName().startsWith("sourceCode")) {
-                    code = file;
-                    break;
+        public File getSourceCode() {
+            return sourceCode;
+        }
+
+        public int getModel() {
+            return model;
+        }
+
+        public boolean isValid() {
+            return isValid;
+        }
+
+        public CatalogueObjectInstance(int model, JsonObject descriptor, File sourceCode) {
+            this.model = model;
+            this.descriptor = descriptor;
+            this.sourceCode = sourceCode;
+
+            setup();
+        }
+
+        public CatalogueObjectInstance(int model, JsonObject descriptor) {
+            this.model = model;
+            this.descriptor = descriptor;
+
+            setup();
+        }
+
+        public CatalogueObjectInstance() {
+            setup();
+        }
+
+        private String findName() {
+            JsonElement name = descriptor.get("objectName");
+            if (name == null)
+                name = descriptor.get("cguid");
+
+            if (name != null)
+                this.name = name.getAsString();
+
+            return this.name;
+        }
+
+        private void setup() {
+            findName();
+            LOG = LoggerFactory.getLogger(this.getClass().getPackage().getName() + "." + this.name);
+            isValid = validate();
+
+        }
+
+        private boolean validate() {
+            LOG.debug("validating {} against model {}", descriptor.toString(), model);
+
+            if (model == 0) {
+                LOG.warn("Unable to validate instance: modelId not set!");
+                return false;
+            }
+
+            if (descriptor == null) {
+                LOG.warn("Unable to validate instance: descriptor json not set!");
+                return false;
+            }
+
+            for (Map.Entry<Integer, ResourceModel> entry : objectModelMap.get(model).resources.entrySet()) {
+                String name = entry.getValue().name;
+                if (entry.getValue().mandatory && (!descriptor.has(name) && (name.equals("sourceCode") && sourceCode == null))) {
+                    LOG.warn("Validation of {} (has sourceCode file: {}) against model {} failed. '{}' is mandatory, but not included", descriptor, sourceCode != null, model);
+                    return false;
                 }
             }
-            if (code != null)
-                sourcePackage.setSourceCodeFile(code);
-
-            // add sourcePackage to instance
-            instance.setSourcePackage(sourcePackage);
-        }
-
-        return instance;
-    }
-
-    /**
-     * Creates a RethinkInstance from a description file (or sourcePackage file)
-     *
-     * @param f - file that holds the json that defines the catalogue object
-     * @return A RethinkInstance based on the information of the parsed file
-     * @throws FileNotFoundException
-     */
-    private RethinkInstance createFromFile(File f) throws FileNotFoundException {
-        JsonObject descriptor = parser.parse(new FileReader(f)).getAsJsonObject();
-        return createFromJson(descriptor);
-    }
-
-    /**
-     * Creates a RethinkInstance from a JsonObject
-     *
-     * @param descriptor - JsonObject that defines the catalogue object
-     * @return A RethinkInstance based on the information of the parsed JsonObect
-     * @throws FileNotFoundException
-     */
-    private RethinkInstance createFromJson(JsonObject descriptor) throws FileNotFoundException {
-        LinkedHashMap<String, String> nameValueMap = new LinkedHashMap<>();
-        for (Map.Entry<String, JsonElement> entry : descriptor.entrySet()) {
-            String value;
-            try {
-                value = entry.getValue().getAsString();
-            } catch (Exception e) {
-                value = entry.getValue().toString();
-            }
-            nameValueMap.put(entry.getKey(), value);
-        }
-
-        LOG.debug("parsed descriptor: {}", gson.toJson(nameValueMap));
-        return new RethinkInstance(nameValueMap);
-    }
-
-
-    /**
-     * InstanceEnabler for reTHINK resources.
-     */
-    public static class RethinkInstance extends BaseInstanceEnabler {
-
-        private Map<Integer, String> idNameMap = null;
-        private Map<String, String> nameValueMap = null;
-
-        private String sourceCodeKeyName = "sourceCode";
-
-        // source code file if this instance is a sourcePackage
-        private File sourceCodeFile = null;
-
-        // source package if this instance is a catalogue object
-        private RethinkInstance sourcePackage = null;
-
-
-        /**
-         * Set id:name map so instance knows which id corresponds to the correct field. (based on model.json)
-         *
-         * @param idNameMap - id:name mapping of the model this is an instance of (based on model.json)
-         */
-        public void setIdNameMap(Map<Integer, String> idNameMap) {
-            this.idNameMap = idNameMap;
-        }
-
-        /**
-         * Return the sourcePackage that belongs to this instance
-         *
-         * @return sourcePackage - source package that belongs to this (descriptor) instance
-         */
-        public RethinkInstance getSourcePackage() {
-            return sourcePackage;
-        }
-
-        /**
-         * Attach sourcePackage instance to this (descriptor) instance
-         *
-         * @param sourcePackage - sourcePackage that belongs to this (descriptor) instance
-         */
-        public void setSourcePackage(RethinkInstance sourcePackage) {
-            this.sourcePackage = sourcePackage;
-        }
-
-        /**
-         * Set the source code file for this sourcePackage instance
-         *
-         * @param sourceFile - file that contains the source code of this sourcePackage
-         */
-        public void setSourceCodeFile(File sourceFile) {
-            sourceCodeFile = sourceFile;
-        }
-
-
-        /**
-         * Create a reTHINK instance with name:value mapping from a parsed catalogue object file
-         *
-         * @param nameValueMap - name:value mapping based on parsed catalogue object file
-         */
-        public RethinkInstance(Map<String, String> nameValueMap) {
-            this.nameValueMap = nameValueMap;
-        }
-
-        /**
-         * Create a reTHINK instance. Be aware that you still need to give it a nameValueMap and a idNameMap
-         */
-        public RethinkInstance() {
-            nameValueMap = null;
+            LOG.debug("validation succeeded");
+            return true;
         }
 
         @Override
-        public ValueResponse read(int resourceid) {
-            String resourceName = idNameMap.get(resourceid);
-            LOG.debug(String.format("(%s) Read on %02d -> %s", nameValueMap.containsKey(NAME_FIELD_NAME) ? nameValueMap.get(NAME_FIELD_NAME) : nameValueMap.get("cguid"), resourceid, resourceName));
-
-            String resourceValue = null;
-            try {
-                if (sourceCodeFile != null && resourceName.equals(sourceCodeKeyName)) {
-                    //LOG.debug("getting sourceCode from file: " + sourceCodeFile);
-                    resourceValue = new String(Files.readAllBytes(Paths.get(sourceCodeFile.toURI())), "UTF-8");
-                } else {
-                    resourceValue = nameValueMap.get(resourceName);
+        public ReadResponse read(int resourceid) {
+            String resourceName = MODEL_ID_TO_RESOURCES_MAP_MAP.get(model).get(resourceid).name;
+            LOG.info("Read on {} ({})", resourceid, resourceName);
+            ReadResponse response;
+            if (descriptor.has(resourceName)) {
+                JsonElement element = descriptor.get(resourceName);
+                response = ReadResponse.success(resourceid, element.isJsonPrimitive() ? element.getAsString() : element.toString());
+            } else if (resourceName.equals("sourceCode")) {
+                try {
+                    response = ReadResponse.success(resourceid, new String(Files.readAllBytes(Paths.get(sourceCode.toURI())), "UTF-8"));
+                } catch (IOException e) {
+                    LOG.error("Unable to read sourceCode file of " + descriptor.toString(), e);
+                    response = ReadResponse.internalServerError("Unable to read sourceCode file: " + e.getMessage());
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
+            } else {
+                response = ReadResponse.notFound();
             }
-
-            //LOG.debug("nameValueMap returns: " + resourceValue);
-
-            if (resourceValue != null) {
-                //LOG.debug("returning: " + resourceValue);
-                return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid, Value.newStringValue(resourceValue)));
-            } else
-                return super.read(resourceid);
-        }
-
-        @Override
-        public String toString() {
-            return nameValueMap.toString();
+            return response;
         }
     }
+
 
     /**
      * Provides the default device description of a Database instance.
@@ -532,132 +590,135 @@ public class CatalogueDatabase {
     public static class Device extends BaseInstanceEnabler {
 
         public Device() {
-            // notify new date each 5 second
-            Timer timer = new Timer();
-            timer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    fireResourceChange(13);
-                }
-            }, 5000, 5000);
+
+        }
+
+        private CatalogueDatabase database = null;
+
+        public void setDatabase(CatalogueDatabase database) {
+            this.database = database;
         }
 
         @Override
-        public ValueResponse read(int resourceid) {
-            LOG.debug("Read on Device Resource " + resourceid);
+        public ReadResponse read(int resourceid) {
+            LOG.info("Read on Device Resource " + resourceid);
             switch (resourceid) {
                 case 0:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getManufacturer())));
+                    return ReadResponse.success(resourceid, getManufacturer());
                 case 1:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getModelNumber())));
+                    return ReadResponse.success(resourceid, getModelNumber());
                 case 2:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getSerialNumber())));
+                    return ReadResponse.success(resourceid, getSerialNumber());
                 case 3:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getFirmwareVersion())));
+                    return ReadResponse.success(resourceid, getFirmwareVersion());
                 case 9:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newIntegerValue(getBatteryLevel())));
+                    return ReadResponse.success(resourceid, getBatteryLevel());
                 case 10:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newIntegerValue(getMemoryFree())));
+                    return ReadResponse.success(resourceid, getMemoryFree());
                 case 11:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            new Value<?>[]{Value.newIntegerValue(getErrorCode())}));
+                    return ReadResponse.success(resourceid, getErrorCode());
                 case 13:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newDateValue(getCurrentTime())));
+                    return ReadResponse.success(resourceid, getCurrentTime());
                 case 14:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getUtcOffset())));
+                    return ReadResponse.success(resourceid, getUtcOffset());
                 case 15:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getTimezone())));
+                    return ReadResponse.success(resourceid, getTimezone());
                 case 16:
-                    return new ValueResponse(ResponseCode.CONTENT, new LwM2mResource(resourceid,
-                            Value.newStringValue(getSupportedBinding())));
+                    return ReadResponse.success(resourceid, getSupportedBinding());
                 default:
+
                     return super.read(resourceid);
             }
         }
 
         @Override
-        public LwM2mResponse execute(int resourceid, byte[] params) {
-            LOG.debug("Execute on Device resource " + resourceid);
-            if (params != null && params.length != 0)
-                LOG.debug("\t params " + new String(params));
-            return new LwM2mResponse(ResponseCode.CHANGED);
-        }
-
-        @Override
-        public LwM2mResponse write(int resourceid, LwM2mResource value) {
-            LOG.debug("Write on Device Resource " + resourceid + " value " + value);
-            switch (resourceid) {
-                case 13:
-                    return new LwM2mResponse(ResponseCode.NOT_FOUND);
-                case 14:
-                    setUtcOffset((String) value.getValue().value);
-                    fireResourceChange(resourceid);
-                    return new LwM2mResponse(ResponseCode.CHANGED);
-                case 15:
-                    setTimezone((String) value.getValue().value);
-                    fireResourceChange(resourceid);
-                    return new LwM2mResponse(ResponseCode.CHANGED);
-                default:
-                    return super.write(resourceid, value);
+        public ExecuteResponse execute(int resourceid, String params) {
+            LOG.info("Execute on Device resource ({}, {})", resourceid, params);
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    if (database != null) {
+                        database.stop();
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        try {
+                            database.start();
+                        } catch (CatalogueObjectParsingException e) {
+                            LOG.error("Unable to restart database", e);
+                        }
+                    } else {
+                        LOG.warn("database reference not set!");
+                    }
+                }
+            }).start();
+            if (database != null) {
+                return ExecuteResponse.success();
+            } else {
+                return ExecuteResponse.internalServerError("Missing Database reference. Please set via setDatabase()");
             }
         }
 
-        private String getManufacturer() {
+        @Override
+        public WriteResponse write(int resourceid, LwM2mResource value) {
+            LOG.info("Write on Device resource ({}, {})", resourceid, value);
+            return super.write(resourceid, value);
+        }
+
+        private static String getManufacturer() {
             return "Rethink Example Catalogue";
         }
 
-        private String getModelNumber() {
+        private static String getModelNumber() {
             return "Model 1337";
         }
 
-        private String getSerialNumber() {
+        private static String getSerialNumber() {
             return "RT-500-000-0001";
         }
 
-        private String getFirmwareVersion() {
+        private static String getFirmwareVersion() {
             return "0.1.0";
         }
 
-        private int getErrorCode() {
+        private static int getErrorCode() {
             return 0;
         }
 
-        private int getBatteryLevel() {
+        private static int getBatteryLevel() {
             final Random rand = new Random();
             return rand.nextInt(100);
         }
 
-        private int getMemoryFree() {
+        private static int getMemoryFree() {
             final Random rand = new Random();
             return rand.nextInt(50) + 114;
         }
 
-        private Date getCurrentTime() {
+        private static Date getCurrentTime() {
             return new Date();
         }
 
-        private String utcOffset = new SimpleDateFormat("X").format(Calendar.getInstance().getTime());
+        private static String utcOffset = new SimpleDateFormat("X").format(Calendar.getInstance().getTime());
 
-        private String getUtcOffset() {
+        private static String getUtcOffset() {
             return utcOffset;
         }
 
-        private void setUtcOffset(String t) {
+        private static void setUtcOffset(String t) {
             utcOffset = t;
         }
 
-        private String timeZone = TimeZone.getDefault().getID();
+        private static String timeZone = TimeZone.getDefault().getID();
 
-        private String getTimezone() {
+        private static String getTimezone() {
             return timeZone;
         }
 
@@ -665,16 +726,9 @@ public class CatalogueDatabase {
             timeZone = t;
         }
 
-        private String getSupportedBinding() {
+        private static String getSupportedBinding() {
             return "U";
         }
+
     }
-
-    private FileFilter dirFilter = new FileFilter() {
-        @Override
-        public boolean accept(File file) {
-            return file.isDirectory();
-        }
-    };
-
 }

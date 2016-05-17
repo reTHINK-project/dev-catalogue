@@ -13,35 +13,11 @@
 <body>
 <div ng-app="rethinkTest" ng-controller="myCtrl">
     <h1>reTHINK Catalogue Test Page</h1>
-    <b>Attention: Use catalogue-rethink.fokus.fraunhofer.de as a broker address to access a publicly available
-        instance.</b>
     <table>
         <tr>
-            <td>Catalogue Broker hostname:</td>
-            <td><input size="30" type="text" ng-model="host" ng-init="host = 'localhost'"></td>
-        </tr>
-        <tr>
-            <td>Catalogue Broker protocol:</td>
-            <td><select name="singleSelect" ng-model="protocol"
-                        ng-init="protocol = 'https'" ng-change="protocol == 'http' ? port = 80 : port = 443">
-                <option value="http">http</option>
-                <option value="https">https</option>
-            </select></td>
-        </tr>
-        <tr>
-            <td align="right">Set port manually?</td>
-            <td><input type="checkbox" ng-model="manualPort">{{manualPort ? "yes" : "no"}}</td>
-        </tr>
-        <tr ng-show="manualPort">
-            <td>Catalogue Broker port:</td>
-            <td><input type="number"
-                       ng-model="port"
-                       ng-init="protocol == 'http' ? port = 80 : port = 443"></td>
-        </tr>
-        <tr>
             <td>Catalogue Object type:</td>
-            <td><select name="singleSelect" ng-model="kind" ng-init="kind = 'hyperty'"
-                        ng-change="name = null; resourceName = null">
+            <td><select name="singleSelect" ng-model="kind" ng-init="kind = 'hyperty'; getInstanceList(kind)"
+                        ng-change="name = null; resourceName = null; getInstanceList(kind)">
                 <option value="hyperty">Hyperty</option>
                 <option value="protocolstub">Protostub</option>
                 <option value="runtime">Hyperty Runtime</option>
@@ -51,9 +27,11 @@
             </select></td>
         </tr>
         <tr ng-show="kind != null">
-            <td>(optional) Object name:</td>
-            <td><input size="30" type="text" ng-model="name" ng-init="name = 'FirstHyperty'"
-                       ng-change="name = name == '' ? null : name"></td>
+            <!--<td>(optional) Object name:</td>-->
+            <!--<td><input size="30" type="text" ng-model="name" ng-init="name = 'FirstHyperty'"-->
+            <!--ng-change="name = name == '' ? null : name"></td>-->
+            <td>Catalogue Object name:</td>
+            <td><select name="singleSelect" ng-model="name" ng-options="name for name in names"></select></td>
         </tr>
         <tr ng-show="name != null">
             <td>(optional) Resource name:</td>
@@ -109,12 +87,11 @@
         </tr>
     </table>
 
-    <div ng-show="host != null && kind != null">
+    <div ng-show="kind != null">
         <!-- TODO: improve code -->
         <h2>Generated path:<br>
             {{
-            address = protocol
-            + "://" + host + (manualPort ? ":" + port : "")
+            address = host
             + "/.well-known/"
             + kind + "/"
             + (name == null ? '' : name);
@@ -168,7 +145,7 @@
             <tr>
                 <td align="right">response</td>
                 <td>
-                    <pre>{{response | json}}</pre>
+                    <pre>{{response}}</pre>
                 </td>
             </tr>
         </table>
@@ -179,6 +156,7 @@
 <script>
     var app = angular.module('rethinkTest', []);
     app.controller('myCtrl', function ($scope) {
+        $scope.host = document.location.origin;
 
 
         $scope.getResource = function (url) {
@@ -190,22 +168,34 @@
                 xmlHttp.open("GET", url, false); // false for synchronous request
                 xmlHttp.send();
             } catch (e) {
-                console.error(e);
+                console.error("hello error: " + e);
                 alert("Error while trying to get resource:\r\n" + e);
                 return;
             }
-            console.log("got response: " + xmlHttp.responseText);
+
+            console.log("got response:", xmlHttp);
             var resp = xmlHttp.responseText;
 
             try {
                 resp = JSON.parse(xmlHttp.responseText);
             } catch (e) {
 //                alert("Error trying to parse json:\r\n" + resp + "\r\nerror: " + e);
-                console.log("json parsing failed, probably not json:", resp);
+                console.log("json parsing failed, probably not json");
             }
 
+            if (xmlHttp.status != 200) {
+                resp = "error (" + xmlHttp.status + ") " + xmlHttp.statusText;
+            }
 
             return resp;
+        };
+
+        $scope.getInstanceList = function (kind) {
+            console.log("trying to get instances of %s", kind);
+            address = document.location.origin
+                    + "/.well-known/"
+                    + kind + "/";
+            $scope.names = $scope.getResource(address);
         };
 
 

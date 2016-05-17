@@ -17,45 +17,52 @@
 
 package eu.rethink.catalogue.broker;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.*;
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.leshan.LinkObject;
 import org.eclipse.leshan.ResponseCode;
-import org.eclipse.leshan.client.resource.ObjectEnabler;
-import org.eclipse.leshan.client.resource.ObjectsInitializer;
 import org.eclipse.leshan.core.model.LwM2mModel;
 import org.eclipse.leshan.core.model.ResourceModel;
-import org.eclipse.leshan.core.node.*;
+import org.eclipse.leshan.core.node.LwM2mNodeVisitor;
+import org.eclipse.leshan.core.node.LwM2mObject;
+import org.eclipse.leshan.core.node.LwM2mObjectInstance;
+import org.eclipse.leshan.core.node.LwM2mResource;
+import org.eclipse.leshan.core.request.ExecuteRequest;
 import org.eclipse.leshan.core.request.ReadRequest;
-import org.eclipse.leshan.core.response.ValueResponse;
+import org.eclipse.leshan.core.response.ExecuteResponse;
+import org.eclipse.leshan.core.response.LwM2mResponse;
+import org.eclipse.leshan.core.response.ReadResponse;
 import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.eclipse.leshan.server.client.Client;
 import org.eclipse.leshan.server.client.ClientRegistryListener;
+import org.eclipse.leshan.server.client.ClientUpdate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.UnsupportedEncodingException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * reTHINK specific Request Handler for requests on /.well-known/*
  */
 public class RequestHandler {
-    //model IDs that define the custom models inside model.json
+    private static final Logger LOG = LoggerFactory.getLogger(RequestHandler.class);
+
+    // model IDs that define the custom models inside model.json
     private static final int HYPERTY_MODEL_ID = 1337;
     private static final int PROTOSTUB_MODEL_ID = 1338;
     private static final int RUNTIME_MODEL_ID = 1339;
     private static final int SCHEMA_MODEL_ID = 1340;
     private static final int IDPPROXY_MODEL_ID = 1341;
-
     private static final int SOURCEPACKAGE_MODEL_ID = 1350;
 
-
+    // set of model IDs
     private static final Set<Integer> MODEL_IDS = new LinkedHashSet<>(Arrays.asList(HYPERTY_MODEL_ID, PROTOSTUB_MODEL_ID, RUNTIME_MODEL_ID, SCHEMA_MODEL_ID, IDPPROXY_MODEL_ID, SOURCEPACKAGE_MODEL_ID));
 
     private static final String WELLKNOWN_PREFIX = "/.well-known/";
 
+    // types as defined in catalogue object folders and url paths
     private static final String HYPERTY_TYPE_NAME = "hyperty";
     private static final String PROTOSTUB_TYPE_NAME = "protocolstub";
     private static final String RUNTIME_TYPE_NAME = "runtime";
@@ -64,8 +71,10 @@ public class RequestHandler {
 
     private static final String SOURCEPACKAGE_TYPE_NAME = "sourcepackage";
 
-
+    // name to ID map
     private static Map<String, Integer> MODEL_NAME_TO_ID_MAP = new HashMap<>();
+
+    // {MODEL_ID : { INSTANCE_NAME : INSTANCE_PATH}}
     private static Map<Integer, Map<String, String>> nameToInstanceMapMap = new HashMap<>();
 
     static {
@@ -81,30 +90,35 @@ public class RequestHandler {
         }
     }
 
-    private static final String NAME_FIELD_NAME = "objectName";
-    private static final String CGUID_FIELD_NAME = "cguid";
+    // fields that define the name of the catalogue object when requesting it using the http interface
+    private static final String NAME_FIELD_NAME = "objectName"; // for all objects except sourcePackage
+    private static final String CGUID_FIELD_NAME = "cguid"; // for sourcePackages
 
+    // {MODEL_ID : MODEL}
     private static final Map<Integer, Map<Integer, ResourceModel>> MODEL_MAP = new HashMap<>();
 
-    private static Map<Integer, Map<String, Integer>> resourceNameToIdMapMap = new HashMap<>();
-    private static Map<Client, Map<Integer, List<String>>> clientToObjectsMap = new HashMap<>();
+    // {MODEL_ID : {RESOURCE_NAME : RESOURCE_ID}}
+    private static Map<Integer, Map<String, Integer>> resourceNameToIdMapMap = new ConcurrentHashMap<>();
 
-    private LeshanServer server;
+    // {CLIENT_REG_ID : {MODEL_ID : [INSTANCE_NAME]}
+    private static Map<String, Map<Integer, List<String>>> clientToObjectsMap = new ConcurrentHashMap<>();
+
     private static final Gson gson = new GsonBuilder()
             .setPrettyPrinting()
             .setDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX")
             .create();
-    private static final Logger LOG = LoggerFactory.getLogger(RequestHandler.class);
+
+    private LeshanServer server;
 
     public RequestHandler(LeshanServer server) {
         this.server = server;
 
-        // get LwM2mModel from modelprovider
+        // get LwM2mModel from model provider
         LwM2mModel customModel = server.getModelProvider().getObjectModel(null);
 
+        // setup MODEL_MAP and resourceNameToIdMapMap (which is basically the inverse of it)
         for (Integer modelId : MODEL_IDS) {
-            ObjectEnabler modelEnabler = new ObjectsInitializer(customModel).create(modelId);
-            Map<Integer, ResourceModel> model = modelEnabler.getObjectModel().resources;
+            Map<Integer, ResourceModel> model = customModel.getObjectModel(modelId).resources;
             MODEL_MAP.put(modelId, model);
             Map<String, Integer> resourceNameToIdMap = new LinkedHashMap<>(model.size());
             // populate id:name map from resources
@@ -113,49 +127,76 @@ public class RequestHandler {
             }
 
             resourceNameToIdMapMap.put(modelId, resourceNameToIdMap);
-            LOG.debug("generated name:id map for model " + modelId + ":\r\n" + gson.toJson(resourceNameToIdMap));
+            LOG.debug("generated name:id map for model " + modelId + ": " + gson.toJson(resourceNameToIdMap));
         }
 
         server.getClientRegistry().addListener(clientRegistryListener);
     }
 
-    public String handleGET(String path) {
+    /**
+     * Makes a ReadRequest via CoAP to a client based on the provided URL path
+     *
+     * @param path - URL GET request path, e.g. /.well-known/hyperty/myHyperty/version
+     * @return CoAP ReadResponse that the client returned, or an error message as ReadResponse
+     */
+    public RequestResponse handleGET(String path) {
         LOG.info("Handling GET for: " + path);
-        //path should start with /.well-known/
-        //but coap has no slash at the start, so check for it and prepend it if necessary.
+        // path should start with /.well-known/
+        // but coap has no slash at the start, so check for it and prepend it if necessary.
         if (!path.startsWith("/"))
             path = "/" + path;
 
-        //remove /.well-known/ from path
+        // remove /.well-known/ from path
         path = StringUtils.removeStart(path, WELLKNOWN_PREFIX);
-        //LOG.debug("adapted path: " + path);
-        //split path up
+        // LOG.debug("adapted path: " + path);
+        // split path up
         String[] pathParts = StringUtils.split(path, '/');
 
-        //example path: <endpoint>/<objectID>/<instance>/<resourceID>
+        // example path: <objectType>/<instanceName>/<resourceName>
 
-        //TODO: no endpoint given -> return all clients or ask for more info?
         if (pathParts.length == 0) {
-            String response = "Please provide resource type and (optional) name and (optional) resource name. Example: /hyperty/MyHyperty/sourceCode";
-            ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
-            return encodeErrorResponse(errorResp);
-        } else if (pathParts.length == 1) { //hyperty | protostub | sourcepackage etc. only
+            String response = String.format("Please provide at least a type from %s or 'restart' or 'client'", MODEL_NAME_TO_ID_MAP.keySet());
+            LOG.warn(response);
+            return new RequestResponse(ReadResponse.internalServerError(response));
+        } else if (pathParts.length == 1) { // hyperty | protostub | sourcepackage etc. only
+
             String type = pathParts[0];
 
             Integer id = MODEL_NAME_TO_ID_MAP.get(type);
 
             if (id != null) {
-                return gson.toJson(nameToInstanceMapMap.get(id).keySet());
+                String response = gson.toJson(nameToInstanceMapMap.get(id).keySet());
+                LOG.info("Returning list: " + response);
+                return new RequestResponse(ReadResponse.success(0, response), id);
+            } else if (type.equals("restart")) {
+                try {
+                    restartClients();
+                    String response = "Restart executed on all connected clients";
+                    LOG.info(response);
+                    return new RequestResponse(ReadResponse.success(0, response));
+                } catch (InterruptedException e) {
+                    LOG.warn("Restarting clients failed", e);
+                    return new RequestResponse(ReadResponse.internalServerError("Restarting clients failed: " + e.getMessage()));
+                }
+            } else if (type.equals("client")) {
+                List<String> clients = new LinkedList<>();
+                for (Client client : server.getClientRegistry().allClients()) {
+                    clients.add(client.getEndpoint() + " (" + client.getRegistrationId() + ")");
+                }
+                String response = gson.toJson(clients);
+                LOG.info("Returinging client list: " + response);
+                return new RequestResponse(ReadResponse.success(0, response));
             } else {
-                String response = "Invalid resource type. Please use: hyperty | protocolstub | runtime | dataschema | idp-proxy | sourcepackage";
-                ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
-                return encodeErrorResponse(errorResp);
+                String response = String.format("Unknown object type, please use one of: %s or 'restart' or 'client'", MODEL_NAME_TO_ID_MAP.keySet());
+                LOG.warn(response);
+                return new RequestResponse(ReadResponse.internalServerError(response), -1);
             }
 
         } else {
             String modelType = pathParts[0];
             String instanceName = pathParts[1];
             String resourceName = null;
+            String[] details = null;
 
             LOG.debug("modelType:    " + modelType);
             LOG.debug("instanceName: " + instanceName);
@@ -166,14 +207,14 @@ public class RequestHandler {
             }
 
             if (pathParts.length > 3) {
-                LOG.debug("further specifications: " + Arrays.toString(Arrays.copyOfRange(pathParts, 3, pathParts.length)));
+                details = Arrays.copyOfRange(pathParts, 3, pathParts.length);
+                LOG.debug("further specifications: " + Arrays.toString(details));
             }
 
             //check if resourceName is valid
             Integer id = MODEL_NAME_TO_ID_MAP.get(modelType);
-            Integer resourceID = null;
-
-            String target = null;
+            Integer resourceID;
+            String target;
 
             if (id != null) {
                 Map<String, Integer> resourceNameToIdMap = resourceNameToIdMapMap.get(id);
@@ -182,8 +223,9 @@ public class RequestHandler {
                 //resource name was given, but not found in the name:id map
                 if (resourceName != null && resourceID == null) {
                     String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, resourceNameToIdMap.keySet());
-                    ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
-                    return encodeErrorResponse(errorResp);
+                    LOG.warn(response);
+                    return new RequestResponse(ReadResponse.internalServerError(response), id);
+
                 }
 
                 Map<String, String> nameToInstanceMap = nameToInstanceMapMap.get(id);
@@ -206,32 +248,90 @@ public class RequestHandler {
                         String t = StringUtils.removeStart(target, "/" + targetPaths[0]);
                         LOG.debug("requesting {}", t);
                         ReadRequest request = new ReadRequest(t);
-                        ValueResponse response = server.send(client, request);
-                        LOG.debug("got response: {}", response.getCode());
-                        if (!response.getCode().equals(ResponseCode.CONTENT)) {
-                            return encodeErrorResponse(createResponse(response.getCode(), "Unable to retrieve " + path));
-                        } else {
-                            return encodeResponse(response, modelType);
-
+                        try {
+                            long startTime = System.currentTimeMillis();
+                            RequestResponse response = new RequestResponse(server.send(client, request), id);
+                            long respTime = System.currentTimeMillis();
+                            LOG.debug("response received after {}ms", respTime - startTime);
+                            if (details != null && response.isSuccess()) {
+                                try {
+                                    // assume json objects down the "detail" route
+                                    JsonElement current = response.getJson();
+                                    for (String detail : details) {
+                                        //LOG.debug("current: {}", current);
+                                        current = current.getAsJsonObject().get(detail);
+                                    }
+                                    //LOG.debug("final current: {}");
+                                    // now current is what we want
+                                    String sResp = current.toString();
+                                    LOG.info("Returning: " + sResp);
+                                    return new RequestResponse(ReadResponse.success(0, sResp));
+                                } catch (Exception e) {
+                                    //e.printStackTrace();
+                                    String detailPath = "";
+                                    for (String detail : details) {
+                                        detailPath += "/" + detail;
+                                    }
+                                    String error = detailPath + " not found in " + resourceName;
+                                    LOG.warn(error, e);
+                                    return new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, error));
+                                }
+                            } else {
+                                return response;
+                            }
+                        } catch (InterruptedException e) {
+                            String error = "unable to request " + t + " from client " + client;
+                            LOG.warn(error, e);
+                            return new RequestResponse(ReadResponse.internalServerError(error + ": " + e.getMessage()), id);
                         }
                     } else {
                         String response = String.format("Found target for '%s', but endpoint is invalid. Redundany error? Requested endpoint: %s", instanceName, targetPaths[0]);
                         LOG.warn(response);
-                        ValueResponse errorResp = createResponse(ResponseCode.INTERNAL_SERVER_ERROR, response);
-                        return encodeErrorResponse(errorResp);
+                        return new RequestResponse(ReadResponse.internalServerError(response), id);
                     }
                 } else {
                     String response = String.format("Could not find instance: %s", instanceName);
-                    ValueResponse errorResp = createResponse(ResponseCode.NOT_FOUND, response);
-                    return encodeErrorResponse(errorResp);
+                    LOG.warn(response);
+                    return new RequestResponse(ReadResponse.internalServerError(response), id);
+
+                }
+            } else if (pathParts[0].equals("restart")) {
+                LOG.info("trying to disconnect {}", instanceName);
+                Client client = server.getClientRegistry().get(instanceName);
+                LOG.debug("search for client {} returned {}", instanceName, client);
+                if (client != null) {
+                    try {
+                        ExecuteResponse executeResponse = restartClient(client);
+                        LOG.info("Restarting client {} {}", client.getEndpoint(), executeResponse.isSuccess() ? "succeeded" : "failed");
+                        return new RequestResponse(executeResponse);
+                    } catch (InterruptedException e) {
+                        String errorMessage = "Unable to restart client " + client.getEndpoint() + ": " + e.getMessage();
+                        LOG.warn(errorMessage, e);
+                        return new RequestResponse(ReadResponse.internalServerError(errorMessage));
+                    }
+                } else {
+                    String errorMessage = "Client " + instanceName + " not found";
+                    LOG.warn(errorMessage);
+                    return new RequestResponse(ReadResponse.internalServerError(errorMessage));
+                }
+            } else if (pathParts[0].equals("client")) {
+                LOG.info("trying to get information about client {}", instanceName);
+                Client client = server.getClientRegistry().get(instanceName);
+                if (client != null) {
+                    String response = client.toString();
+                    LOG.info("client " + instanceName + " found: {}", response);
+                    return new RequestResponse(ReadResponse.success(0, response));
+                } else {
+                    String errorMessage = "client " + instanceName + " not found";
+                    LOG.warn(errorMessage);
+                    return new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, errorMessage));
                 }
             } else {
-                String response = String.format("invalid object type, please use one of: %s", MODEL_NAME_TO_ID_MAP.keySet());
-                ValueResponse errorResp = createResponse(ResponseCode.BAD_REQUEST, response);
-                return encodeErrorResponse(errorResp);
+                String response = String.format("Unknown object type, please use one of: %s or 'restart'", MODEL_NAME_TO_ID_MAP.keySet());
+                LOG.warn(response);
+                return new RequestResponse(ReadResponse.internalServerError(response));
             }
         }
-
     }
 
     /**
@@ -240,45 +340,44 @@ public class RequestHandler {
     private ClientRegistryListener clientRegistryListener = new ClientRegistryListener() {
         @Override
         public void registered(final Client client) {
-            LOG.info("Client registered: " + client);
-
+            LOG.info("'{}' registered", client.getEndpoint());
             try {
                 checkClient(client);
             } catch (Exception e) {
-                LOG.error("Something went wrong while checking the client.", e);
+                LOG.error("Something went wrong while checking the client", e);
                 //e.printStackTrace();
             }
 
         }
 
         @Override
-        public void updated(Client clientUpdated) {
-            LOG.info("Client updated: " + clientUpdated);
+        public void updated(ClientUpdate update, Client clientUpdated) {
+            LOG.debug("'{}' updated", clientUpdated.getEndpoint());
 
-            try {
-                removeClient(clientUpdated);
-            } catch (Exception e) {
-                LOG.error("Something went wrong while removing the client.", e);
-                //e.printStackTrace();
-            }
-
-            try {
-                checkClient(clientUpdated);
-            } catch (Exception e) {
-                LOG.error("Something went wrong while checking the client.", e);
-                //e.printStackTrace();
-            }
+            //try {
+            //    removeClient(clientUpdated);
+            //} catch (Exception e) {
+            //    LOG.error("Something went wrong while removing the client", e);
+            //    //e.printStackTrace();
+            //}
+            //
+            //try {
+            //    checkClient(clientUpdated);
+            //} catch (Exception e) {
+            //    LOG.error("Something went wrong while checking the client", e);
+            //    //e.printStackTrace();
+            //}
         }
 
         @Override
         public void unregistered(Client client) {
-            LOG.info("Client unregistered: " + client);
+            LOG.info("'{}' unregistered", client.getEndpoint());
 
             try {
                 removeClient(client);
             } catch (Exception e) {
-                LOG.error("Something went wrong while removing the client.", e);
-                //e.printStackTrace();
+                LOG.error("Something went wrong while removing the client", e);
+                e.printStackTrace();
             }
         }
 
@@ -287,12 +386,12 @@ public class RequestHandler {
          */
         private void checkClient(final Client client) {
 
-            List<String> foundModels = new LinkedList<>();
+            final List<String> foundModels = new LinkedList<>();
 
             //LOG.debug("checking object links of client: " + client);
             for (LinkObject link : client.getObjectLinks()) {
                 String linkUrl = link.getUrl();
-                LOG.debug("checking link: " + link.getUrl());
+                //LOG.debug("checking link: " + link.getUrl());
                 int i = linkUrl.indexOf("/", 1); //only supported if this returns an index
                 if (i > -1) {
                     int id = Integer.parseInt(linkUrl.substring(1, i));
@@ -300,19 +399,21 @@ public class RequestHandler {
                         foundModels.add(link.getUrl());
                 }
             }
+            //LOG.debug("{} contains: {}", client.getEndpoint(), foundModels);
 
             //request instances of each found model
-            for (final String foundModelLink : foundModels) {
-                Thread t = new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        LOG.debug("send readRequest for modelLink: {}", foundModelLink);
+            Thread t = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    final Map<String, String> generatedMapping = new LinkedHashMap<>();
+                    for (final String foundModelLink : foundModels) {
+                        //LOG.debug("send readRequest for modelLink: {}", foundModelLink);
 
                         final int model;
                         if (foundModelLink.indexOf("/", 1) > -1) {
                             model = Integer.parseInt(foundModelLink.substring(1, foundModelLink.indexOf("/", 1)));
                         } else {
-                            LOG.error("unable to get model ID from modelLink");
+                            LOG.error("unable to get model ID from modelLink '{}", foundModelLink);
                             return;
                         }
 
@@ -320,8 +421,15 @@ public class RequestHandler {
                         if (identifier == null)
                             identifier = resourceNameToIdMapMap.get(model).get(CGUID_FIELD_NAME);
 
-                        ReadRequest request = new ReadRequest(foundModelLink + "/" + identifier);
-                        ValueResponse response = server.send(client, request);
+                        String target = foundModelLink + "/" + identifier;
+                        ReadRequest request = new ReadRequest(target);
+                        ReadResponse response;
+                        try {
+                            response = server.send(client, request);
+                        } catch (InterruptedException e) {
+                            LOG.error("unable request " + target + " from '" + client.getEndpoint() + "'", e);
+                            return;
+                        }
 
                         if (response.getCode() == ResponseCode.CONTENT) {
                             response.getContent().accept(new LwM2mNodeVisitor() {
@@ -337,53 +445,47 @@ public class RequestHandler {
 
                                 @Override
                                 public void visit(LwM2mResource resource) {
-                                    //LOG.debug("resource visit: " + resource);
-                                    String objectName = resource.getValue().value.toString();
+                                    LOG.debug("resource visit: " + resource);
+                                    String objectName = resource.getValue().toString();
                                     Map<String, String> nametToInstanceMap = nameToInstanceMapMap.get(model);
-
-                                    nametToInstanceMap.put(objectName, "/" + client.getEndpoint() + foundModelLink);
+                                    String instanceVal = "/" + client.getEndpoint() + foundModelLink;
+                                    nametToInstanceMap.put(objectName, instanceVal);
 
                                     //map object names to client, for easy removal in case of client disconnect
-                                    Map<Integer, List<String>> modelObjectsMap = clientToObjectsMap.get(client);
+                                    Map<Integer, List<String>> modelObjectsMap = clientToObjectsMap.get(client.getRegistrationId());
                                     if (modelObjectsMap == null) {
-                                        modelObjectsMap = new HashMap<>();
+                                        modelObjectsMap = new ConcurrentHashMap<>();
+                                        clientToObjectsMap.put(client.getRegistrationId(), modelObjectsMap);
                                     }
 
                                     List<String> objectNames = modelObjectsMap.get(model);
                                     if (objectNames == null) {
-                                        objectNames = new LinkedList<>();
+                                        objectNames = new CopyOnWriteArrayList<>();
+                                        modelObjectsMap.put(model, objectNames);
                                     }
 
                                     objectNames.add(objectName);
-                                    modelObjectsMap.put(model, objectNames);
-                                    clientToObjectsMap.put(client, modelObjectsMap);
 
+                                    generatedMapping.put(foundModelLink, objectName);
 
                                     LOG.debug("Added to client map -> " + objectName + ": " + nametToInstanceMap.get(objectName));
                                 }
                             });
                         } else {
-                            LOG.warn("Client contained object links on register, but requesting them failed with: " + gson.toJson(response));
+                            LOG.warn("'{}' contained object links on register, but requesting them failed with: " + gson.toJson(response), client.getEndpoint());
                         }
                     }
-                });
-                t.start();
-
-                // FIXME this helps debugging, but is not necessary and costs time.
-                //try {
-                //    t.join();
-                //} catch (InterruptedException e) {
-                //    e.printStackTrace();
-                //}
-            }
+                    LOG.info("'{}' contains: {}", client.getEndpoint(), gson.toJson(generatedMapping));
+                }
+            });
+            t.start();
         }
 
         /**
          * Tries to remove client and its resources from maps.
          */
         private void removeClient(Client client) {
-            Map<Integer, List<String>> modelObjectsMap = clientToObjectsMap.get(client);
-
+            Map<Integer, List<String>> modelObjectsMap = clientToObjectsMap.get(client.getRegistrationId());
             if (modelObjectsMap != null) {
                 for (Map.Entry<Integer, List<String>> entry : modelObjectsMap.entrySet()) {
                     Map<String, String> nameToInstanceMap = nameToInstanceMapMap.get(entry.getKey());
@@ -392,129 +494,137 @@ public class RequestHandler {
                     }
                 }
             }
+            clientToObjectsMap.remove(client.getRegistrationId());
         }
     };
 
     /**
-     * Returns a ValueResponse based on the given code and content.
-     * If no code is provided, ResponseCode.CONTENT will be used
+     * Tries to restart all connected clients.
      *
-     * @param code    response code of the response
-     * @param content payload of the response
-     * @return generated ValueResponse
+     * @throws InterruptedException
      */
-    private static ValueResponse createResponse(ResponseCode code, final String content) {
-        LOG.debug("creating response. code: " + code + ", content: " + content);
-        ValueResponse response;
-        if (code == null) {
-            LOG.warn("no code for createResponse provided. Using ResponseCode.CONTENT");
-            code = ResponseCode.CONTENT;
+    public void restartClients() throws InterruptedException {
+        LOG.info("Restarting all clients...");
+        for (Client client : server.getClientRegistry().allClients()) {
+            restartClient(client);
         }
+    }
 
-        if (content == null)
-            response = new ValueResponse(code);
-        else {
-            response = new ValueResponse(code, new LwM2mResource(0, Value.newStringValue(content)));
-        }
-
-        LOG.debug("created response: " + response);
+    /**
+     * Tries to restart a connected client.
+     *
+     * @param client - Client that needs to be restarted
+     * @return ExecuteResponse from client
+     * @throws InterruptedException
+     */
+    public ExecuteResponse restartClient(Client client) throws InterruptedException {
+        //LOG.info("Trying to restart {}", client.getEndpoint());
+        ExecuteResponse response = server.send(client, new ExecuteRequest(3, 0, 4));
+        LOG.info("Restarting client {} " + (response.isSuccess() ? "succeeded" : ("failed: " + response.getCode())), client.getEndpoint());
         return response;
     }
 
-    /**
-     * Returns ValueResponse with the provided content as payload. Response code is always ResponseCode.CONTENT.
-     *
-     * @param content payload of the response
-     * @return generated ValueResponse
-     */
-    private static ValueResponse createResponse(final String content) {
-        return createResponse(ResponseCode.CONTENT, content);
-    }
+    public class RequestResponse {
+        private LwM2mResponse response;
+        private int model;
 
 
-    private String encodeErrorResponse(final ValueResponse response) {
-        return encodeResponse(response, null, true);
-    }
-
-    private String encodeResponse(final ValueResponse response, final String modelType) {
-        if (response.getCode().equals(ResponseCode.NOT_FOUND))
-            return encodeResponse(response, modelType, true);
-        else
-            return encodeResponse(response, modelType, false);
-    }
-
-
-    /**
-     * Parses a response to a json string.
-     *
-     * @param response ValueResponse to be encoded to json
-     * @return response as json
-     */
-    private String encodeResponse(final ValueResponse response, final String modelType, final boolean isError) {
-        //LOG.debug("encoding response: " + gson.toJson(response));
-
-        final Map<Integer, ResourceModel> model = MODEL_MAP.get(MODEL_NAME_TO_ID_MAP.get(modelType));
-
-        final LinkedHashMap<String, String> instanceMap = new LinkedHashMap<>();
-
-        //TODO: use proper exception type
-        //LOG.debug("isError: " + isError + ", model: " + model);
-        if (!isError && model == null) {
-            throw new NullPointerException("could not resolve model type " + modelType);
+        public RequestResponse(LwM2mResponse response) {
+            this.response = response;
+            this.model = -1;
         }
 
-        final String[] result = new String[1];
+        public RequestResponse(ReadResponse response, int model) {
+            this.response = response;
+            this.model = model;
+        }
 
-        response.getContent().accept(new LwM2mNodeVisitor() {
-            @Override
-            public void visit(LwM2mObject object) {
-                LOG.warn("visiting object: " + object + " (unintended behaviour!)");
+        public boolean isSuccess() {
+            return response.isSuccess();
+        }
+
+        public boolean isFailure() {
+            return response.isFailure();
+        }
+
+        public ResponseCode getCode() {
+            return response.getCode();
+        }
+
+        public JsonElement getJson() {
+            final JsonElement[] resp = new JsonElement[1];
+
+            if (response.isFailure()) {
+                if (response.getErrorMessage() != null)
+                    return new JsonPrimitive(response.getErrorMessage());
+                else
+                    return new JsonPrimitive("");
             }
 
-            @Override
-            public void visit(LwM2mObjectInstance instance) {
-                //LOG.debug("visiting instance: " + instance);
-                Map<Integer, LwM2mResource> resources = instance.getResources();
-                //LOG.debug("resources: " + resources);
-                for (Map.Entry<Integer, LwM2mResource> entry : resources.entrySet()) {
-                    String value = null;
-                    if (entry.getValue().getValue().type.equals(Value.DataType.OPAQUE))
-                        try {
-                            value = new String((byte[]) entry.getValue().getValue().value, "UTF-8");
-                        } catch (UnsupportedEncodingException e) {
-                            e.printStackTrace();
-                            value = (String) entry.getValue().getValue().value;
+            final Map<Integer, ResourceModel> modelMap = MODEL_MAP.get(model);
+
+            if (response instanceof ReadResponse) {
+                ((ReadResponse) response).getContent().accept(new LwM2mNodeVisitor() {
+                    @Override
+                    public void visit(LwM2mObject object) {
+                        LOG.warn("visiting object {} (unintended behaviour!)", object);
+                        resp[0] = gson.toJsonTree(object);
+                    }
+
+                    @Override
+                    public void visit(LwM2mObjectInstance instance) {
+                        LOG.debug("visiting instance {}", instance);
+                        JsonObject jResponse = new JsonObject();
+                        Map<Integer, LwM2mResource> resources = instance.getResources();
+                        // parse resources into json
+                        for (Map.Entry<Integer, LwM2mResource> entry : resources.entrySet()) {
+                            String name = modelMap.get(entry.getKey()).name;
+                            String value = entry.getValue().getValue().toString();
+                            try {
+                                jResponse.add(name, gson.fromJson(value, JsonElement.class));
+                            } catch (JsonSyntaxException e) {
+                                jResponse.addProperty(name, value);
+                            }
                         }
-                    else
-                        value = (String) entry.getValue().getValue().value;
+                        resp[0] = jResponse;
+                    }
 
-                    instanceMap.put(model.get(entry.getKey()).name, value);
-                }
+                    @Override
+                    public void visit(LwM2mResource resource) {
+                        LOG.debug("visiting resource {}", resource);
+                        String val = resource.getValue().toString();
+                        //LOG.debug("value: {}", val);
 
-                //LOG.debug("final instanceMap: " + instanceMap);
-
-                result[0] = gson.toJson(instanceMap);
+                        try {
+                            resp[0] = gson.fromJson(val, JsonElement.class);
+                        } catch (JsonSyntaxException e) {
+                            resp[0] = new JsonPrimitive(val);
+                        }
+                    }
+                });
+            } else if (response instanceof ExecuteResponse) {
+                LOG.debug("is executeResponse");
+                resp[0] = new JsonPrimitive("Successfully executed command");
             }
+            //LOG.debug("returning json: {}", resp[0]);
+            return resp[0];
+        }
 
-            @Override
-            public void visit(LwM2mResource resource) {
-                //LOG.debug("visiting resource: " + resource);
-
-                if (isError) {
-                    instanceMap.put(response.getCode().name(), (String) resource.getValue().value);
-
-                    HashMap<String, Map<String, String>> errorMap = new HashMap<>(1);
-                    errorMap.put("ERROR", instanceMap);
-                    result[0] = gson.toJson(errorMap);
-                } else {
-                    result[0] = (String) resource.getValue().value;
-                }
-
+        public String getJsonString() {
+            JsonElement json = getJson();
+            //LOG.debug("json: {}", json);
+            if (json.isJsonPrimitive()) {
+                return json.getAsJsonPrimitive().getAsString();
             }
-        });
+            return gson.toJson(json);
+        }
 
-
-        return result[0];
+        @Override
+        public String toString() {
+            return "RequestResponse{" +
+                    "response=" + response +
+                    ", model=" + model +
+                    '}';
+        }
     }
-
 }

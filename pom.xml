@@ -11,15 +11,17 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <catalogue.version>1.0.5</catalogue.version>
+        <catalogue.version>1.1.0</catalogue.version>
+        <leshan.version>0.1.11-M10</leshan.version>
         <jetty.version>9.1.4.v20140401</jetty.version>
+        <log4j.version>2.5</log4j.version>
         <slf4j.api.version>[1.7.0, 1.8)</slf4j.api.version>
+
     </properties>
 
     <modules>
         <module>catalogue_broker</module>
         <module>catalogue_database</module>
-        <module>catalogue_test</module>
     </modules>
 
     <scm>
@@ -103,9 +105,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.eclipse.leshan</groupId>
-            <artifactId>leshan-all</artifactId>
-            <version>0.1.11-M5</version>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.6.2</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
@@ -123,11 +125,24 @@
             <version>2.6</version>
         </dependency>
         <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j.api.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jul-to-slf4j</artifactId>
+            <version>${slf4j.api.version}</version>
+        </dependency>
     </dependencies>
-
 </project>

@@ -6,7 +6,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +18,7 @@
 package eu.rethink.catalogue.broker.servlet;
 
 import eu.rethink.catalogue.broker.RequestHandler;
-import eu.rethink.catalogue.broker.coap.WellKnownCoapResource;
+import org.eclipse.leshan.ResponseCode;
 import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,11 +28,25 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A reTHINK specific HTTP servlet for handling requests on /.well-known/*
  */
 public class WellKnownServlet extends HttpServlet {
+    private static Map<ResponseCode, Integer> coap2httpCodeMap = new HashMap<>();
+
+    static {
+        coap2httpCodeMap.put(ResponseCode.CONTENT, HttpServletResponse.SC_OK);
+        coap2httpCodeMap.put(ResponseCode.CHANGED, HttpServletResponse.SC_OK);
+        coap2httpCodeMap.put(ResponseCode.INTERNAL_SERVER_ERROR, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        coap2httpCodeMap.put(ResponseCode.METHOD_NOT_ALLOWED, HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+        coap2httpCodeMap.put(ResponseCode.NOT_FOUND, HttpServletResponse.SC_NOT_FOUND);
+        coap2httpCodeMap.put(ResponseCode.UNAUTHORIZED, HttpServletResponse.SC_UNAUTHORIZED);
+    }
+
+
     private RequestHandler requestHandler;
     private static final Logger LOG = LoggerFactory.getLogger(WellKnownServlet.class);
 
@@ -45,7 +59,7 @@ public class WellKnownServlet extends HttpServlet {
      */
     public WellKnownServlet(LeshanServer server, RequestHandler requestHandler) {
         this.requestHandler = requestHandler;
-        server.getCoapServer().add(new WellKnownCoapResource(requestHandler));
+        //server.getCoapServer().add(new WellKnownCoapResource(requestHandler));
     }
 
     /**
@@ -53,11 +67,30 @@ public class WellKnownServlet extends HttpServlet {
      */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        LOG.info("GOT GET");
-//        ValueResponse response = requestHandler.handleGET(req.getRequestURI());
-        String response = requestHandler.handleGET(req.getRequestURI());
-        resp.setStatus(HttpServletResponse.SC_OK);
+        LOG.info("GOT GET: {}", req);
+
+        // let it be handled by RequestHandler
+        RequestHandler.RequestResponse response = requestHandler.handleGET(req.getRequestURI());
+
+        // set header so cross-domain requests work
         resp.addHeader("Access-Control-Allow-Origin", "*");
-        resp.getWriter().write(response);
+        Integer code = coap2httpCodeMap.get(response.getCode());
+
+        // try to map CoAP response code to http
+        if (code == null) {
+            LOG.warn("HTTP Code is null! Coap code: {}", response.getCode());
+            code = response.isSuccess() ? HttpServletResponse.SC_OK : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+        }
+
+        // forward response
+        if (response.isSuccess()) {
+            resp.setStatus(code);
+            resp.getWriter().write(response.getJsonString());
+        } else {
+            LOG.debug("returning error ({}): {}", code, response.getJsonString());
+            resp.sendError(code, response.getJsonString());
+        }
     }
+
+
 }
