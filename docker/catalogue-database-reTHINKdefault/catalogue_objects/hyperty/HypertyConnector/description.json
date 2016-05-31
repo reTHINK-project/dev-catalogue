@@ -1,6 +1,6 @@
 {
   "cguid": "10001",
-  "hypertyType": "COMMUNICATOR",
+  "hypertyType": ["audio", "video"],
   "version": "1.0",
   "objectName": "HypertyConnector",
   "language": "Javascript ECMA6",

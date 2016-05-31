@@ -1,6 +1,6 @@
 {
   "cguid": "10002",
-  "hypertyType": "COMMUNICATOR",
+  "hypertyType": ["chat"],
   "version": "1.0",
   "objectName": "HypertyChat",
   "description": "This is an example hyperty that is written in an external file and contains a source package",
