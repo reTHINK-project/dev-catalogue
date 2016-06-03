@@ -124,17 +124,17 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var ChatGroup = function (_EventEmitter) {
   _inherits(ChatGroup, _EventEmitter);
 
-  function ChatGroup(syncher, hypertyDiscovery, domain) {
+  function ChatGroup(syncher, discovery, domain) {
     _classCallCheck(this, ChatGroup);
 
     if (!syncher) throw Error('Syncher is a necessary dependecy');
-    if (!hypertyDiscovery) throw Error('Hyperty discover is a necessary dependecy');
+    if (!discovery) throw Error('Hyperty discover is a necessary dependecy');
 
-    var _this2 = _possibleConstructorReturn(this, Object.getPrototypeOf(ChatGroup).call(this, syncher, hypertyDiscovery));
+    var _this2 = _possibleConstructorReturn(this, Object.getPrototypeOf(ChatGroup).call(this, syncher, discovery));
 
     var _this = _this2;
     _this._syncher = syncher;
-    _this.hypertyDiscovery = hypertyDiscovery;
+    _this.discovery = discovery;
 
     _this._objectDescURL = 'hyperty-catalogue://catalogue.' + domain + '/.well-known/dataschema/Communication';
     return _this2;
@@ -207,15 +207,6 @@ var ChatGroup = function (_EventEmitter) {
         });
       });
     }
-
-    /**
-     * This function is used to close an existing Group Chat instance.
-     *
-     */
-
-  }, {
-    key: 'close',
-    value: function close() {}
   }, {
     key: 'join',
     value: function join(resource) {
@@ -239,13 +230,23 @@ var ChatGroup = function (_EventEmitter) {
      */
 
   }, {
-    key: 'addParticipant',
-    value: function addParticipant(email) {
+    key: 'invite',
+    value: function invite(userList) {
 
       var _this = this;
-      var syncher = _this._syncher;
 
-      return new Promise(function (resolve, reject) {});
+      return new Promise(function (resolve, reject) {
+
+        console.info('----------------------- Mapping Particpants -------------------- \n');
+        _this._mappingUser(userList).then(function (hyperties) {
+          return _this.dataObject.inviteObservers(hyperties);
+        }).then(function () {
+          console.info('2. Result of invition');
+          resolve();
+        }).catch(function (reason) {
+          reject(reason);
+        });
+      });
     }
 
     /**
@@ -265,15 +266,47 @@ var ChatGroup = function (_EventEmitter) {
         }
       });
     }
-
-    /**
-     * This function is used to open a Group Chat instance that was previously closed.
-     * @return {[type]} [description]
-     */
-
   }, {
-    key: 'open',
-    value: function open() {}
+    key: '_mappingUser',
+    value: function _mappingUser(userList) {
+
+      var _this = this;
+
+      return new Promise(function (resolve, reject) {
+
+        var hyperties = [];
+        var count = 0;
+
+        console.log('User List:', userList, userList.length);
+
+        if (userList.length === 0) reject(hyperties);
+
+        var resultUsers = function resultUsers() {
+          if (count === userList.length) {
+            console.info('Have ' + hyperties.length + 'users found;');
+            resolve(hyperties);
+          }
+        };
+
+        var activeUsers = function activeUsers(user) {
+          count++;
+          hyperties.push(user.hypertyURL);
+          resultUsers();
+        };
+
+        var inactiveUsers = function inactiveUsers() {
+          count++;
+          resultUsers();
+        };
+
+        userList.forEach(function (user) {
+          console.log(user);
+          if (user.email.length) {
+            return _this.discovery.discoverHypertyPerUser(user.email, user.domain).then(activeUsers).catch(inactiveUsers);
+          }
+        });
+      });
+    }
   }, {
     key: 'dataObjectReporter',
     set: function set(dataObjectReporter) {
@@ -486,7 +519,6 @@ var HypertyChat = function (_EventEmitter) {
 
       var _this = this;
       var syncher = _this._syncher;
-      var hypertyDiscovery = _this.hypertyDiscovery;
 
       return new Promise(function (resolve, reject) {
 
@@ -511,8 +543,9 @@ var HypertyChat = function (_EventEmitter) {
         }).then(function (dataObjectReporter) {
           console.info('3. Return Create Data Object Reporter', dataObjectReporter);
 
-          var chat = new _Chat2.default(syncher, hypertyDiscovery, _this._domain);
+          var chat = new _Chat2.default(syncher, _this.discovery, _this._domain);
           chat.dataObjectReporter = dataObjectReporter;
+          _this.chat = chat;
           resolve(chat);
         }).catch(function (reason) {
           reject(reason);
@@ -532,8 +565,34 @@ var HypertyChat = function (_EventEmitter) {
 
         syncher.subscribe(_this._objectDescURL, resource).then(function (dataObjectObserver) {
           console.info('Data Object Observer: ', dataObjectObserver);
-          var chat = new _Chat2.default(syncher, _this.hypertyDiscovery, _this._domain);
+          var chat = new _Chat2.default(syncher, _this.discovery, _this._domain);
           chat.dataObjectObserver = dataObjectObserver;
+
+          resolve(chat);
+        }).catch(function (reason) {
+          reject(reason);
+        });
+      });
+    }
+
+    /**
+     * Invite other observers
+     * @param  {userList} Array Array of objects that contining the user.email and user.domain;
+     * @return {chat}           Chat Group controller
+     */
+
+  }, {
+    key: 'invite',
+    value: function invite(userList) {
+
+      var _this = this;
+      var syncher = _this._syncher;
+
+      return new Promise(function (resolve, reject) {
+
+        _this.chat.invite(userList).then(function () {
+          console.info('users are invited');
+          var chat = new _Chat2.default(syncher, _this.discovery, _this._domain);
 
           resolve(chat);
         }).catch(function (reason) {
@@ -574,6 +633,8 @@ var HypertyChat = function (_EventEmitter) {
 
         var hyperties = [];
         var count = 0;
+
+        console.log('User List:', userList, userList.length);
 
         if (userList.length === 0) reject(hyperties);
 
