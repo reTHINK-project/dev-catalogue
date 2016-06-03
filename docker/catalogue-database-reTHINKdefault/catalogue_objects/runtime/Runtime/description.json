@@ -19,5 +19,5 @@
     "wss": true,
     "coap": false,
     "datachannel": false
-  },
+  }
 }
