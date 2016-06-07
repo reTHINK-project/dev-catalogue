@@ -1,9 +1,16 @@
 {
   "cguid": "10002",
-  "hypertyType": "COMMUNICATOR",
+  "type": "Communicator",
   "version": "1.0",
   "objectName": "HypertyChat",
-  "description": "This is an example hyperty that is written in an external file and contains a source package",
   "language": "Javascript ECMA6",
-  "dataObjects": []
+  "description": "Hyperty with group chat support",
+  "dataObjects": [
+    "https://catalogue.hybroker.rethink.ptinovacao.pt/.well-known/dataschema/Communication"
+  ],
+  "hypertyType": ["chat"],
+  "messageSchema": "",
+  "configuration": {},
+  "constraints": {},
+  "policies": []
 }

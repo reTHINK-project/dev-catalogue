@@ -411,66 +411,96 @@ public class CatalogueDatabase {
 
             for (File instanceFolder : instanceFolders) {
                 LOG.debug("parsing instance folder " + instanceFolder.getPath());
-                try {
-                    File desc = new File(instanceFolder, "description.json");
-                    if (!desc.exists()) {
-                        throw new CatalogueObjectParsingException("description.json not found in " + typeFolder);
+                File desc = new File(instanceFolder, "description.json");
+                File pkg = new File(instanceFolder, "sourcePackage.json");
+                if (!desc.exists()) {
+                    LOG.error("description.json not found in " + instanceFolder.getPath() + " and will be skipped!");
+                } else {
+                    JsonObject jDesc = null;
+                    try {
+                        jDesc = parseJson(desc);
+                    } catch (FileNotFoundException e) {
+                        // should never happen
+                        e.printStackTrace();
+                    } catch (JsonParseException e) {
+                        LOG.error("Parsing " + desc.getPath() + " failed!", e);
+                        printBrokenFile(desc);
                     }
 
-                    JsonObject jDesc = parseJson(desc);
-                    JsonObject jPkg = null;
+                    // only continue if file was parsed successfully
+                    if (jDesc != null) {
+                        JsonObject jPkg = null;
+                        if (pkg.exists()) {
+                            LOG.debug("parsing " + pkg.getPath());
+                            try {
+                                jPkg = parseJson(pkg);
+                            } catch (FileNotFoundException e) {
+                                // should never happen
+                                e.printStackTrace();
+                            } catch (JsonParseException e) {
+                                LOG.error("Parsing " + pkg.getPath() + " failed!", e);
+                                printBrokenFile(desc);
+                            }
+                        } else if (jDesc.has("sourcePackage")) {
+                            jPkg = jDesc.remove("sourcePackage").getAsJsonObject();
+                        }
 
-                    File pkg = new File(instanceFolder, "sourcePackage.json");
-                    if (pkg.exists()) {
-                        LOG.debug("parsing " + pkg.getPath());
-                        jPkg = parseJson(pkg);
-                    } else if (jDesc.has("sourcePackage")) {
-                        jPkg = jDesc.remove("sourcePackage").getAsJsonObject();
-                    }
+                        if (jPkg != null) {
+                            // put cguid from descriptor into sourcePackage
+                            String cguid = jDesc.get("cguid").getAsString();
+                            jPkg.addProperty("cguid", cguid);
 
-                    if (jPkg != null) {
-                        // put cguid from descriptor into sourcePackage
-                        String cguid = jDesc.get("cguid").getAsString();
-                        jPkg.addProperty("cguid", cguid);
+                            // put sourcePackageURL that references this sourcePackage into descriptor
+                            jDesc.addProperty("sourcePackageURL", accessURL + "sourcepackage/" + cguid);
 
-                        // put sourcePackageURL that references this sourcePackage into descriptor
-                        jDesc.addProperty("sourcePackageURL", accessURL + "sourcepackage/" + cguid);
+                            // check if there is a sourceCode file
+                            File code = null;
+                            for (File file : instanceFolder.listFiles()) {
+                                if (file.getName().startsWith("sourceCode")) {
+                                    LOG.debug("found sourceCode for instance " + instanceFolder.getPath());
+                                    code = file;
+                                    break;
+                                }
+                            }
 
-                        // check if there is a sourceCode file
-                        File code = null;
-                        for (File file : instanceFolder.listFiles()) {
-                            if (file.getName().startsWith("sourceCode")) {
-                                LOG.debug("found sourceCode for instance " + instanceFolder.getPath());
-                                code = file;
-                                break;
+                            CatalogueObjectInstance sourcePackage = new CatalogueObjectInstance(SOURCEPACKAGE_MODEL_ID, jPkg, code);
+
+                            if (sourcePackage.isValid()) {
+                                modelObjectsMap.get(SOURCEPACKAGE_MODEL_ID).add(sourcePackage);
+                            } else {
+                                LOG.warn("Validation failed for sourcePackage " + jPkg.toString() + " and will be ignored");
                             }
                         }
 
-                        CatalogueObjectInstance sourcePackage = new CatalogueObjectInstance(SOURCEPACKAGE_MODEL_ID, jPkg, code);
+                        CatalogueObjectInstance descriptor = null;
+                        descriptor = new CatalogueObjectInstance(modelId, jDesc);
 
-                        if (sourcePackage.isValid()) {
-                            modelObjectsMap.get(SOURCEPACKAGE_MODEL_ID).add(sourcePackage);
+                        if (descriptor.isValid) {
+                            modelObjectsMap.get(modelId).add(descriptor);
                         } else {
-                            LOG.warn("Validation failed for sourcePackage " + jPkg.toString() + " and will be ignored");
+                            LOG.warn("Validation failed for descriptor " + jDesc.toString() + " and will be ignored");
                         }
                     }
 
-                    CatalogueObjectInstance descriptor = null;
-                    descriptor = new CatalogueObjectInstance(modelId, jDesc);
-
-                    if (descriptor.isValid) {
-                        modelObjectsMap.get(modelId).add(descriptor);
-                    } else {
-                        LOG.warn("Validation failed for descriptor " + jDesc.toString() + " and will be ignored");
-                    }
-
-                } catch (FileNotFoundException e) {
-                    // should never occur
-                    e.printStackTrace();
                 }
             }
         }
         return modelObjectsMap;
+    }
+
+    private void printBrokenFile(File f) {
+        LOG.error("Contents of file " + f.getPath() + ":");
+        try {
+            try (BufferedReader br = new BufferedReader(new FileReader(f))) {
+                String line = null;
+                while ((line = br.readLine()) != null) {
+                    LOG.error(line);
+                }
+            }
+        } catch (IOException e) {
+            //e.printStackTrace();
+            LOG.error("Error while printing file contents:", e);
+        }
     }
 
     /**
