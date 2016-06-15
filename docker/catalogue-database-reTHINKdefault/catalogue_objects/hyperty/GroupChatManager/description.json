@@ -2,7 +2,7 @@
   "cguid": "10002",
   "type": "Communicator",
   "version": "1.0",
-  "objectName": "HypertyChat",
+  "objectName": "GroupChatManager",
   "language": "Javascript ECMA6",
   "description": "Hyperty with group chat support",
   "dataObjects": [
