@@ -29,9 +29,7 @@ import org.eclipse.leshan.core.node.LwM2mObjectInstance;
 import org.eclipse.leshan.core.node.LwM2mResource;
 import org.eclipse.leshan.core.request.ExecuteRequest;
 import org.eclipse.leshan.core.request.ReadRequest;
-import org.eclipse.leshan.core.response.ExecuteResponse;
-import org.eclipse.leshan.core.response.LwM2mResponse;
-import org.eclipse.leshan.core.response.ReadResponse;
+import org.eclipse.leshan.core.response.*;
 import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.eclipse.leshan.server.client.Client;
 import org.eclipse.leshan.server.client.ClientRegistryListener;
@@ -137,10 +135,10 @@ public class RequestHandler {
      * Makes a ReadRequest via CoAP to a client based on the provided URL path
      *
      * @param path - URL GET request path, e.g. /.well-known/hyperty/myHyperty/version
-     * @return CoAP ReadResponse that the client returned, or an error message as ReadResponse
+     * @param cb   - callback to be called when a response is ready
      */
-    public RequestResponse handleGET(String path) {
-        LOG.info("Handling GET for: " + path);
+    public void handleGET(String path, final RequestCallback cb) {
+        //LOG.info("Handling GET for: " + path);
         // path should start with /.well-known/
         // but coap has no slash at the start, so check for it and prepend it if necessary.
         if (!path.startsWith("/"))
@@ -157,7 +155,7 @@ public class RequestHandler {
         if (pathParts.length == 0) {
             String response = String.format("Please provide at least a type from %s or 'restart' or 'client'", MODEL_NAME_TO_ID_MAP.keySet());
             LOG.warn(response);
-            return new RequestResponse(ReadResponse.internalServerError(response));
+            cb.result(new RequestResponse(ReadResponse.internalServerError(response)));
         } else if (pathParts.length == 1) { // hyperty | protostub | sourcepackage etc. only
 
             String type = pathParts[0];
@@ -166,17 +164,17 @@ public class RequestHandler {
 
             if (id != null) {
                 String response = gson.toJson(nameToInstanceMapMap.get(id).keySet());
-                LOG.info("Returning list: " + response);
-                return new RequestResponse(ReadResponse.success(0, response), id);
+                LOG.debug("Returning list: " + response);
+                cb.result(new RequestResponse(ReadResponse.success(0, response), id));
             } else if (type.equals("restart")) {
                 try {
                     restartClients();
                     String response = "Restart executed on all connected clients";
-                    LOG.info(response);
-                    return new RequestResponse(ReadResponse.success(0, response));
+                    LOG.debug(response);
+                    cb.result(new RequestResponse(ReadResponse.success(0, response)));
                 } catch (InterruptedException e) {
                     LOG.warn("Restarting clients failed", e);
-                    return new RequestResponse(ReadResponse.internalServerError("Restarting clients failed: " + e.getMessage()));
+                    cb.result(new RequestResponse(ReadResponse.internalServerError("Restarting clients failed: " + e.getMessage())));
                 }
             } else if (type.equals("client")) {
                 List<String> clients = new LinkedList<>();
@@ -184,12 +182,12 @@ public class RequestHandler {
                     clients.add(client.getEndpoint() + " (" + client.getRegistrationId() + ")");
                 }
                 String response = gson.toJson(clients);
-                LOG.info("Returinging client list: " + response);
-                return new RequestResponse(ReadResponse.success(0, response));
+                LOG.debug("Returning client list: " + response);
+                cb.result(new RequestResponse(ReadResponse.success(0, response)));
             } else {
                 String response = String.format("Unknown object type, please use one of: %s or 'restart' or 'client'", MODEL_NAME_TO_ID_MAP.keySet());
                 LOG.warn(response);
-                return new RequestResponse(ReadResponse.internalServerError(response), -1);
+                cb.result(new RequestResponse(ReadResponse.internalServerError(response), -1));
             }
 
         } else {
@@ -212,7 +210,7 @@ public class RequestHandler {
             }
 
             //check if resourceName is valid
-            Integer id = MODEL_NAME_TO_ID_MAP.get(modelType);
+            final Integer id = MODEL_NAME_TO_ID_MAP.get(modelType);
             Integer resourceID;
             String target;
 
@@ -224,7 +222,7 @@ public class RequestHandler {
                 if (resourceName != null && resourceID == null) {
                     String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, resourceNameToIdMap.keySet());
                     LOG.warn(response);
-                    return new RequestResponse(ReadResponse.internalServerError(response), id);
+                    cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
 
                 }
 
@@ -243,93 +241,102 @@ public class RequestHandler {
 
                     String[] targetPaths = StringUtils.split(target, "/");
                     LOG.debug("checking endpoint: " + targetPaths[0]);
-                    Client client = server.getClientRegistry().get(targetPaths[0]);
+                    final Client client = server.getClientRegistry().get(targetPaths[0]);
                     if (client != null) {
-                        String t = StringUtils.removeStart(target, "/" + targetPaths[0]);
+                        final String t = StringUtils.removeStart(target, "/" + targetPaths[0]);
                         LOG.debug("requesting {}", t);
                         ReadRequest request = new ReadRequest(t);
-                        try {
-                            long startTime = System.currentTimeMillis();
-                            RequestResponse response = new RequestResponse(server.send(client, request), id);
-                            long respTime = System.currentTimeMillis();
-                            LOG.debug("response received after {}ms", respTime - startTime);
-                            if (details != null && response.isSuccess()) {
-                                try {
-                                    // assume json objects down the "detail" route
-                                    JsonElement current = response.getJson();
-                                    for (String detail : details) {
-                                        //LOG.debug("current: {}", current);
-                                        current = current.getAsJsonObject().get(detail);
+                        final long startTime = System.currentTimeMillis();
+                        final String[] finalDetails = details;
+                        final String finalResourceName = resourceName;
+                        server.send(client, request, new ResponseCallback<ReadResponse>() {
+                            @Override
+                            public void onResponse(ReadResponse readResponse) {
+                                RequestResponse response = new RequestResponse(readResponse, id);
+                                long respTime = System.currentTimeMillis();
+                                LOG.debug("response received after {}ms", respTime - startTime);
+                                if (finalDetails != null && response.isSuccess()) {
+                                    try {
+                                        // assume json objects down the "detail" route
+                                        JsonElement current = response.getJson();
+                                        for (String detail : finalDetails) {
+                                            //LOG.debug("current: {}", current);
+                                            current = current.getAsJsonObject().get(detail);
+                                        }
+                                        //LOG.debug("final current: {}");
+                                        // now current is what we want
+                                        String sResp = current.toString();
+                                        LOG.debug("Returning: " + sResp);
+                                        cb.result(new RequestResponse(ReadResponse.success(0, sResp)));
+                                    } catch (Exception e) {
+                                        //e.printStackTrace();
+                                        String detailPath = "";
+                                        for (String detail : finalDetails) {
+                                            detailPath += "/" + detail;
+                                        }
+                                        String error = detailPath + " not found in " + finalResourceName;
+                                        LOG.warn(error, e);
+                                        cb.result(new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, error)));
                                     }
-                                    //LOG.debug("final current: {}");
-                                    // now current is what we want
-                                    String sResp = current.toString();
-                                    LOG.info("Returning: " + sResp);
-                                    return new RequestResponse(ReadResponse.success(0, sResp));
-                                } catch (Exception e) {
-                                    //e.printStackTrace();
-                                    String detailPath = "";
-                                    for (String detail : details) {
-                                        detailPath += "/" + detail;
-                                    }
-                                    String error = detailPath + " not found in " + resourceName;
-                                    LOG.warn(error, e);
-                                    return new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, error));
+                                } else {
+                                    cb.result(response);
                                 }
-                            } else {
-                                return response;
                             }
-                        } catch (InterruptedException e) {
-                            String error = "unable to request " + t + " from client " + client;
-                            LOG.warn(error, e);
-                            return new RequestResponse(ReadResponse.internalServerError(error + ": " + e.getMessage()), id);
-                        }
+                        }, new ErrorCallback() {
+                            @Override
+                            public void onError(Exception e) {
+                                String error = "unable to request " + t + " from client " + client;
+                                LOG.warn(error, e);
+                                cb.result(new RequestResponse(ReadResponse.internalServerError(error + ": " + e.getMessage()), id));
+                            }
+                        });
+
                     } else {
                         String response = String.format("Found target for '%s', but endpoint is invalid. Redundany error? Requested endpoint: %s", instanceName, targetPaths[0]);
                         LOG.warn(response);
-                        return new RequestResponse(ReadResponse.internalServerError(response), id);
+                        cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
                     }
                 } else {
                     String response = String.format("Could not find instance: %s", instanceName);
                     LOG.warn(response);
-                    return new RequestResponse(ReadResponse.internalServerError(response), id);
+                    cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
 
                 }
             } else if (pathParts[0].equals("restart")) {
-                LOG.info("trying to disconnect {}", instanceName);
+                LOG.debug("trying to disconnect {}", instanceName);
                 Client client = server.getClientRegistry().get(instanceName);
                 LOG.debug("search for client {} returned {}", instanceName, client);
                 if (client != null) {
                     try {
                         ExecuteResponse executeResponse = restartClient(client);
-                        LOG.info("Restarting client {} {}", client.getEndpoint(), executeResponse.isSuccess() ? "succeeded" : "failed");
-                        return new RequestResponse(executeResponse);
+                        LOG.debug("Restarting client {} {}", client.getEndpoint(), executeResponse.isSuccess() ? "succeeded" : "failed");
+                        cb.result(new RequestResponse(executeResponse));
                     } catch (InterruptedException e) {
                         String errorMessage = "Unable to restart client " + client.getEndpoint() + ": " + e.getMessage();
                         LOG.warn(errorMessage, e);
-                        return new RequestResponse(ReadResponse.internalServerError(errorMessage));
+                        cb.result(new RequestResponse(ReadResponse.internalServerError(errorMessage)));
                     }
                 } else {
                     String errorMessage = "Client " + instanceName + " not found";
                     LOG.warn(errorMessage);
-                    return new RequestResponse(ReadResponse.internalServerError(errorMessage));
+                    cb.result(new RequestResponse(ReadResponse.internalServerError(errorMessage)));
                 }
             } else if (pathParts[0].equals("client")) {
-                LOG.info("trying to get information about client {}", instanceName);
+                LOG.debug("trying to get information about client {}", instanceName);
                 Client client = server.getClientRegistry().get(instanceName);
                 if (client != null) {
                     String response = client.toString();
-                    LOG.info("client " + instanceName + " found: {}", response);
-                    return new RequestResponse(ReadResponse.success(0, response));
+                    LOG.debug("client " + instanceName + " found: {}", response);
+                    cb.result(new RequestResponse(ReadResponse.success(0, response)));
                 } else {
                     String errorMessage = "client " + instanceName + " not found";
                     LOG.warn(errorMessage);
-                    return new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, errorMessage));
+                    cb.result(new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, errorMessage)));
                 }
             } else {
                 String response = String.format("Unknown object type, please use one of: %s or 'restart'", MODEL_NAME_TO_ID_MAP.keySet());
                 LOG.warn(response);
-                return new RequestResponse(ReadResponse.internalServerError(response));
+                cb.result(new RequestResponse(ReadResponse.internalServerError(response)));
             }
         }
     }
@@ -475,7 +482,7 @@ public class RequestHandler {
                             LOG.warn("'{}' contained object links on register, but requesting them failed with: " + gson.toJson(response), client.getEndpoint());
                         }
                     }
-                    LOG.info("'{}' contains: {}", client.getEndpoint(), gson.toJson(generatedMapping));
+                    LOG.debug("'{}' contains: {}", client.getEndpoint(), gson.toJson(generatedMapping));
                 }
             });
             t.start();
@@ -504,7 +511,7 @@ public class RequestHandler {
      * @throws InterruptedException
      */
     public void restartClients() throws InterruptedException {
-        LOG.info("Restarting all clients...");
+        LOG.debug("Restarting all clients...");
         for (Client client : server.getClientRegistry().allClients()) {
             restartClient(client);
         }
@@ -518,9 +525,9 @@ public class RequestHandler {
      * @throws InterruptedException
      */
     public ExecuteResponse restartClient(Client client) throws InterruptedException {
-        //LOG.info("Trying to restart {}", client.getEndpoint());
+        //LOG.debug("Trying to restart {}", client.getEndpoint());
         ExecuteResponse response = server.send(client, new ExecuteRequest(3, 0, 4));
-        LOG.info("Restarting client {} " + (response.isSuccess() ? "succeeded" : ("failed: " + response.getCode())), client.getEndpoint());
+        LOG.debug("Restarting client {} " + (response.isSuccess() ? "succeeded" : ("failed: " + response.getCode())), client.getEndpoint());
         return response;
     }
 
@@ -626,5 +633,9 @@ public class RequestHandler {
                     ", model=" + model +
                     '}';
         }
+    }
+
+    public interface RequestCallback {
+        void result(RequestResponse response);
     }
 }

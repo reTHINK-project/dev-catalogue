@@ -200,6 +200,7 @@ public class CatalogueBroker {
 
         //ServletContextHandler servletContextHandler = new ServletContextHandler(server, "/", true, false);
         ServletHolder servletHolder = new ServletHolder(new WellKnownServlet(lwServer, rethinkRequestHandler));
+        servletHolder.setAsyncSupported(true);
         //servletContextHandler.addServlet(servletHolder, "/.well-known/*");
 
         // WebApp stuff
@@ -351,6 +352,14 @@ public class CatalogueBroker {
                     conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
                     conf.getRootLogger().setLevel(Level.INFO);
                     ctx.updateLoggers(conf);
+                    break;
+                case "-vv":
+                    // increase log level
+                    LoggerContext vctx = (LoggerContext) LogManager.getContext(false);
+                    Configuration vconf = vctx.getConfiguration();
+                    vconf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
+                    vconf.getRootLogger().setLevel(Level.DEBUG);
+                    vctx.updateLoggers(vconf);
                     break;
             }
         }
