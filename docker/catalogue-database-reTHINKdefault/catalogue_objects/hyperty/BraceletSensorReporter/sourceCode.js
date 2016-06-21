@@ -61,7 +61,7 @@ var BraceletSensorReporter = function () {
     _this.firstTime = true;
 
     _this._domain = (0, _utils.divideURL)(hypertyURL).domain;
-    _this._objectDescURL = 'hyperty-catalogue://catalogue.' + _this._domain + '/.well-known/dataschemas/Context';
+    _this._objectDescURL = 'hyperty-catalogue://catalogue.' + _this._domain + '/.well-known/dataschema/Context';
 
     console.log('Init BraceletSensorReporter: ', hypertyURL);
     _this._syncher = new _Syncher.Syncher(hypertyURL, bus, configuration);
