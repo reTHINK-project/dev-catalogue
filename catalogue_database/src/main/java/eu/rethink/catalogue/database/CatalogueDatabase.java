@@ -210,14 +210,6 @@ public class CatalogueDatabase {
                     case "-t":
                         d.setLifetime(Integer.parseInt(args[++i]));
                         break;
-                    case "-v":
-                        // increase log level
-                        LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-                        Configuration conf = ctx.getConfiguration();
-                        conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
-                        conf.getRootLogger().setLevel(Level.INFO);
-                        ctx.updateLoggers(conf);
-                        break;
                     case "-endpoint":
                     case "-e":
                         d.setEndpoint(args[++i]);
@@ -255,6 +247,22 @@ public class CatalogueDatabase {
                     case "-coapsport":
                     case "-csp":
                         d.setLocalSecurePort(Integer.parseInt(args[++i]));
+                        break;
+                    case "-v":
+                        // increase log level
+                        LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+                        Configuration conf = ctx.getConfiguration();
+                        conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
+                        conf.getRootLogger().setLevel(Level.INFO);
+                        ctx.updateLoggers(conf);
+                        break;
+                    case "-vv":
+                        // increase log level
+                        LoggerContext vctx = (LoggerContext) LogManager.getContext(false);
+                        Configuration vconf = vctx.getConfiguration();
+                        vconf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
+                        vconf.getRootLogger().setLevel(Level.DEBUG);
+                        vctx.updateLoggers(vconf);
                         break;
                 }
             }
@@ -594,7 +602,7 @@ public class CatalogueDatabase {
         @Override
         public ReadResponse read(int resourceid) {
             String resourceName = MODEL_ID_TO_RESOURCES_MAP_MAP.get(model).get(resourceid).name;
-            LOG.info("Read on {} ({})", resourceid, resourceName);
+            LOG.debug("Read on {} ({})", resourceid, resourceName);
             ReadResponse response;
             if (descriptor.has(resourceName)) {
                 JsonElement element = descriptor.get(resourceName);
@@ -631,7 +639,7 @@ public class CatalogueDatabase {
 
         @Override
         public ReadResponse read(int resourceid) {
-            LOG.info("Read on Device Resource " + resourceid);
+            LOG.debug("Read on Device Resource " + resourceid);
             switch (resourceid) {
                 case 0:
                     return ReadResponse.success(resourceid, getManufacturer());
@@ -663,7 +671,7 @@ public class CatalogueDatabase {
 
         @Override
         public ExecuteResponse execute(int resourceid, String params) {
-            LOG.info("Execute on Device resource ({}, {})", resourceid, params);
+            LOG.debug("Execute on Device resource ({}, {})", resourceid, params);
             new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -698,7 +706,7 @@ public class CatalogueDatabase {
 
         @Override
         public WriteResponse write(int resourceid, LwM2mResource value) {
-            LOG.info("Write on Device resource ({}, {})", resourceid, value);
+            LOG.debug("Write on Device resource ({}, {})", resourceid, value);
             return super.write(resourceid, value);
         }
 

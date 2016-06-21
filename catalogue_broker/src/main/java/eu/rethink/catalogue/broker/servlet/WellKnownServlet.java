@@ -23,7 +23,10 @@ import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.AsyncContext;
 import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -38,14 +41,18 @@ public class WellKnownServlet extends HttpServlet {
     private static Map<ResponseCode, Integer> coap2httpCodeMap = new HashMap<>();
 
     static {
-        coap2httpCodeMap.put(ResponseCode.CONTENT, HttpServletResponse.SC_OK);
+        coap2httpCodeMap.put(ResponseCode.CREATED, HttpServletResponse.SC_CREATED);
+        coap2httpCodeMap.put(ResponseCode.DELETED, HttpServletResponse.SC_OK);
         coap2httpCodeMap.put(ResponseCode.CHANGED, HttpServletResponse.SC_OK);
-        coap2httpCodeMap.put(ResponseCode.INTERNAL_SERVER_ERROR, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        coap2httpCodeMap.put(ResponseCode.CONTENT, HttpServletResponse.SC_OK);
+        coap2httpCodeMap.put(ResponseCode.UNAUTHORIZED, HttpServletResponse.SC_FORBIDDEN);
+        coap2httpCodeMap.put(ResponseCode.BAD_REQUEST, HttpServletResponse.SC_BAD_REQUEST);
         coap2httpCodeMap.put(ResponseCode.METHOD_NOT_ALLOWED, HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+        coap2httpCodeMap.put(ResponseCode.FORBIDDEN, HttpServletResponse.SC_FORBIDDEN);
         coap2httpCodeMap.put(ResponseCode.NOT_FOUND, HttpServletResponse.SC_NOT_FOUND);
-        coap2httpCodeMap.put(ResponseCode.UNAUTHORIZED, HttpServletResponse.SC_UNAUTHORIZED);
+        coap2httpCodeMap.put(ResponseCode.NOT_ACCEPTABLE, HttpServletResponse.SC_NOT_ACCEPTABLE);
+        coap2httpCodeMap.put(ResponseCode.INTERNAL_SERVER_ERROR, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
-
 
     private RequestHandler requestHandler;
     private static final Logger LOG = LoggerFactory.getLogger(WellKnownServlet.class);
@@ -66,30 +73,49 @@ public class WellKnownServlet extends HttpServlet {
      * Handles incoming GET requests. Adds "Access-Control-Allow-Origin" header to response.
      */
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        LOG.info("GOT GET: {}", req);
-
-        // let it be handled by RequestHandler
-        RequestHandler.RequestResponse response = requestHandler.handleGET(req.getRequestURI());
-
-        // set header so cross-domain requests work
+    protected void doGet(HttpServletRequest req, final HttpServletResponse resp) throws ServletException, IOException {
+        LOG.debug("Received GET request on {}", req.getRequestURI());
         resp.addHeader("Access-Control-Allow-Origin", "*");
-        Integer code = coap2httpCodeMap.get(response.getCode());
+        final AsyncContext asyncContext = req.startAsync();
+        asyncContext.start(new Runnable() {
+            @Override
+            public void run() {
+                final ServletRequest aReq = asyncContext.getRequest();
 
-        // try to map CoAP response code to http
-        if (code == null) {
-            LOG.warn("HTTP Code is null! Coap code: {}", response.getCode());
-            code = response.isSuccess() ? HttpServletResponse.SC_OK : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-        }
+                // let it be handled by RequestHandler
+                requestHandler.handleGET(String.valueOf(aReq.getAttribute("javax.servlet.async.request_uri")), new RequestHandler.RequestCallback() {
+                    @Override
+                    public void result(RequestHandler.RequestResponse response) {
+                        ServletResponse aResp = asyncContext.getResponse();
+                        // set header so cross-domain requests work
+                        Integer code = coap2httpCodeMap.get(response.getCode());
 
-        // forward response
-        if (response.isSuccess()) {
-            resp.setStatus(code);
-            resp.getWriter().write(response.getJsonString());
-        } else {
-            LOG.debug("returning error ({}): {}", code, response.getJsonString());
-            resp.sendError(code, response.getJsonString());
-        }
+                        // try to map CoAP response code to http
+                        if (code == null) {
+                            LOG.warn("Unable to map coap response code {} to http; using default", response.getCode());
+                            code = response.isSuccess() ? HttpServletResponse.SC_OK : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+                        }
+                        resp.setStatus(code);
+                        // forward response
+                        if (response.isSuccess()) {
+                            try {
+                                aResp.getWriter().write(response.getJsonString());
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        } else {
+                            LOG.debug("returning error ({}): {}", code, response.getJsonString());
+                            try {
+                                aResp.getWriter().write(response.getJsonString());
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        asyncContext.complete();
+                    }
+                });
+            }
+        });
     }
 
 
