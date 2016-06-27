@@ -3339,7 +3339,7 @@ var NotificationsTrigger = function NotificationsTrigger(domain, syncher, discov
 
         _discoveryService: discoveryService,
 
-        _objectDescURL: 'hyperty-catalogue://' + domain + '/.well-known/dataschemas/Communication'
+        _objectDescURL: 'hyperty-catalogue://catalogue.' + domain + '/.well-known/dataschema/Communication'
     }, NotificationsTriggerObject);
 };
 

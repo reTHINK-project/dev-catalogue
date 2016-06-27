@@ -3314,7 +3314,7 @@ var SurveyReporterFactory = function SurveyReporterFactory(hypertyURL, bus, conf
     var syncher = new _Syncher.Syncher(hypertyURL, bus, config);
     return Object.assign(Object.create(SurveyReporter), {
         hypertyDiscoveryService: hypertyDiscovery,
-        objectDescURL: 'hyperty-catalogue://' + uri.hostname() + '/.well-known/dataschemas/Communication',
+        objectDescURL: 'hyperty-catalogue://catalogue.' + uri.hostname() + '/.well-known/dataschema/Communication',
         hypertyURL: hypertyURL,
         syncher: syncher
     });

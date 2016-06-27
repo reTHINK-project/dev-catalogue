@@ -3323,7 +3323,7 @@ var NotificationsTrigger = function NotificationsTrigger(domain, syncher, discov
 
         _discoveryService: discoveryService,
 
-        _objectDescURL: 'hyperty-catalogue://' + domain + '/.well-known/dataschemas/Communication'
+        _objectDescURL: 'hyperty-catalogue://catalogue.' + domain + '/.well-known/dataschema/Communication'
     }, NotificationsTriggerObject);
 };
 
@@ -3408,7 +3408,7 @@ var SurveyObserverFactory = function SurveyObserverFactory(hypertyURL, bus, conf
     var identityManager = new _IdentityManager2.default(hypertyURL, config.runtimeURL, bus);
     return Object.assign(Object.create(SurveyObserver), {
         syncher: syncher,
-        objectDescURL: 'hyperty-catalogue://' + uri.hostname() + '/.well-known/dataschemas/Communication',
+        objectDescURL: 'hyperty-catalogue://catalogue.' + uri.hostname() + '/.well-known/dataschema/Communication',
         hypertyURL: hypertyURL,
         notifications: notifications,
         identityManagerService: identityManager

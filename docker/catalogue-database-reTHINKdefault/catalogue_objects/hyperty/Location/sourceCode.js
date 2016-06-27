@@ -3253,7 +3253,7 @@ var LocationHyperty = {
 
 var LocationHypertyFactory = function LocationHypertyFactory(hypertyURL, bus, config) {
     var uri = new _urijs2.default(hypertyURL);
-    LocationHyperty._objectDescURL = 'hyperty-catalogue://' + uri.hostname() + '/.well-known/dataschemas/ContextDataSchema';
+    LocationHyperty._objectDescURL = 'hyperty-catalogue://catalogue.' + uri.hostname() + '/.well-known/dataschema/Context';
     LocationHyperty._syncher = new _Syncher.Syncher(hypertyURL, bus, config);
 
     return LocationHyperty;
