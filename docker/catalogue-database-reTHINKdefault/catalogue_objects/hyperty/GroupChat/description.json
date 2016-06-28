@@ -8,7 +8,7 @@
     "dataObjects": [
         "https://catalogue.hybroker.rethink.ptinovacao.pt/.well-known/dataschema/Communication"
     ],
-    "hypertyType": ["groupChat"],
+    "hypertyType": ["chat"],
     "messageSchemas": "",
     "configuration": {},
     "constraints": {},
