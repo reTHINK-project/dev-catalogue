@@ -63,9 +63,7 @@ var BraceletSensorReporter = function () {
 
     _this._domain = (0, _utils.divideURL)(hypertyURL).domain;
 
-    //_this._objectDescURL = 'hyperty-catalogue://catalogue.' + _this._domain + '/.well-known/dataschema/Context';
-
-    _this._objectDescURL = 'hyperty-catalogue://' + _this._domain + '/.well-known/dataschema/Context';
+    _this._objectDescURL = 'hyperty-catalogue://catalogue.' + _this._domain + '/.well-known/dataschema/Context';
 
     console.log('Init BraceletSensorReporter: ', hypertyURL);
     _this._syncher = new _Syncher.Syncher(hypertyURL, bus, configuration);
@@ -248,10 +246,6 @@ var BraceletSensorReporter = function () {
           } else {
             console.log('isConnectedSuccess', status);
             _this.Connect(initialData.id);
-            /*_this.Connect(initialData.id).then(function() {
-              console.log('Connected Again!');
-              _this.readBattery(initialData.id).then(battery => _this.pushData(battery, initialData.id));
-            });*/
           }
         };
         var isConnectedError = function isConnectedError(status) {

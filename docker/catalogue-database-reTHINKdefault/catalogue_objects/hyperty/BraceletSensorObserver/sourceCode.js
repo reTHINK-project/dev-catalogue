@@ -201,10 +201,9 @@ var BraceletSensorObserver = function () {
 }();
 
 function activate(hypertyURL, bus, configuration) {
-  window.braceletSensorObserver = new BraceletSensorObserver(hypertyURL, bus, configuration);
   return {
     name: 'BraceletSensorObserver',
-    instance: window.braceletSensorObserver
+    instance: new BraceletSensorObserver(hypertyURL, bus, configuration)
   };
 }
 module.exports = exports['default'];
