@@ -136,21 +136,18 @@ var BraceletSensorObserver = function () {
     if (!hypertyURL) throw new Error('The hypertyURL is a needed parameter');
     if (!bus) throw new Error('The MiniBus is a needed parameter');
     if (!configuration) throw new Error('The configuration is a needed parameter');
-
     var _this = this;
     var identityManager = new _IdentityManager2.default(hypertyURL, configuration.runtimeURL, bus);
+    console.log('hypertyURL->', hypertyURL);
     _this._domain = (0, _utils.divideURL)(hypertyURL).domain;
-    _this._objectDescURL = 'hyperty-catalogue://catalogue.' + _this._domain + '/.well-known/dataschemas/Context';
+    _this._objectDescURL = 'hyperty-catalogue://catalogue.' + _this._domain + '/.well-known/dataschema/Context';
 
     console.log('Init BraceletSensorObserver: ', hypertyURL);
     _this._syncher = new _Syncher.Syncher(hypertyURL, bus, configuration);
     var discovery = new _Discovery2.default(hypertyURL, bus);
     _this._discovery = discovery;
-    console.log('asd1');
     _this.identityManager = identityManager;
-    console.log('asd3');
     _this.search = new _Search2.default(discovery, identityManager);
-    console.log('asd4');
   }
 
   _createClass(BraceletSensorObserver, [{
@@ -164,16 +161,39 @@ var BraceletSensorObserver = function () {
       });
     }
   }, {
-    key: 'ObserveBracelet',
-    value: function ObserveBracelet(url) {
-
+    key: 'connect',
+    value: function connect(hypertyID) {
       var _this = this;
-      _this._syncher.subscribe(_this._objectDescURL, url).then(function (observer) {
-        console.log('data object observer', observer);
-        observer.onChange('*', function (event) {
-          console.log('event->->->->->:', event);
+      return new Promise(function (resolve, reject) {
+        _this._discovery.discoverDataObjectPerReporter(hypertyID, _this._domain).then(function (dataObject) {
+          console.log('discovery dataobject', dataObject);
+          var key = Object.keys(dataObject);
+          console.log('URL DATA Object', key[0]);
+          resolve(key[0]);
         });
       });
+    }
+  }, {
+    key: 'ObserveBracelet',
+    value: function ObserveBracelet(url) {
+      var _this = this;
+      return new Promise(function (resolve, reject) {
+        _this._syncher.subscribe(_this._objectDescURL, url).then(function (observer) {
+          console.log('data object observer', observer);
+          resolve(observer);
+          observer.onChange('*', function (event) {
+            console.log('event->->->->->:', event);
+
+            if (_this._onChange) _this._onChange(event);
+          });
+        });
+      });
+    }
+  }, {
+    key: 'onChange',
+    value: function onChange(callback) {
+      var _this = this;
+      _this._onChange = callback;
     }
   }]);
 
@@ -201,7 +221,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 // TODO: optimize this process
-var DOMAINS = ['hybroker.rethink.ptinovacao.pt', 'rethink.quobis.com', 'luis.dev'];
+var DOMAINS = ['hybroker.rethink.ptinovacao.pt'];
 
 var Search = function () {
   function Search(discovery, identityManager) {
@@ -259,7 +279,7 @@ var Search = function () {
 
             usersURLs.forEach(function (userURL) {
               DOMAINS.forEach(function (domain) {
-                getUsers.push(_this.discovery.discoverHyperty(userURL, ['connection'], ['video', 'audio'], domain));
+                getUsers.push(_this.discovery.discoverHyperty(userURL, ['context'], ['steps', 'battery'], domain));
               });
             });
 
