@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.leshan.LwM2mId;
 import org.eclipse.leshan.client.californium.LeshanClient;
 import org.eclipse.leshan.client.californium.LeshanClientBuilder;
@@ -173,6 +174,7 @@ public class CatalogueDatabase {
     }
 
     public static void main(final String[] args) {
+        // setup SLF4JBridgeHandler needed for proper logging
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         SLF4JBridgeHandler.install();
 
@@ -292,6 +294,24 @@ public class CatalogueDatabase {
             accessURL = "http://" + serverDomain + "/.well-known/";
         } else {
             accessURL = "https://" + serverDomain + "/.well-known/";
+        }
+
+        // set californium properties
+        try {
+            InputStream in = getClass().getResourceAsStream("/Californium.properties");
+            OutputStream out = new FileOutputStream("Californium.properties.tmp");
+            byte[] buffer = new byte[1024];
+            int len = in.read(buffer);
+            while (len != -1) {
+                out.write(buffer, 0, len);
+                len = in.read(buffer);
+            }
+            out.close();
+            File f = new File("Californium.properties.tmp");
+            NetworkConfig.createStandardWithFile(f);
+            f.deleteOnExit();
+        } catch (IOException e) {
+            LOG.warn("Unable to use Californium properties from resources folder: {}", e);
         }
 
         LOG.info("Catalogue Broker host name: " + serverHostName);

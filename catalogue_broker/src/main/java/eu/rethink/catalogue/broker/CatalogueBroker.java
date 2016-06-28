@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.*;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -34,6 +35,8 @@ import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
+
+import java.io.*;
 
 /**
  * The reTHINK Catalogue Broker
@@ -134,6 +137,24 @@ public class CatalogueBroker {
 
         if (coapHost != null && coapsHost == null) {
             coapsHost = coapHost;
+        }
+
+        // set californium properties
+        try {
+            InputStream in = getClass().getResourceAsStream("/Californium.properties");
+            OutputStream out = new FileOutputStream("Californium.properties.tmp");
+            byte[] buffer = new byte[1024];
+            int len = in.read(buffer);
+            while (len != -1) {
+                out.write(buffer, 0, len);
+                len = in.read(buffer);
+            }
+            out.close();
+            File f = new File("Californium.properties.tmp");
+            NetworkConfig.createStandardWithFile(f);
+            f.deleteOnExit();
+        } catch (IOException e) {
+            LOG.warn("Unable to use Californium properties from resources folder: {}", e);
         }
 
         // Build LWM2M server
@@ -255,6 +276,7 @@ public class CatalogueBroker {
     }
 
     public static void main(String[] args) {
+        // setup SLF4JBridgeHandler needed for proper logging
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         SLF4JBridgeHandler.install();
 
