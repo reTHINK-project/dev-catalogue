@@ -84,7 +84,7 @@ public class RequestHandler {
         MODEL_NAME_TO_ID_MAP.put(SOURCEPACKAGE_TYPE_NAME, SOURCEPACKAGE_MODEL_ID);
 
         for (Integer modelId : MODEL_NAME_TO_ID_MAP.values()) {
-            nameToInstanceMapMap.put(modelId, new HashMap<String, String>());
+            nameToInstanceMapMap.put(modelId, new TreeMap<String, String>());
         }
     }
 
@@ -195,7 +195,6 @@ public class RequestHandler {
                 LOG.warn(response);
                 cb.result(new RequestResponse(ReadResponse.internalServerError(response), -1));
             }
-
         } else {
             String modelType = pathParts[0];
             String instanceName = pathParts[1];
@@ -229,7 +228,7 @@ public class RequestHandler {
                     String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, resourceNameToIdMap.keySet());
                     LOG.warn(response);
                     cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
-
+                    return;
                 }
 
                 Map<String, String> nameToInstanceMap = nameToInstanceMapMap.get(id);
