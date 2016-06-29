@@ -7,7 +7,7 @@ Synopsis:
 
 Example:
 
-`java -jar catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependencies.jar -http 8090 -coap "localhost:5683" -coaps 5684`
+`java -jar catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependencies.jar -http 8090 -coap "localhost:5683" -coaps 5684` -default "hyperty/myHyperty"
 
 You can configure the Catalogue Broker using the following options:
 
@@ -27,7 +27,8 @@ option                      | description
 -keystorePassword, -kpw     | set keystore password
 -keyManagerPassword, -kmpw  | set keystore manager password
 -truststorePassword, -tpw   | set truststore password
--v                          | increase logging level to DEBUG
+-default                    | set default instance (type/instanceName)
+-v, -vv                     | increase logging level
 
 Note: By default, the Catalogue Broker uses https for everything. If not configured with the options mentioned below, it runs on port 80 for http, and 443 for https. Usually you are only permitted to use those ports when running the jar with sudo.
 If testing in a browser, please also make sure your browser accepts the provided self-signed certificates.
@@ -58,7 +59,7 @@ option              | description
 -usehttp            | change protocol of generated sourcePackageURLs to http (otherwise, https is used)
 -lifetime, -t       | set the time between client updates (default = 60)
 -endpoint, -e       | set Catalogue Database endpoint name
--v                  | increase logging level to DEBUG
+-v, -vv             | increase logging level
 
 If you run the Catalogue Database without launch arguments,
 it tries to connect to the Catalogue Broker on localhost:5683 by default,
