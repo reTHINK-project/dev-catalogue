@@ -385,8 +385,14 @@ public class CatalogueBroker {
                     broker.setTruststorePassword(args[++i]);
                     break;
                 case "-default":
-                    String[] defParts = args[++i].split(":|/|=");
-                    broker.addDefault(defParts[0], defParts[1]);
+                    String def = args[++i];
+                    try {
+                        String[] defParts = def.split(":|/|=");
+                        broker.addDefault(defParts[0], defParts[1]);
+                    } catch (Exception e) {
+                        //e.printStackTrace();
+                        System.err.println("Unable to parse option: -default " + def);
+                    }
                 case "-v":
                     // increase log level
                     LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
