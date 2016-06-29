@@ -184,7 +184,7 @@
             }
 
             if (xmlHttp.status != 200) {
-                resp = "error (" + xmlHttp.status + ") " + xmlHttp.statusText;
+                resp = "error (" + xmlHttp.status + ") " + xmlHttp.responseText;
             }
 
             return resp;
@@ -195,7 +195,7 @@
             address = document.location.origin
                     + "/.well-known/"
                     + kind + "/";
-            $scope.names = $scope.getResource(address);
+            $scope.names = ["default"].concat($scope.getResource(address));
         };
 
 
