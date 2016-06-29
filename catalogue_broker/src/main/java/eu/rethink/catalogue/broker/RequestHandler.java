@@ -107,6 +107,12 @@ public class RequestHandler {
             .create();
 
     private LeshanServer server;
+    private Map<String, String> defaults = new HashMap<>();
+
+    public RequestHandler(LeshanServer server, Map<String, String> defaults) {
+        this(server);
+        this.defaults = defaults;
+    }
 
     public RequestHandler(LeshanServer server) {
         this.server = server;
@@ -212,7 +218,7 @@ public class RequestHandler {
             //check if resourceName is valid
             final Integer id = MODEL_NAME_TO_ID_MAP.get(modelType);
             Integer resourceID;
-            String target;
+            String target = null;
 
             if (id != null) {
                 Map<String, Integer> resourceNameToIdMap = resourceNameToIdMapMap.get(id);
@@ -228,11 +234,11 @@ public class RequestHandler {
 
                 Map<String, String> nameToInstanceMap = nameToInstanceMapMap.get(id);
 
-                target = nameToInstanceMap.get(instanceName);
-                if (target == null && instanceName.equals("default")) {
-                    LOG.debug("default object requested and no default defined -> returning first in map");
-                    target = nameToInstanceMap.values().iterator().next();
+                if (instanceName.equals("default") && defaults.containsKey(modelType)) {
+                    instanceName = defaults.get(modelType);
+                    LOG.debug("default instance for type '{}' requested -> using {}", modelType, instanceName);
                 }
+                target = nameToInstanceMap.get(instanceName);
                 LOG.debug(String.format("target for object '%s': %s", instanceName, target));
 
                 if (target != null) {
@@ -297,10 +303,14 @@ public class RequestHandler {
                         cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
                     }
                 } else {
-                    String response = String.format("Could not find instance: %s", instanceName);
+                    String response;
+                    if (instanceName.equals("default")) {
+                        response = String.format("No instance defined as default for type '%s'", modelType);
+                    } else {
+                        response = String.format("Could not find instance: %s", instanceName);
+                    }
                     LOG.warn(response);
                     cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
-
                 }
             } else if (pathParts[0].equals("restart")) {
                 LOG.debug("trying to disconnect {}", instanceName);
@@ -395,7 +405,7 @@ public class RequestHandler {
 
             final List<String> foundModels = new LinkedList<>();
 
-            //LOG.debug("checking object links of client: " + client);
+            LOG.debug("checking object links of client: " + client);
             for (LinkObject link : client.getObjectLinks()) {
                 String linkUrl = link.getUrl();
                 //LOG.debug("checking link: " + link.getUrl());
@@ -406,7 +416,7 @@ public class RequestHandler {
                         foundModels.add(link.getUrl());
                 }
             }
-            //LOG.debug("{} contains: {}", client.getEndpoint(), foundModels);
+            LOG.debug("{} contains: {}", client.getEndpoint(), foundModels);
 
             //request instances of each found model
             Thread t = new Thread(new Runnable() {
@@ -414,7 +424,7 @@ public class RequestHandler {
                 public void run() {
                     final Map<String, String> generatedMapping = new LinkedHashMap<>();
                     for (final String foundModelLink : foundModels) {
-                        //LOG.debug("send readRequest for modelLink: {}", foundModelLink);
+                        LOG.debug("send readRequest for modelLink: {}", foundModelLink);
 
                         final int model;
                         if (foundModelLink.indexOf("/", 1) > -1) {
@@ -510,6 +520,7 @@ public class RequestHandler {
      *
      * @throws InterruptedException
      */
+
     public void restartClients() throws InterruptedException {
         LOG.debug("Restarting all clients...");
         for (Client client : server.getClientRegistry().allClients()) {

@@ -129,6 +129,9 @@ public class CatalogueDatabase {
 
     private Map<Integer, ObjectModel> objectModelMap = new HashMap<>(MODEL_IDS.size());
 
+    private final String CALIFORNIUM_FILE_NAME = "Californium.properties";
+    private final String CALIFORNIUM_TEMP_EXTENTION = ".database.tmp";
+
     public void setUseHttp(boolean useHttp) {
         this.useHttp = useHttp;
     }
@@ -286,6 +289,27 @@ public class CatalogueDatabase {
     public void start() throws CatalogueObjectParsingException {
         LOG.info("Starting Catalogue Database...");
 
+        // set californium properties
+        try {
+            InputStream in = getClass().getResourceAsStream("/" + CALIFORNIUM_FILE_NAME);
+            File tmpFile = new File(CALIFORNIUM_FILE_NAME + CALIFORNIUM_TEMP_EXTENTION);
+            if (!tmpFile.exists()) {
+                OutputStream out = new FileOutputStream(tmpFile);
+                byte[] buffer = new byte[1024];
+                int len = in.read(buffer);
+                while (len != -1) {
+                    out.write(buffer, 0, len);
+                    len = in.read(buffer);
+                }
+                out.close();
+                tmpFile = new File("Californium.properties.tmp");
+            }
+            NetworkConfig.createStandardWithFile(tmpFile);
+            tmpFile.deleteOnExit();
+        } catch (IOException e) {
+            LOG.warn("Unable to use Californium properties from resources folder: {}", e);
+        }
+
         if (serverDomain == null) {
             serverDomain = serverHostName;
         }
@@ -294,24 +318,6 @@ public class CatalogueDatabase {
             accessURL = "http://" + serverDomain + "/.well-known/";
         } else {
             accessURL = "https://" + serverDomain + "/.well-known/";
-        }
-
-        // set californium properties
-        try {
-            InputStream in = getClass().getResourceAsStream("/Californium.properties");
-            OutputStream out = new FileOutputStream("Californium.properties.tmp");
-            byte[] buffer = new byte[1024];
-            int len = in.read(buffer);
-            while (len != -1) {
-                out.write(buffer, 0, len);
-                len = in.read(buffer);
-            }
-            out.close();
-            File f = new File("Californium.properties.tmp");
-            NetworkConfig.createStandardWithFile(f);
-            f.deleteOnExit();
-        } catch (IOException e) {
-            LOG.warn("Unable to use Californium properties from resources folder: {}", e);
         }
 
         LOG.info("Catalogue Broker host name: " + serverHostName);
@@ -380,7 +386,8 @@ public class CatalogueDatabase {
 
         // Start the client
         client.start();
-        LOG.info("I am {}", endpoint);
+        LOG.info("Catalogue Database is running");
+        LOG.info("      Name: {}", endpoint);
         LOG.info(" CoAP port: {}", client.getNonSecureAddress().getPort());
         LOG.info("CoAPs port: {}", client.getSecureAddress().getPort());
         final CatalogueDatabase ref = this;
@@ -439,6 +446,12 @@ public class CatalogueDatabase {
 
             for (File instanceFolder : instanceFolders) {
                 LOG.debug("parsing instance folder " + instanceFolder.getPath());
+                if (instanceFolder.getName().toLowerCase().equals("default")) {
+                    LOG.warn("Defining default instance by calling it 'default' is not supported anymore. " +
+                            "Please use the Catalogue Broker option '-default' instead. " +
+                            "Folder " + instanceFolder.getPath() + " will be skipped...");
+                    continue;
+                }
                 File desc = new File(instanceFolder, "description.json");
                 File pkg = new File(instanceFolder, "sourcePackage.json");
                 if (!desc.exists()) {

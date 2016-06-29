@@ -37,6 +37,8 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.*;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The reTHINK Catalogue Broker
@@ -55,9 +57,13 @@ public class CatalogueBroker {
     private String host = null;
     private String coapHost = null;
     private String coapsHost = null;
+    private Map<String, String> defaultMap = new HashMap<>();
 
     private int coapPort = 5683;
     private int coapsPort = 5684;
+
+    private final String CALIFORNIUM_FILE_NAME = "Californium.properties";
+    private final String CALIFORNIUM_TEMP_EXTENTION = ".database.tmp";
 
     public void setHost(String host) {
         this.host = host;
@@ -107,6 +113,11 @@ public class CatalogueBroker {
         this.truststorePassword = truststorePassword;
     }
 
+    public void addDefault(String type, String instanceName) {
+        //LOG.debug("Adding '{}' as default object for type '{}'", instanceName, type);
+        defaultMap.put(type, instanceName);
+    }
+
     private String keystorePath = "ssl/keystore";
     private String keystorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
 
@@ -116,6 +127,29 @@ public class CatalogueBroker {
     private String truststorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
 
     public void start() {
+        LOG.info("Starting Catalogue Broker...");
+
+        // set californium properties
+        try {
+            InputStream in = getClass().getResourceAsStream("/" + CALIFORNIUM_FILE_NAME);
+            File tmpFile = new File(CALIFORNIUM_FILE_NAME + CALIFORNIUM_TEMP_EXTENTION);
+            if (!tmpFile.exists()) {
+                OutputStream out = new FileOutputStream(tmpFile);
+                byte[] buffer = new byte[1024];
+                int len = in.read(buffer);
+                while (len != -1) {
+                    out.write(buffer, 0, len);
+                    len = in.read(buffer);
+                }
+                out.close();
+                tmpFile = new File("Californium.properties.tmp");
+            }
+            NetworkConfig.createStandardWithFile(tmpFile);
+            tmpFile.deleteOnExit();
+        } catch (IOException e) {
+            LOG.warn("Unable to use Californium properties from resources folder: {}", e);
+        }
+
         // check http ports
         if (httpPort < 0) {
             httpPort = DEFAULT_HTTP_PORT;
@@ -137,24 +171,6 @@ public class CatalogueBroker {
 
         if (coapHost != null && coapsHost == null) {
             coapsHost = coapHost;
-        }
-
-        // set californium properties
-        try {
-            InputStream in = getClass().getResourceAsStream("/Californium.properties");
-            OutputStream out = new FileOutputStream("Californium.properties.tmp");
-            byte[] buffer = new byte[1024];
-            int len = in.read(buffer);
-            while (len != -1) {
-                out.write(buffer, 0, len);
-                len = in.read(buffer);
-            }
-            out.close();
-            File f = new File("Californium.properties.tmp");
-            NetworkConfig.createStandardWithFile(f);
-            f.deleteOnExit();
-        } catch (IOException e) {
-            LOG.warn("Unable to use Californium properties from resources folder: {}", e);
         }
 
         // Build LWM2M server
@@ -217,7 +233,7 @@ public class CatalogueBroker {
         server.addConnector(sslConnector);
 
         // rethink request handler
-        RequestHandler rethinkRequestHandler = new RequestHandler(lwServer);
+        RequestHandler rethinkRequestHandler = new RequestHandler(lwServer, defaultMap);
 
         //ServletContextHandler servletContextHandler = new ServletContextHandler(server, "/", true, false);
         ServletHolder servletHolder = new ServletHolder(new WellKnownServlet(lwServer, rethinkRequestHandler));
@@ -253,6 +269,7 @@ public class CatalogueBroker {
             LOG.info("CoAPs Host: " + coapsHost);
         LOG.info(" CoAP Port: " + coapPort);
         LOG.info("CoAPs Port: " + coapsPort);
+        LOG.info("Defaults defined: {}", defaultMap.toString());
 
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             @Override
@@ -367,6 +384,9 @@ public class CatalogueBroker {
                 case "-tpw":
                     broker.setTruststorePassword(args[++i]);
                     break;
+                case "-default":
+                    String[] defParts = args[++i].split(":|/|=");
+                    broker.addDefault(defParts[0], defParts[1]);
                 case "-v":
                     // increase log level
                     LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
