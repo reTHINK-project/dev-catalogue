@@ -7,7 +7,7 @@ Synopsis:
 
 Example:
 
-`java -jar catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependencies.jar -http 8090 -coap "localhost:5683" -coaps 5684` -default "hyperty/myHyperty"
+`java -jar catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependencies.jar -http 8090 -coap "localhost:5683" -coaps 5684 -default "runtime/myRuntime"`
 
 You can configure the Catalogue Broker using the following options:
 
