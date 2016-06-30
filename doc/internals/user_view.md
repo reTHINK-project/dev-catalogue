@@ -40,7 +40,9 @@ For **retrieving a list of all available objects of a given type**, the user can
 
 In order to **populate the catalogue with data**, the user sees the catalogue as distributed system consisting of one reThink Catalogue Broker and at least one reThink Catalogue Database.  Every reThink Catalogue Database can populate entries at the broker by reading sets of catalogue objects from the filesystem and forwarding information about them to the broker.
 
-At the database, catalogue objects are hirarchically stored in the file system.  Those resources are stored in the *catalogue_objects* directory which exists in parallel to the *catalogue_database* directory that holds the runtime of the reThink Catalogue Database.  Beneath *catalogue_objects* exist subdirectories, one for each *type of cataogue objects*, which in turn hold one subdirectory for each catalogue object.  The following figure illustrates the directory structure; two hyperty catalogue objects, named *FirstHyperty* and *SecondHyperty* are included.
+At the database, catalogue objects are hirarchically stored in the file system.  Those resources are stored in the *catalogue_objects* directory which exists in parallel to the *catalogue_database* directory that holds the runtime of the reThink Catalogue Database.  Beneath *catalogue_objects* exist subdirectories, one for each *type of cataogue objects*, which in turn hold one subdirectory for each catalogue object. Please note that it is not allowed to name an object folder and therefore a catalogue object "default". To set a default object for a given type, the "-default" option for the Catalogue Broker has to be used instead.
+
+The following figure illustrates the directory structure; two hyperty catalogue objects, named *FirstHyperty* and *SecondHyperty* are included.
 
     --|----- catalogue_database
       |
