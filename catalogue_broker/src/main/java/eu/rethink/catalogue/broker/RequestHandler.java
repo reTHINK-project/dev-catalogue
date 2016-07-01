@@ -354,16 +354,20 @@ public class RequestHandler {
      * Keeps track of currently registered clients.
      */
     private ClientRegistryListener clientRegistryListener = new ClientRegistryListener() {
+        private final Object lock = new Object();
+
         @Override
         public void registered(final Client client) {
             LOG.info("'{}' registered", client.getEndpoint());
-            try {
-                checkClient(client);
-            } catch (Exception e) {
-                LOG.error("Something went wrong while checking the client", e);
-                //e.printStackTrace();
-            }
 
+            synchronized (lock) {
+                try {
+                    checkClient(client);
+                } catch (Exception e) {
+                    LOG.error("Something went wrong while checking the client", e);
+                    //e.printStackTrace();
+                }
+            }
         }
 
         @Override
@@ -389,11 +393,13 @@ public class RequestHandler {
         public void unregistered(Client client) {
             LOG.info("'{}' unregistered", client.getEndpoint());
 
-            try {
-                removeClient(client);
-            } catch (Exception e) {
-                LOG.error("Something went wrong while removing the client", e);
-                e.printStackTrace();
+            synchronized (lock) {
+                try {
+                    removeClient(client);
+                } catch (Exception e) {
+                    LOG.error("Something went wrong while removing the client", e);
+                    e.printStackTrace();
+                }
             }
         }
 
@@ -537,7 +543,7 @@ public class RequestHandler {
     public ExecuteResponse restartClient(Client client) throws InterruptedException {
         //LOG.debug("Trying to restart {}", client.getEndpoint());
         ExecuteResponse response = server.send(client, new ExecuteRequest(3, 0, 4));
-        LOG.debug("Restarting client {} " + (response.isSuccess() ? "succeeded" : ("failed: " + response.getCode())), client.getEndpoint());
+        //LOG.debug("Restarting client {} " + (response.isSuccess() ? "succeeded" : ("failed: " + response.getCode())), client.getEndpoint());
         return response;
     }
 
@@ -620,7 +626,7 @@ public class RequestHandler {
                     }
                 });
             } else if (response instanceof ExecuteResponse) {
-                LOG.debug("is executeResponse");
+                //LOG.debug("is executeResponse");
                 resp[0] = new JsonPrimitive("Successfully executed command");
             }
             //LOG.debug("returning json: {}", resp[0]);
