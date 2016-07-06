@@ -13,30 +13,58 @@
 <body>
 <div ng-app="rethinkTest" ng-controller="myCtrl">
     <h1>reTHINK Catalogue Test Page</h1>
+
+    <h2>Conntected Databases</h2>
+    <table border="1">
+        <tr ng-repeat="database in databases" ng-model="databases">
+            <td alight="right">
+                <pre style="margin: 0">{{database}}</pre>
+            </td>
+            <td>
+                <button ng-click="restartDatabase(database)">Restart</button>
+            </td>
+        </tr>
+        <tr ng-show="databases == undefined || databases.length == 0">
+            <td>
+                No Database(s) connected
+            </td>
+        </tr>
+        <tr ng-hide="databases == undefined || databases.length == 0">
+            <td>
+                &nbsp;
+            </td>
+            <td>
+                <button ng-click="restartDatabase('')">Restart all</button>
+            </td>
+        </tr>
+    </table>
+
+    <h2>Target selection</h2>
     <table>
         <tr>
-            <td>Catalogue Object type:</td>
-            <td><select name="singleSelect" ng-model="kind" ng-init="kind = 'hyperty'; getInstanceList(kind)"
-                        ng-change="name = null; resourceName = null; getInstanceList(kind)">
+            <td align="right">Catalogue Object type:</td>
+            <td><select name="singleSelect" ng-model="kind" ng-init="kind = 'hyperty'; names = getInstanceList(kind)"
+                        ng-change="name = ''; resourceName = ''; names = getInstanceList(kind)">
                 <option value="hyperty">Hyperty</option>
                 <option value="protocolstub">Protostub</option>
                 <option value="runtime">Hyperty Runtime</option>
                 <option value="dataschema">DataSchema</option>
                 <option value="idp-proxy">IDP-Proxy</option>
                 <option value="sourcepackage">SourcePackage</option>
+                <option value="database">Database</option>
             </select></td>
         </tr>
         <tr ng-show="kind != null">
             <!--<td>(optional) Object name:</td>-->
             <!--<td><input size="30" type="text" ng-model="name" ng-init="name = 'FirstHyperty'"-->
             <!--ng-change="name = name == '' ? null : name"></td>-->
-            <td>Catalogue Object name:</td>
-            <td><select name="singleSelect" ng-model="name" ng-options="name for name in names"></select></td>
+            <td align="right">Catalogue Object name:</td>
+            <td><select name="singleSelect" ng-model="name" ng-options="name for name in names"
+                        ng-init="name = names[0]"></select></td>
         </tr>
-        <tr ng-show="name != null">
-            <td>(optional) Resource name:</td>
-            <td><select name="singleSelect" ng-model="resourceName"
-                        ng-change="resourceName = resourceName == '' ? null : resourceName">
+        <tr ng-show="name != '' && kind != 'database'">
+            <td align="right">(optional) Resource name:</td>
+            <td><select name="singleSelect" ng-model="resourceName" ng-init="resourceName = ''">
 
                 <!-- empty option -->
                 <option></option>
@@ -89,45 +117,43 @@
 
     <div ng-show="kind != null">
         <!-- TODO: improve code -->
-        <h2>Generated path:<br>
-            {{
-            address = host
-            + "/.well-known/"
-            + kind + "/"
-            + (name == null ? '' : name);
-
-            address + (resourceName != null ? '/' + resourceName : '')
-            }}
+        <h2>Generated path:
+            {{address + kind + (name != '' ? '/' + name : '') + (resourceName != '' ? '/' + resourceName : '')}}
         </h2>
-        <button ng-click="response = getResource(address + (resourceName != null ? '/' + resourceName : ''))"
-                ng-init="response = null">get {{name || kind}}
+
+        <button ng-click="response = getResource(kind, name, resourceName)">get {{name || kind}}</button>
+        <button ng-hide="name == '' || kind == 'sourcepackage' || kind == 'dataschema' || kind == 'database'"
+                ng-click="response = getAndExecCode(getResource(kind, name, 'sourcePackageURL'))">get & execute code
         </button>
-        <button ng-click="response = getAndExecCode(getResource(address + '/sourcePackageURL'))">get & execute code
-        </button>
 
+        <h2>Result</h2>
 
-        <div ng-show="response != null">
-            <br>
-            Response:
-            <pre>{{response | json}}</pre>
-        </div>
-
+        <pre>
+            <table border="1">
+                <tr>
+                    <td align="right"><i>Last Request URL</i></td>
+                    <td>{{lastRequestUrl}}</td>
+                </tr>
+                <tr>
+                    <td align="right" valign="top"><i>Last response</i></td>
+                    <td>{{response | json}}</td>
+                </tr>
+            </table>
+        </pre>
     </div>
 
-    <p>---------------------------</p>
+    <hr>
+
     <button ng-click="debug = !debug" ng-init="debug = false">Toggle Debug Info</button>
-    <div ng-show="debug">
+
+    <pre ng-show="debug">
         <table border="1">
             <tr>
                 <td align="right">host</td>
                 <td>{{host}}</td>
             </tr>
             <tr>
-                <td align="right">port</td>
-                <td>{{port}}</td>
-            </tr>
-            <tr>
-                <td align="right">address</td>
+                <td align="right">base address</td>
                 <td>{{address}}</td>
             </tr>
             <tr>
@@ -143,35 +169,47 @@
                 <td>{{resourceName}}</td>
             </tr>
             <tr>
-                <td align="right">response</td>
-                <td>
-                    <pre>{{response}}</pre>
-                </td>
+                <td align="right">last request URL</td>
+                <td>{{lastRequestUrl}}</td>
             </tr>
+            <tr>
+                <td align="right">response</td>
+                <td>{{response}}</td>
+            </tr>
+            <tr>
+                <td align="right">names</td>
+                <td>{{names}}</td>
+            </tr>
+
         </table>
-    </div>
-
-
+    </pre>
 </div>
 <script>
     var app = angular.module('rethinkTest', []);
     app.controller('myCtrl', function ($scope) {
         $scope.host = document.location.origin;
+//        $scope.host = "https://localhost";
+        $scope.address = $scope.host + "/.well-known/";
+        $scope.getResource = function (kind, name, resourceName) {
+            console.log("getResource:", arguments);
+            var url = $scope.address;
+            console.log("base URL:", url);
+            if (kind && kind != '') {
+                url += kind;
+                if (name && name != '') {
+                    url += "/" + name;
+                    if (resourceName && resourceName != '') {
+                        url += "/" + resourceName;
+                    }
+                }
+            }
 
-
-        $scope.getResource = function (url) {
-//            var url = "http://" + address + "/.well-known/" + kind + "/" + name;
+            $scope.lastRequestUrl = url;
             console.log("trying to send a request to: " + url);
 
             var xmlHttp = new XMLHttpRequest();
-            try {
-                xmlHttp.open("GET", url, false); // false for synchronous request
-                xmlHttp.send();
-            } catch (e) {
-                console.error("hello error: " + e);
-                alert("Error while trying to get resource:\r\n" + e);
-                return;
-            }
+            xmlHttp.open("GET", url, false); // false for synchronous request
+            xmlHttp.send();
 
             console.log("got response:", xmlHttp);
             var resp = xmlHttp.responseText;
@@ -180,11 +218,15 @@
                 resp = JSON.parse(xmlHttp.responseText);
             } catch (e) {
 //                alert("Error trying to parse json:\r\n" + resp + "\r\nerror: " + e);
-                console.log("json parsing failed, probably not json");
+                console.log("json parsing failed, probably not json: ", xmlHttp.responseText);
             }
 
             if (xmlHttp.status != 200) {
-                resp = "error (" + xmlHttp.status + ") " + xmlHttp.responseText;
+                let errString = "error (" + xmlHttp.status + ") " + (xmlHttp.responseText != '' ? xmlHttp.responseText : xmlHttp.statusText);
+                $scope.response = errString;
+                throw new Error(errString);
+            } else {
+                $scope.response = resp;
             }
 
             return resp;
@@ -192,18 +234,42 @@
 
         $scope.getInstanceList = function (kind) {
             console.log("trying to get instances of %s", kind);
-            address = document.location.origin
-                    + "/.well-known/"
-                    + kind + "/";
-            $scope.names = ["default"].concat($scope.getResource(address));
+            try {
+                var names = ["", "default"].concat($scope.getResource(kind));
+                // databases don't have a default, so delete the entry in that case
+                if (kind == "database")
+                    names.splice(1, 1);
+                console.log("names:", names);
+            } catch (e) {
+                $scope.response = e;
+            }
+            return names;
+//            $scope.$apply();
         };
 
 
         $scope.getAndExecCode = function (url) {
             console.log("getting sourcePackage from:", url);
             try {
-                var resp = $scope.getResource(url);
-                console.log("got raw package:", resp);
+                var xmlHttp = new XMLHttpRequest();
+                xmlHttp.open("GET", url, false); // false for synchronous request
+                xmlHttp.send();
+
+                if (xmlHttp.status != 200) {
+                    let errString = "(" + xmlHttp.status + ") Couldn't get sourcePackage: " + (xmlHttp.responseText != '' ? xmlHttp.responseText : xmlHttp.statusText);
+                    $scope.response = errString;
+                    throw new Error(errString);
+                }
+
+                var resp = xmlHttp.responseText;
+                try {
+                    resp = JSON.parse(xmlHttp.responseText);
+                } catch (e) {
+//                    console.log("json parsing failed, probably not json");
+                }
+                $scope.response = resp;
+                console.log("got package:", resp);
+
                 var sourcePackage = resp;
                 var code = sourcePackage.sourceCode;
 
@@ -212,11 +278,54 @@
 
                 console.log("About to exec following code: " + code);
                 eval(code);
-                return resp;
+                return code;
             } catch (e) {
-                alert("Error trying to execute code from url:\r\n" + url + "\r\n" + e);
+                let errString = "Error trying to execute code from url:\r\n" + url + "\r\n" + e;
+                console.error(errString);
+                $scope.response = errString;
             }
         };
+
+        let timeoutID = -1;
+        /**
+         * Starts observing list of currently connected clients/databases.
+         */
+        $scope.observeClientList = function () {
+            console.debug("observeClientList");
+            var clientSource = new EventSource("event");
+            clientSource.onmessage = function (msg) {
+                let dbs = JSON.parse(msg.data);
+                console.log("got databases:", dbs);
+                $scope.databases = dbs;
+
+                // cancel prepared timeout if it exists, so getInstanceList is only called once
+                if (timeoutID != -1) {
+                    clearTimeout(timeoutID);
+                }
+                timeoutID = setTimeout(function () {
+                    let currentLastUrl = $scope.lastRequestUrl;
+                    let currentLastResponse = $scope.response;
+
+                    console.log("[currentLastUrl, currentLastResponse] = ", [currentLastUrl, currentLastResponse]);
+                    $scope.names = $scope.getInstanceList($scope.kind);
+
+                    // restore last url and request,
+                    // so people see the confirmation message for restarting database(s))
+                    $scope.lastRequestUrl = currentLastUrl;
+                    $scope.response = currentLastResponse;
+
+                    $scope.$apply();
+                    timeoutID = -1
+                }, 250);
+
+            };
+        };
+
+        $scope.restartDatabase = function (database) {
+            console.debug("restarting database:", database);
+            $scope.getResource("restart", database);
+        };
+
 
 //        window.getResource = $scope.getResource;
 
@@ -224,6 +333,8 @@
         rethink.myalert = function (msg) {
             alert(msg || "this is a test!");
         };
+
+        $scope.observeClientList();
 
         window.rethink = rethink;
 

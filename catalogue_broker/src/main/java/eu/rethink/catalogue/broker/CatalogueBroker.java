@@ -19,6 +19,7 @@
 package eu.rethink.catalogue.broker;
 
 import eu.rethink.catalogue.broker.model.RethinkModelProvider;
+import eu.rethink.catalogue.broker.servlet.EventServlet;
 import eu.rethink.catalogue.broker.servlet.WellKnownServlet;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -236,17 +237,20 @@ public class CatalogueBroker {
         RequestHandler rethinkRequestHandler = new RequestHandler(lwServer, defaultMap);
 
         //ServletContextHandler servletContextHandler = new ServletContextHandler(server, "/", true, false);
-        ServletHolder servletHolder = new ServletHolder(new WellKnownServlet(lwServer, rethinkRequestHandler));
-        servletHolder.setAsyncSupported(true);
-        //servletContextHandler.addServlet(servletHolder, "/.well-known/*");
 
         // WebApp stuff
         WebAppContext root = new WebAppContext();
         root.setContextPath("/");
         root.setResourceBase(getClass().getClassLoader().getResource("webapp").toExternalForm());
-        root.setParentLoaderPriority(true);
+        //root.setParentLoaderPriority(true);
+
+        ServletHolder servletHolder = new ServletHolder(new WellKnownServlet(lwServer, rethinkRequestHandler));
+        servletHolder.setAsyncSupported(true);
         root.addServlet(servletHolder, "/.well-known/*");
 
+        ServletHolder eventServletHolder = new ServletHolder(new EventServlet(lwServer));
+        eventServletHolder.setAsyncSupported(true);
+        root.addServlet(eventServletHolder, "/event/*");
         server.setHandler(root);
 
 

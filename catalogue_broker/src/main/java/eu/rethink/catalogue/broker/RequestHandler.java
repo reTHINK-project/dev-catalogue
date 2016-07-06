@@ -159,7 +159,7 @@ public class RequestHandler {
         // example path: <objectType>/<instanceName>/<resourceName>
 
         if (pathParts.length == 0) {
-            String response = String.format("Please provide at least a type from %s or 'restart' or 'client'", MODEL_NAME_TO_ID_MAP.keySet());
+            String response = String.format("Please provide at least a type from %s or 'restart' or 'database'", MODEL_NAME_TO_ID_MAP.keySet());
             LOG.warn(response);
             cb.result(new RequestResponse(ReadResponse.internalServerError(response)));
         } else if (pathParts.length == 1) { // hyperty | protostub | sourcepackage etc. only
@@ -175,23 +175,23 @@ public class RequestHandler {
             } else if (type.equals("restart")) {
                 try {
                     restartClients();
-                    String response = "Restart executed on all connected clients";
+                    String response = "Restart executed on all connected databases";
                     LOG.debug(response);
                     cb.result(new RequestResponse(ReadResponse.success(0, response)));
                 } catch (InterruptedException e) {
-                    LOG.warn("Restarting clients failed", e);
-                    cb.result(new RequestResponse(ReadResponse.internalServerError("Restarting clients failed: " + e.getMessage())));
+                    LOG.warn("Restarting databases failed", e);
+                    cb.result(new RequestResponse(ReadResponse.internalServerError("Restarting databases failed: " + e.getMessage())));
                 }
-            } else if (type.equals("client")) {
-                List<String> clients = new LinkedList<>();
-                for (Client client : server.getClientRegistry().allClients()) {
-                    clients.add(client.getEndpoint() + " (" + client.getRegistrationId() + ")");
+            } else if (type.equals("database")) {
+                List<String> databases = new LinkedList<>();
+                for (Client database : server.getClientRegistry().allClients()) {
+                    databases.add(database.getEndpoint());
                 }
-                String response = gson.toJson(clients);
-                LOG.debug("Returning client list: " + response);
+                String response = gson.toJson(databases);
+                LOG.debug("Returning database list: " + response);
                 cb.result(new RequestResponse(ReadResponse.success(0, response)));
             } else {
-                String response = String.format("Unknown object type, please use one of: %s or 'restart' or 'client'", MODEL_NAME_TO_ID_MAP.keySet());
+                String response = String.format("Unknown object type, please use one of: %s or 'restart' or 'database'", MODEL_NAME_TO_ID_MAP.keySet());
                 LOG.warn(response);
                 cb.result(new RequestResponse(ReadResponse.internalServerError(response), -1));
             }
@@ -290,7 +290,7 @@ public class RequestHandler {
                         }, new ErrorCallback() {
                             @Override
                             public void onError(Exception e) {
-                                String error = "unable to request " + t + " from client " + client;
+                                String error = "unable to request " + t + " from database " + client;
                                 LOG.warn(error, e);
                                 cb.result(new RequestResponse(ReadResponse.internalServerError(error + ": " + e.getMessage()), id));
                             }
@@ -314,14 +314,14 @@ public class RequestHandler {
             } else if (pathParts[0].equals("restart")) {
                 LOG.debug("trying to disconnect {}", instanceName);
                 Client client = server.getClientRegistry().get(instanceName);
-                LOG.debug("search for client {} returned {}", instanceName, client);
+                LOG.debug("search for database {} returned {}", instanceName, client);
                 if (client != null) {
                     try {
                         ExecuteResponse executeResponse = restartClient(client);
-                        LOG.debug("Restarting client {} {}", client.getEndpoint(), executeResponse.isSuccess() ? "succeeded" : "failed");
+                        LOG.debug("Restarting database {} {}", client.getEndpoint(), executeResponse.isSuccess() ? "succeeded" : "failed");
                         cb.result(new RequestResponse(executeResponse));
                     } catch (InterruptedException e) {
-                        String errorMessage = "Unable to restart client " + client.getEndpoint() + ": " + e.getMessage();
+                        String errorMessage = "Unable to restart database " + client.getEndpoint() + ": " + e.getMessage();
                         LOG.warn(errorMessage, e);
                         cb.result(new RequestResponse(ReadResponse.internalServerError(errorMessage)));
                     }
@@ -330,15 +330,15 @@ public class RequestHandler {
                     LOG.warn(errorMessage);
                     cb.result(new RequestResponse(ReadResponse.internalServerError(errorMessage)));
                 }
-            } else if (pathParts[0].equals("client")) {
-                LOG.debug("trying to get information about client {}", instanceName);
+            } else if (pathParts[0].equals("database")) {
+                LOG.debug("trying to get information about database {}", instanceName);
                 Client client = server.getClientRegistry().get(instanceName);
                 if (client != null) {
                     String response = client.toString();
-                    LOG.debug("client " + instanceName + " found: {}", response);
+                    LOG.debug("database " + instanceName + " found: {}", response);
                     cb.result(new RequestResponse(ReadResponse.success(0, response)));
                 } else {
-                    String errorMessage = "client " + instanceName + " not found";
+                    String errorMessage = "database " + instanceName + " not found";
                     LOG.warn(errorMessage);
                     cb.result(new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, errorMessage)));
                 }
@@ -364,7 +364,7 @@ public class RequestHandler {
                 try {
                     checkClient(client);
                 } catch (Exception e) {
-                    LOG.error("Something went wrong while checking the client", e);
+                    LOG.error("Something went wrong while checking the database", e);
                     //e.printStackTrace();
                 }
             }
@@ -527,7 +527,7 @@ public class RequestHandler {
      */
 
     public void restartClients() throws InterruptedException {
-        LOG.debug("Restarting all clients...");
+        LOG.debug("Restarting all databases...");
         for (Client client : server.getClientRegistry().allClients()) {
             restartClient(client);
         }
