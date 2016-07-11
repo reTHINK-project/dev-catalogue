@@ -34,10 +34,343 @@ this._fireEvent({cType:_.ADD,oType:i,field:c,data:(0,l.deepClone)(a)})),"delete"
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],2:[function(require,module,exports){
-'use strict';Object.defineProperty(exports,"__esModule",{value:true});var _createClass=function(){function defineProperties(target,props){for(var i=0;i<props.length;i++){var descriptor=props[i];descriptor.enumerable=descriptor.enumerable||false;descriptor.configurable=true;if("value"in descriptor)descriptor.writable=true;Object.defineProperty(target,descriptor.key,descriptor);}}return function(Constructor,protoProps,staticProps){if(protoProps)defineProperties(Constructor.prototype,protoProps);if(staticProps)defineProperties(Constructor,staticProps);return Constructor;};}();exports.default=activate;var _Syncher=require('service-framework/dist/Syncher');var _utils=require('../utils/utils');function _classCallCheck(instance,Constructor){if(!(instance instanceof Constructor)){throw new TypeError("Cannot call a class as a function");}}var BraceletSensorReporter=function(){function BraceletSensorReporter(hypertyURL,bus,configuration){_classCallCheck(this,BraceletSensorReporter);if(!hypertyURL)throw new Error('The hypertyURL is a needed parameter');if(!bus)throw new Error('The MiniBus is a needed parameter');if(!configuration)throw new Error('The configuration is a needed parameter');var _this=this;_this.firstTime=true;_this.reconnecting=false;_this._domain=(0,_utils.divideURL)(hypertyURL).domain;_this._objectDescURL='hyperty-catalogue://'+_this._domain+'/.well-known/dataschema/Context';console.log('Init BraceletSensorReporter: ',hypertyURL);_this._syncher=new _Syncher.Syncher(hypertyURL,bus,configuration);}_createClass(BraceletSensorReporter,[{key:'Discover',value:function Discover(){return new Promise(function(resolve,reject){console.log('DISCOVERING!!');var _this=this;var devicesList=[];var params={services:[],allowDuplicates:true,scanMode:bluetoothle.SCAN_MODE_LOW_LATENCY,matchMode:bluetoothle.MATCH_MODE_AGGRESSIVE,matchNum:bluetoothle.MATCH_NUM_MAX_ADVERTISEMENT,callbackType:bluetoothle.CALLBACK_TYPE_ALL_MATCHES};var scanSucces=function scanSucces(device){console.log('scan success',device);if('address'in device){var newDevice={id:device.address,name:device.name,description:'Xiaomi Band'};devicesList.push(newDevice);}};var scanError=function scanError(){console.log('scan error');};var time=setTimeout(function(){bluetoothle.stopScan(function(a){console.log('status2',a);resolve(devicesList);},function(b){console.log('status3',b);});},10000);bluetoothle.initialize(function(a){console.log('ble initialized',a);bluetoothle.startScan(scanSucces,scanError,params);},function(){console.log('ble not initialized');});});}},{key:'Connect',value:function Connect(id,options){var _this=this;return new Promise(function(resolve,reject){var data={scheme:'context',id:id,time:new Date().getTime(),values:[]};var params={address:id};var disconnectSuccess=function disconnectSuccess(status){console.log('disconnect success',status);_this.reconnecting=true;var statusChanged={connection:'reconnecting',address:id};if(_this._onStatusChange)_this._onStatusChange(statusChanged);resolve('reconnecting');setTimeout(function(){bluetoothle.reconnect(reconnectSuccess,reconnectError,params);},5000);};var disconnectError=function disconnectError(status){console.log('disconnect error',status);bluetoothle.connect(connectSuccess,connectError,params);};var discoverSuccess=function discoverSuccess(status){console.log('discover success',status);console.log('flag',_this.firstTime);if(_this.firstTime){console.log('first true');_this.readBattery(id).then(function(battery){console.log('battery',battery);var value={type:'battery',name:'remaining battery energy level in percents',unit:'%EL',value:battery,time:new Date().getTime()};data.values.push(value);console.log('data',data);_this.readSteps(id).then(function(steps){console.log('STEPS',steps);var value={type:'user_steps',name:'Cumulative number of steps',unit:'steps',value:steps,time:new Date().getTime()};data.values.push(value);console.log('data',data);_this.ReporterBracelet(data);});});console.log('first false');_this.firstTime=false;}else{resolve();}};var discoverError=function discoverError(status){console.log('discover error',status);};var reconnectSuccess=function reconnectSuccess(status){console.log('reconnect success',status);if(status.status==='connected'){_this.reconnecting=false;var statusChanged={connection:'connected',address:id};if(_this._onStatusChange)_this._onStatusChange(statusChanged);resolve('connected');console.log('Connected');bluetoothle.discover(discoverSuccess,discoverError,params);}else if(status.status==='disconnected'){if(!_this.reconnecting){console.log('On Reconnect Success Reconnecting after disconnect');_this.reconnecting=true;var _statusChanged={connection:'reconnecting',address:id};if(_this._onStatusChange)_this._onStatusChange(_statusChanged);resolve('reconnecting');setTimeout(function(){bluetoothle.reconnect(reconnectSuccess,reconnectError,params);},5000);}else{console.log('Already Reconnecting');}}};var reconnectError=function reconnectError(status){console.log('reconnect error',status);if(status.message==='Device isn\'t disconnected'){console.log('disconneting');bluetoothle.disconnect(disconnectSuccess,disconnectError,params);}};var connectSuccess=function connectSuccess(status){console.log('connect success',status);if(status.status==='connected'){resolve('connected');bluetoothle.discover(discoverSuccess,discoverError,params);}else if(status.status==='disconnected'){if(!_this.reconnecting){console.log('Reconnecting after disconnect');_this.reconnecting=true;var statusChanged={connection:'reconnecting',address:id};if(_this._onStatusChange)_this._onStatusChange(statusChanged);resolve('reconnecting');setTimeout(function(){bluetoothle.reconnect(reconnectSuccess,reconnectError,params);},5000);}else{console.log('Already Reconnecting');}}};var connectError=function connectError(status){console.log('connect error',status);if(status.message==='Device previously connected, reconnect or close for new device'){console.log('trying to reconnect',_this.reconnecting);if(!_this.reconnecting){_this.reconnecting=true;var statusChanged={connection:'reconnecting',address:id};if(_this._onStatusChange)_this._onStatusChange(statusChanged);resolve('reconnecting');console.log('trying to reconnect',_this.reconnecting);setTimeout(function(){bluetoothle.reconnect(reconnectSuccess,reconnectError,params);},5000);}}};if(_this.reconnecting){console.log('Still Reconnecting, resolve reconnecting..');var statusChanged={connection:'reconnecting',address:id};if(_this._onStatusChange)_this._onStatusChange(statusChanged);}else{console.log('Connecting');bluetoothle.connect(connectSuccess,connectError,params);}});}},{key:'ReporterBracelet',value:function ReporterBracelet(initialData){var _this=this;console.log('Reporter initialized');_this._syncher.create(_this._objectDescURL,[],initialData).then(function(reporter){console.info('Reporter created',reporter);_this.reporter=reporter;reporter.onSubscription(function(event){console.log('onSubscription:',event);event.accept();});var isConnectedSuccess=function isConnectedSuccess(status){if(status.isConnected){console.log('isConnectedSuccess',status);_this.readBattery(initialData.id).then(function(battery){return _this.pushData(battery,initialData.id);});}else{console.log('isConnectedSuccess',status);_this.Connect(initialData.id);}};var isConnectedError=function isConnectedError(status){console.log('isConnectedError',status);};var params={address:initialData.id};console.log('HYPERTY REPORTER : ',reporter.url);setInterval(function(){bluetoothle.isConnected(isConnectedSuccess,isConnectedError,params);},2000);});}},{key:'pushData',value:function pushData(battery,id){var _this=this;var value={type:'battery',name:'remaining battery energy level in percents',unit:'%EL',value:battery,time:new Date().getTime()};_this.reporter.data.values.push(value);if(_this._onDataChange)_this._onDataChange(value);_this.readSteps(id).then(function(steps){var value={type:'user_steps',name:'Cumulative number of steps',unit:'steps',value:steps,time:new Date().getTime()};_this.reporter.data.values.push(value);console.log('data',_this.reporter.data.values);if(_this._onDataChange)_this._onDataChange(value);});}},{key:'readSteps',value:function readSteps(bleAddress){var _this=this;return new Promise(function(resolve,reject){console.log('reading steps');var params={address:bleAddress,service:'fee0',characteristic:'ff06'};var readSucess=function readSucess(status){console.log('read success',status);var b=bluetoothle.encodedStringToBytes(status.value);var valor=0xff&b[0]|(0xff&b[1])<<8;resolve(valor);};var readError=function readError(status){console.log('read error',status);_this.Connect(bleAddress);};bluetoothle.read(readSucess,readError,params);});}},{key:'readBattery',value:function readBattery(bleAddress){var _this=this;return new Promise(function(resolve,reject){console.log('reading battery');var params={address:bleAddress,service:'fee0',characteristic:'ff0c'};var readSucess=function readSucess(status){console.log('read success',status);var b=bluetoothle.encodedStringToBytes(status.value);var valor=b[0];resolve(valor);};var readError=function readError(status){console.log('read error',status);_this.Connect(bleAddress);};bluetoothle.read(readSucess,readError,params);});}},{key:'onDataChange',value:function onDataChange(callback){var _this=this;_this._onDataChange=callback;}},{key:'onStatusChange',value:function onStatusChange(callback){var _this=this;_this._onStatusChange=callback;}}]);return BraceletSensorReporter;}();function activate(hypertyURL,bus,configuration){return{name:'BraceletSensorReporter',instance:new BraceletSensorReporter(hypertyURL,bus,configuration)};}module.exports=exports['default'];
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+exports.default = activate;
+
+var _Syncher = require('service-framework/dist/Syncher');
+
+var _utils = require('../utils/utils');
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var BraceletSensorReporter = function () {
+  function BraceletSensorReporter(hypertyURL, bus, configuration) {
+    _classCallCheck(this, BraceletSensorReporter);
+
+    if (!hypertyURL) throw new Error('The hypertyURL is a needed parameter');
+    if (!bus) throw new Error('The MiniBus is a needed parameter');
+    if (!configuration) throw new Error('The configuration is a needed parameter');
+
+    var _this = this;
+    _this.firstTime = true;
+    _this.reconnecting = false;
+
+    _this._domain = (0, _utils.divideURL)(hypertyURL).domain;
+
+    _this._objectDescURL = 'hyperty-catalogue://catalogue.' + _this._domain + '/.well-known/dataschema/Context';
+
+    console.log('Init BraceletSensorReporter: ', hypertyURL);
+    _this._syncher = new _Syncher.Syncher(hypertyURL, bus, configuration);
+  }
+
+  _createClass(BraceletSensorReporter, [{
+    key: 'Discover',
+    value: function Discover() {
+      return new Promise(function (resolve, reject) {
+        console.log('DISCOVERING!!');
+        var _this = this;
+        var devicesList = [];
+        var params = {
+          services: [],
+          allowDuplicates: true,
+          scanMode: bluetoothle.SCAN_MODE_LOW_LATENCY,
+          matchMode: bluetoothle.MATCH_MODE_AGGRESSIVE,
+          matchNum: bluetoothle.MATCH_NUM_MAX_ADVERTISEMENT,
+          callbackType: bluetoothle.CALLBACK_TYPE_ALL_MATCHES
+        };
+
+        var scanSucces = function scanSucces(device) {
+          console.log('scan success', device);
+          if ('address' in device) {
+            var newDevice = { id: device.address, name: device.name, description: 'Xiaomi Band' };
+            devicesList.push(newDevice);
+          }
+        };
+        var scanError = function scanError() {
+          console.log('scan error');
+        };
+
+        var time = setTimeout(function () {
+          bluetoothle.stopScan(function (a) {
+            console.log('status2', a);
+            resolve(devicesList);
+          }, function (b) {
+            console.log('status3', b);
+          });
+        }, 10000);
+
+        bluetoothle.initialize(function (a) {
+          console.log('ble initialized', a);
+          bluetoothle.startScan(scanSucces, scanError, params);
+        }, function () {
+          console.log('ble not initialized');
+        });
+      });
+    }
+  }, {
+    key: 'Connect',
+    value: function Connect(id, options) {
+      var _this = this;
+      return new Promise(function (resolve, reject) {
+        var data = { scheme: 'context', id: id, time: new Date().getTime(), values: [] };
+
+        var params = {
+          address: id
+        };
+        var disconnectSuccess = function disconnectSuccess(status) {
+          console.log('disconnect success', status);
+          _this.reconnecting = true;
+          var statusChanged = { connection: 'reconnecting', address: id };
+          if (_this._onStatusChange) _this._onStatusChange(statusChanged);
+          resolve('reconnecting');
+          setTimeout(function () {
+            bluetoothle.reconnect(reconnectSuccess, reconnectError, params);
+          }, 5000);
+        };
+        var disconnectError = function disconnectError(status) {
+          console.log('disconnect error', status);
+          bluetoothle.connect(connectSuccess, connectError, params);
+        };
+        var discoverSuccess = function discoverSuccess(status) {
+          console.log('discover success', status);
+          console.log('flag', _this.firstTime);
+          if (_this.firstTime) {
+            console.log('first true');
+            _this.readBattery(id).then(function (battery) {
+              console.log('battery', battery);
+              var value = { type: 'battery', name: 'remaining battery energy level in percents', unit: '%EL', value: battery, time: new Date().getTime() };
+              data.values.push(value);
+              console.log('data', data);
+              _this.readSteps(id).then(function (steps) {
+                console.log('STEPS', steps);
+                var value = { type: 'user_steps', name: 'Cumulative number of steps', unit: 'steps', value: steps, time: new Date().getTime() };
+                data.values.push(value);
+                console.log('data', data);
+                _this.ReporterBracelet(data);
+              });
+            });
+            console.log('first false');
+            _this.firstTime = false;
+          } else {
+            resolve();
+          }
+        };
+        var discoverError = function discoverError(status) {
+          console.log('discover error', status);
+        };
+        var reconnectSuccess = function reconnectSuccess(status) {
+          console.log('reconnect success', status);
+          if (status.status === 'connected') {
+            _this.reconnecting = false;
+            var statusChanged = { connection: 'connected', address: id };
+            if (_this._onStatusChange) _this._onStatusChange(statusChanged);
+            resolve('connected');
+            console.log('Connected');
+            bluetoothle.discover(discoverSuccess, discoverError, params);
+          } else if (status.status === 'disconnected') {
+            if (!_this.reconnecting) {
+              console.log('On Reconnect Success Reconnecting after disconnect');
+              _this.reconnecting = true;
+              var _statusChanged = { connection: 'reconnecting', address: id };
+              if (_this._onStatusChange) _this._onStatusChange(_statusChanged);
+              resolve('reconnecting');
+              setTimeout(function () {
+                bluetoothle.reconnect(reconnectSuccess, reconnectError, params);
+              }, 5000);
+            } else {
+              console.log('Already Reconnecting');
+            }
+          }
+        };
+        var reconnectError = function reconnectError(status) {
+          console.log('reconnect error', status);
+          if (status.message === 'Device isn\'t disconnected') {
+            console.log('disconneting');
+            bluetoothle.disconnect(disconnectSuccess, disconnectError, params);
+          }
+        };
+
+        var connectSuccess = function connectSuccess(status) {
+          console.log('connect success', status);
+
+          if (status.status === 'connected') {
+            resolve('connected');
+            bluetoothle.discover(discoverSuccess, discoverError, params);
+          } else if (status.status === 'disconnected') {
+            if (!_this.reconnecting) {
+              console.log('Reconnecting after disconnect');
+              _this.reconnecting = true;
+              var statusChanged = { connection: 'reconnecting', address: id };
+              if (_this._onStatusChange) _this._onStatusChange(statusChanged);
+              resolve('reconnecting');
+              setTimeout(function () {
+                bluetoothle.reconnect(reconnectSuccess, reconnectError, params);
+              }, 5000);
+            } else {
+              console.log('Already Reconnecting');
+            }
+          }
+        };
+        var connectError = function connectError(status) {
+          console.log('connect error', status);
+          if (status.message === 'Device previously connected, reconnect or close for new device') {
+            console.log('trying to reconnect', _this.reconnecting);
+            if (!_this.reconnecting) {
+              _this.reconnecting = true;
+              var statusChanged = { connection: 'reconnecting', address: id };
+              if (_this._onStatusChange) _this._onStatusChange(statusChanged);
+              resolve('reconnecting');
+              console.log('trying to reconnect', _this.reconnecting);
+              setTimeout(function () {
+                bluetoothle.reconnect(reconnectSuccess, reconnectError, params);
+              }, 5000);
+            }
+          }
+        };
+        if (_this.reconnecting) {
+          console.log('Still Reconnecting, resolve reconnecting..');
+          var statusChanged = { connection: 'reconnecting', address: id };
+          if (_this._onStatusChange) _this._onStatusChange(statusChanged);
+        } else {
+          console.log('Connecting');
+          bluetoothle.connect(connectSuccess, connectError, params);
+        }
+      });
+    }
+  }, {
+    key: 'ReporterBracelet',
+    value: function ReporterBracelet(initialData) {
+      var _this = this;
+      console.log('Reporter initialized');
+      _this._syncher.create(_this._objectDescURL, [], initialData).then(function (reporter) {
+        console.info('Reporter created', reporter);
+        _this.reporter = reporter;
+        reporter.onSubscription(function (event) {
+          console.log('onSubscription:', event);
+
+          event.accept();
+        });
+        var isConnectedSuccess = function isConnectedSuccess(status) {
+          if (status.isConnected) {
+            console.log('isConnectedSuccess', status);
+            _this.readBattery(initialData.id).then(function (battery) {
+              return _this.pushData(battery, initialData.id);
+            });
+          } else {
+            console.log('isConnectedSuccess', status);
+            _this.Connect(initialData.id);
+          }
+        };
+        var isConnectedError = function isConnectedError(status) {
+          console.log('isConnectedError', status);
+        };
+        var params = { address: initialData.id };
+
+        console.log('HYPERTY REPORTER : ', reporter.url);
+        setInterval(function () {
+          bluetoothle.isConnected(isConnectedSuccess, isConnectedError, params);
+        }, 2000);
+      });
+    }
+  }, {
+    key: 'pushData',
+    value: function pushData(battery, id) {
+      var _this = this;
+      var value = { type: 'battery', name: 'remaining battery energy level in percents', unit: '%EL', value: battery, time: new Date().getTime() };
+      _this.reporter.data.values.push(value);
+      if (_this._onDataChange) _this._onDataChange(value);
+      _this.readSteps(id).then(function (steps) {
+        var value = { type: 'user_steps', name: 'Cumulative number of steps', unit: 'steps', value: steps, time: new Date().getTime() };
+        _this.reporter.data.values.push(value);
+        console.log('data', _this.reporter.data.values);
+        if (_this._onDataChange) _this._onDataChange(value);
+      });
+    }
+  }, {
+    key: 'readSteps',
+    value: function readSteps(bleAddress) {
+      var _this = this;
+      return new Promise(function (resolve, reject) {
+        console.log('reading steps');
+        var params = { address: bleAddress, service: 'fee0', characteristic: 'ff06' };
+        var readSucess = function readSucess(status) {
+          console.log('read success', status);
+          var b = bluetoothle.encodedStringToBytes(status.value);
+          var valor = 0xff & b[0] | (0xff & b[1]) << 8;
+          resolve(valor);
+        };
+        var readError = function readError(status) {
+          console.log('read error', status);
+          _this.Connect(bleAddress);
+        };
+        bluetoothle.read(readSucess, readError, params);
+      });
+    }
+  }, {
+    key: 'readBattery',
+    value: function readBattery(bleAddress) {
+      var _this = this;
+      return new Promise(function (resolve, reject) {
+        console.log('reading battery');
+        var params = { address: bleAddress, service: 'fee0', characteristic: 'ff0c' };
+        var readSucess = function readSucess(status) {
+          console.log('read success', status);
+          var b = bluetoothle.encodedStringToBytes(status.value);
+          var valor = b[0];
+          resolve(valor);
+        };
+        var readError = function readError(status) {
+          console.log('read error', status);
+          _this.Connect(bleAddress);
+        };
+        bluetoothle.read(readSucess, readError, params);
+      });
+    }
+  }, {
+    key: 'onDataChange',
+    value: function onDataChange(callback) {
+      var _this = this;
+      _this._onDataChange = callback;
+    }
+  }, {
+    key: 'onStatusChange',
+    value: function onStatusChange(callback) {
+      var _this = this;
+      _this._onStatusChange = callback;
+    }
+  }]);
+
+  return BraceletSensorReporter;
+}();
+
+function activate(hypertyURL, bus, configuration) {
+
+  return {
+    name: 'BraceletSensorReporter',
+    instance: new BraceletSensorReporter(hypertyURL, bus, configuration)
+  };
+}
+module.exports = exports['default'];
 
 },{"../utils/utils":3,"service-framework/dist/Syncher":1}],3:[function(require,module,exports){
-'use strict';Object.defineProperty(exports,"__esModule",{value:true});exports.divideURL=divideURL;exports.deepClone=deepClone;exports.getUserMedia=getUserMedia;exports.serialize=serialize;exports.getTemplate=getTemplate;/**
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.divideURL = divideURL;
+exports.deepClone = deepClone;
+exports.getUserMedia = getUserMedia;
+exports.serialize = serialize;
+exports.getTemplate = getTemplate;
+/**
  * Copyright 2016 PT Inovação e Sistemas SA
  * Copyright 2016 INESC-ID
  * Copyright 2016 QUOBIS NETWORKS SL
@@ -58,33 +391,153 @@ this._fireEvent({cType:_.ADD,oType:i,field:c,data:(0,l.deepClone)(a)})),"delete"
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- **/// jshint browser:true, jquery: true
+ **/
+
+// jshint browser:true, jquery: true
 // jshint varstmt: true
-/* global Handlebars *//**
+/* global Handlebars */
+
+/**
  * Support module with some functions will be useful
  * @module utils
- *//**
+ */
+
+/**
  * @typedef divideURL
  * @type Object
  * @property {string} type The type of URL
  * @property {string} domain The domain of URL
  * @property {string} identity The identity of URL
- *//**
+ */
+
+/**
  * Divide an url in type, domain and identity
  * @param  {URL.URL} url - url address
  * @return {divideURL} the result of divideURL
- */function divideURL(url){// let re = /([a-zA-Z-]*)?:\/\/(?:\.)?([-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b)*(\/[\/\d\w\.-]*)*(?:[\?])*(.+)*/gi;
-var re=/([a-zA-Z-]*):\/\/(?:\.)?([-a-zA-Z0-9@:%._\+~#=]{2,256})([-a-zA-Z0-9@:%._\+~#=\/]*)/gi;var subst='$1,$2,$3';var parts=url.replace(re,subst).split(',');// If the url has no protocol, the default protocol set is https
-if(parts[0]===url){parts[0]='https';parts[1]=url;}var result={type:parts[0],domain:parts[1],identity:parts[2]};return result;}/**
+ */
+function divideURL(url) {
+
+  // let re = /([a-zA-Z-]*)?:\/\/(?:\.)?([-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b)*(\/[\/\d\w\.-]*)*(?:[\?])*(.+)*/gi;
+  var re = /([a-zA-Z-]*):\/\/(?:\.)?([-a-zA-Z0-9@:%._\+~#=]{2,256})([-a-zA-Z0-9@:%._\+~#=\/]*)/gi;
+  var subst = '$1,$2,$3';
+  var parts = url.replace(re, subst).split(',');
+
+  // If the url has no protocol, the default protocol set is https
+  if (parts[0] === url) {
+    parts[0] = 'https';
+    parts[1] = url;
+  }
+
+  var result = {
+    type: parts[0],
+    domain: parts[1],
+    identity: parts[2]
+  };
+
+  return result;
+}
+
+/**
  * Make a COPY of the original data
  * @param  {Object}  obj - object to be cloned
  * @return {Object}
- */function deepClone(obj){//TODO: simple but inefficient JSON deep clone...
-if(obj)return JSON.parse(JSON.stringify(obj));}/**
+ */
+function deepClone(obj) {
+  //TODO: simple but inefficient JSON deep clone...
+  if (obj) return JSON.parse(JSON.stringify(obj));
+}
+
+/**
  * Get WebRTC API resources
  * @param  {object}     options Object containing the information that resources will be used (camera, mic, resolution, etc);
  * @return {Promise}
- */function getUserMedia(constraints){return new Promise(function(resolve,reject){navigator.mediaDevices.getUserMedia(constraints).then(function(mediaStream){resolve(mediaStream);}).catch(function(reason){reject(reason);});});}function serialize(){$.fn.serializeObject=function(){var o={};var a=this.serializeArray();$.each(a,function(){if(o[this.name]!==undefined){if(!o[this.name].push){o[this.name]=[o[this.name]];}o[this.name].push(this.value||'');}else{o[this.name]=this.value||'';}});return o;};$.fn.serializeObjectArray=function(){var o={};var a=this.serializeArray();$.each(a,function(){if(o[this.name]!==undefined){if(!o[this.name].push){o[this.name]=[o[this.name]];}o[this.name].push(this.value||'');}else{if(!o[this.name])o[this.name]=[];o[this.name].push(this.value||'');}});return o;};}function getTemplate(path,script){return new Promise(function(resolve,reject){if(Handlebars.templates===undefined||Handlebars.templates[name]===undefined){Handlebars.templates={};}else{resolve(Handlebars.templates[name]);}var templateFile=$.ajax({url:path+'.hbs',success:function success(data){Handlebars.templates[name]=Handlebars.compile(data);},fail:function fail(reason){return reason;}});var scriptFile=$.getScript(script);var requests=[];if(path)requests.push(templateFile);if(script)requests.push(scriptFile);Promise.all(requests).then(function(result){resolve(Handlebars.templates[name]);}).catch(function(reason){reject(reason);});});}
+ */
+function getUserMedia(constraints) {
+
+  return new Promise(function (resolve, reject) {
+
+    navigator.mediaDevices.getUserMedia(constraints).then(function (mediaStream) {
+      resolve(mediaStream);
+    }).catch(function (reason) {
+      reject(reason);
+    });
+  });
+}
+
+function serialize() {
+
+  $.fn.serializeObject = function () {
+    var o = {};
+    var a = this.serializeArray();
+    $.each(a, function () {
+      if (o[this.name] !== undefined) {
+        if (!o[this.name].push) {
+          o[this.name] = [o[this.name]];
+        }
+
+        o[this.name].push(this.value || '');
+      } else {
+        o[this.name] = this.value || '';
+      }
+    });
+
+    return o;
+  };
+
+  $.fn.serializeObjectArray = function () {
+    var o = {};
+    var a = this.serializeArray();
+    $.each(a, function () {
+      if (o[this.name] !== undefined) {
+        if (!o[this.name].push) {
+          o[this.name] = [o[this.name]];
+        }
+
+        o[this.name].push(this.value || '');
+      } else {
+        if (!o[this.name]) o[this.name] = [];
+        o[this.name].push(this.value || '');
+      }
+    });
+
+    return o;
+  };
+}
+
+function getTemplate(path, script) {
+
+  return new Promise(function (resolve, reject) {
+
+    if (Handlebars.templates === undefined || Handlebars.templates[name] === undefined) {
+      Handlebars.templates = {};
+    } else {
+      resolve(Handlebars.templates[name]);
+    }
+
+    var templateFile = $.ajax({
+      url: path + '.hbs',
+      success: function success(data) {
+        Handlebars.templates[name] = Handlebars.compile(data);
+      },
+
+      fail: function fail(reason) {
+        return reason;
+      }
+    });
+
+    var scriptFile = $.getScript(script);
+
+    var requests = [];
+    if (path) requests.push(templateFile);
+    if (script) requests.push(scriptFile);
+
+    Promise.all(requests).then(function (result) {
+      resolve(Handlebars.templates[name]);
+    }).catch(function (reason) {
+      reject(reason);
+    });
+  });
+}
 
 },{}]},{},[2])(2)
 });
