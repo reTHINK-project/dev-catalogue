@@ -1,4 +1,133 @@
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.activate = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+// shim for using process in browser
+
+var process = module.exports = {};
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    if (!draining || !currentQueue) {
+        return;
+    }
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = setTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    clearTimeout(timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        setTimeout(drainQueue, 0);
+    }
+};
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
+
+},{}],2:[function(require,module,exports){
+(function (process,global){
+/**
+* Copyright 2016 PT Inovação e Sistemas SA
+* Copyright 2016 INESC-ID
+* Copyright 2016 QUOBIS NETWORKS SL
+* Copyright 2016 FRAUNHOFER-GESELLSCHAFT ZUR FOERDERUNG DER ANGEWANDTEN FORSCHUNG E.V
+* Copyright 2016 ORANGE SA
+* Copyright 2016 Deutsche Telekom AG
+* Copyright 2016 Apizee
+* Copyright 2016 TECHNISCHE UNIVERSITAT BERLIN
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
+
+// Distribution file for PersistenceManager.js 
+// version: 0.3.0
+// Last build: Wed Jun 29 2016 18:18:30 GMT+0100 (WEST)
+
+!function(t){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=t();else if("function"==typeof define&&define.amd)define([],t);else{var e;e="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof self?self:this,e.PersistenceManager=t()}}(function(){return function t(e,n,o){function r(s,c){if(!n[s]){if(!e[s]){var a="function"==typeof require&&require;if(!c&&a)return a(s,!0);if(i)return i(s,!0);var u=new Error("Cannot find module '"+s+"'");throw u.code="MODULE_NOT_FOUND",u}var f=n[s]={exports:{}};e[s][0].call(f.exports,function(t){var n=e[s][1][t];return r(n?n:t)},f,f.exports,t,e,n,o)}return n[s].exports}for(var i="function"==typeof require&&require,s=0;s<o.length;s++)r(o[s]);return r}({1:[function(t,e,n){e.exports={"default":t("core-js/library/fn/json/stringify"),__esModule:!0}},{"core-js/library/fn/json/stringify":2}],2:[function(t,e,n){var o=t("../../modules/_core"),r=o.JSON||(o.JSON={stringify:JSON.stringify});e.exports=function(t){return r.stringify.apply(r,arguments)}},{"../../modules/_core":3}],3:[function(t,e,n){var o=e.exports={version:"2.4.0"};"number"==typeof __e&&(__e=o)},{}],4:[function(t,e,n){"use strict";function o(t){if(null===t||"object"!=typeof t)return t;if(t instanceof Object)var e={__proto__:t.__proto__};else var e=Object.create(null);return Object.getOwnPropertyNames(t).forEach(function(n){Object.defineProperty(e,n,Object.getOwnPropertyDescriptor(t,n))}),e}var r=t("fs");e.exports=o(r)},{fs:void 0}],5:[function(t,e,n){function o(){}function r(t){function e(t,e,n){function o(t,e,n){return v(t,e,function(r){!r||"EMFILE"!==r.code&&"ENFILE"!==r.code?("function"==typeof n&&n.apply(this,arguments),s()):i([o,[t,e,n]])})}return"function"==typeof e&&(n=e,e=null),o(t,e,n)}function n(t,e,n,o){function r(t,e,n,o){return g(t,e,n,function(c){!c||"EMFILE"!==c.code&&"ENFILE"!==c.code?("function"==typeof o&&o.apply(this,arguments),s()):i([r,[t,e,n,o]])})}return"function"==typeof n&&(o=n,n=null),r(t,e,n,o)}function o(t,e,n,o){function r(t,e,n,o){return _(t,e,n,function(c){!c||"EMFILE"!==c.code&&"ENFILE"!==c.code?("function"==typeof o&&o.apply(this,arguments),s()):i([r,[t,e,n,o]])})}return"function"==typeof n&&(o=n,n=null),r(t,e,n,o)}function c(t,e){function n(){return w(t,function(o,r){r&&r.sort&&r.sort(),!o||"EMFILE"!==o.code&&"ENFILE"!==o.code?("function"==typeof e&&e.apply(this,arguments),s()):i([n,[t,e]])})}return n(t,e)}function f(t,e){return this instanceof f?(E.apply(this,arguments),this):f.apply(Object.create(f.prototype),arguments)}function l(){var t=this;m(t.path,t.flags,t.mode,function(e,n){e?(t.autoClose&&t.destroy(),t.emit("error",e)):(t.fd=n,t.emit("open",n),t.read())})}function h(t,e){return this instanceof h?(b.apply(this,arguments),this):h.apply(Object.create(h.prototype),arguments)}function p(){var t=this;m(t.path,t.flags,t.mode,function(e,n){e?(t.destroy(),t.emit("error",e)):(t.fd=n,t.emit("open",n))})}function d(t,e){return new f(t,e)}function y(t,e){return new h(t,e)}function m(t,e,n,o){function r(t,e,n,o){return I(t,e,n,function(c,a){!c||"EMFILE"!==c.code&&"ENFILE"!==c.code?("function"==typeof o&&o.apply(this,arguments),s()):i([r,[t,e,n,o]])})}return"function"==typeof n&&(o=n,n=null),r(t,e,n,o)}a(t),t.gracefulify=r,t.FileReadStream=f,t.FileWriteStream=h,t.createReadStream=d,t.createWriteStream=y;var v=t.readFile;t.readFile=e;var g=t.writeFile;t.writeFile=n;var _=t.appendFile;_&&(t.appendFile=o);var w=t.readdir;if(t.readdir=c,"v0.8"===process.version.substr(0,4)){var S=u(t);f=S.ReadStream,h=S.WriteStream}var E=t.ReadStream;f.prototype=Object.create(E.prototype),f.prototype.open=l;var b=t.WriteStream;h.prototype=Object.create(b.prototype),h.prototype.open=p,t.ReadStream=f,t.WriteStream=h;var I=t.open;return t.open=m,t}function i(t){h("ENQUEUE",t[0].name,t[1]),f.push(t)}function s(){var t=f.shift();t&&(h("RETRY",t[0].name,t[1]),t[0].apply(null,t[1]))}var c=t("fs"),a=t("./polyfills.js"),u=t("./legacy-streams.js"),f=[],l=t("util"),h=o;l.debuglog?h=l.debuglog("gfs4"):/\bgfs4\b/i.test(process.env.NODE_DEBUG||"")&&(h=function(){var t=l.format.apply(l,arguments);t="GFS4: "+t.split(/\n/).join("\nGFS4: "),console.error(t)}),/\bgfs4\b/i.test(process.env.NODE_DEBUG||"")&&process.on("exit",function(){h(f),t("assert").equal(f.length,0)}),e.exports=r(t("./fs.js")),process.env.TEST_GRACEFUL_FS_GLOBAL_PATCH&&(e.exports=r(c)),e.exports.close=c.close=function(t){return function(e,n){return t.call(c,e,function(t){t||s(),"function"==typeof n&&n.apply(this,arguments)})}}(c.close),e.exports.closeSync=c.closeSync=function(t){return function(e){var n=t.apply(c,arguments);return s(),n}}(c.closeSync)},{"./fs.js":4,"./legacy-streams.js":6,"./polyfills.js":7,assert:void 0,fs:void 0,util:void 0}],6:[function(t,e,n){function o(t){function e(n,o){if(!(this instanceof e))return new e(n,o);r.call(this);var i=this;this.path=n,this.fd=null,this.readable=!0,this.paused=!1,this.flags="r",this.mode=438,this.bufferSize=65536,o=o||{};for(var s=Object.keys(o),c=0,a=s.length;c<a;c++){var u=s[c];this[u]=o[u]}if(this.encoding&&this.setEncoding(this.encoding),void 0!==this.start){if("number"!=typeof this.start)throw TypeError("start must be a Number");if(void 0===this.end)this.end=1/0;else if("number"!=typeof this.end)throw TypeError("end must be a Number");if(this.start>this.end)throw new Error("start must be <= end");this.pos=this.start}return null!==this.fd?void process.nextTick(function(){i._read()}):void t.open(this.path,this.flags,this.mode,function(t,e){return t?(i.emit("error",t),void(i.readable=!1)):(i.fd=e,i.emit("open",e),void i._read())})}function n(e,o){if(!(this instanceof n))return new n(e,o);r.call(this),this.path=e,this.fd=null,this.writable=!0,this.flags="w",this.encoding="binary",this.mode=438,this.bytesWritten=0,o=o||{};for(var i=Object.keys(o),s=0,c=i.length;s<c;s++){var a=i[s];this[a]=o[a]}if(void 0!==this.start){if("number"!=typeof this.start)throw TypeError("start must be a Number");if(this.start<0)throw new Error("start must be >= zero");this.pos=this.start}this.busy=!1,this._queue=[],null===this.fd&&(this._open=t.open,this._queue.push([this._open,this.path,this.flags,this.mode,void 0]),this.flush())}return{ReadStream:e,WriteStream:n}}var r=t("stream").Stream;e.exports=o},{stream:void 0}],7:[function(t,e,n){function o(t){f.hasOwnProperty("O_SYMLINK")&&process.version.match(/^v0\.6\.[0-2]|^v0\.5\./)&&r(t),t.lutimes||i(t),t.chown=s(t.chown),t.fchown=s(t.fchown),t.lchown=s(t.lchown),t.chmod=s(t.chmod),t.fchmod=s(t.fchmod),t.lchmod=s(t.lchmod),t.chownSync=c(t.chownSync),t.fchownSync=c(t.fchownSync),t.lchownSync=c(t.lchownSync),t.chmodSync=s(t.chmodSync),t.fchmodSync=s(t.fchmodSync),t.lchmodSync=s(t.lchmodSync),t.lchmod||(t.lchmod=function(t,e,n){process.nextTick(n)},t.lchmodSync=function(){}),t.lchown||(t.lchown=function(t,e,n,o){process.nextTick(o)},t.lchownSync=function(){}),"win32"===process.platform&&(t.rename=function(t){return function(e,n,o){var r=Date.now();t(e,n,function i(s){return s&&("EACCES"===s.code||"EPERM"===s.code)&&Date.now()-r<1e3?t(e,n,i):void(o&&o(s))})}}(t.rename)),t.read=function(e){return function(n,o,r,i,s,c){var a;if(c&&"function"==typeof c){var u=0;a=function(f,l,h){return f&&"EAGAIN"===f.code&&u<10?(u++,e.call(t,n,o,r,i,s,a)):void c.apply(this,arguments)}}return e.call(t,n,o,r,i,s,a)}}(t.read),t.readSync=function(e){return function(n,o,r,i,s){for(var c=0;;)try{return e.call(t,n,o,r,i,s)}catch(a){if("EAGAIN"===a.code&&c<10){c++;continue}throw a}}}(t.readSync)}function r(t){t.lchmod=function(e,n,o){o=o||noop,t.open(e,f.O_WRONLY|f.O_SYMLINK,n,function(e,r){return e?void o(e):void t.fchmod(r,n,function(e){t.close(r,function(t){o(e||t)})})})},t.lchmodSync=function(e,n){var o,r=t.openSync(e,f.O_WRONLY|f.O_SYMLINK,n),i=!0;try{o=t.fchmodSync(r,n),i=!1}finally{if(i)try{t.closeSync(r)}catch(s){}else t.closeSync(r)}return o}}function i(t){f.hasOwnProperty("O_SYMLINK")?(t.lutimes=function(e,n,o,r){t.open(e,f.O_SYMLINK,function(e,i){return r=r||noop,e?r(e):void t.futimes(i,n,o,function(e){t.close(i,function(t){return r(e||t)})})})},t.lutimesSync=function(e,n,o){var r,i=t.openSync(e,f.O_SYMLINK),s=!0;try{r=t.futimesSync(i,n,o),s=!1}finally{if(s)try{t.closeSync(i)}catch(c){}else t.closeSync(i)}return r}):(t.lutimes=function(t,e,n,o){process.nextTick(o)},t.lutimesSync=function(){})}function s(t){return t?function(e,n,o,r){return t.call(u,e,n,o,function(t,e){a(t)&&(t=null),r(t,e)})}:t}function c(t){return t?function(e,n,o){try{return t.call(u,e,n,o)}catch(r){if(!a(r))throw r}}:t}function a(t){if(!t)return!0;if("ENOSYS"===t.code)return!0;var e=!process.getuid||0!==process.getuid();return!(!e||"EINVAL"!==t.code&&"EPERM"!==t.code)}var u=t("./fs.js"),f=t("constants"),l=process.cwd,h=null;process.cwd=function(){return h||(h=l.call(process)),h};try{process.cwd()}catch(p){}var d=process.chdir;process.chdir=function(t){h=null,d.call(process,t)},e.exports=o},{"./fs.js":4,constants:void 0}],8:[function(t,e,n){!function(){function t(e,o){var r=this instanceof t?this:n;if(r.reset(o),"string"==typeof e&&e.length>0&&r.hash(e),r!==this)return r}var n;t.prototype.hash=function(t){var e,n,o,r,i;switch(i=t.length,this.len+=i,n=this.k1,o=0,this.rem){case 0:n^=i>o?65535&t.charCodeAt(o++):0;case 1:n^=i>o?(65535&t.charCodeAt(o++))<<8:0;case 2:n^=i>o?(65535&t.charCodeAt(o++))<<16:0;case 3:n^=i>o?(255&t.charCodeAt(o))<<24:0,n^=i>o?(65280&t.charCodeAt(o++))>>8:0}if(this.rem=i+this.rem&3,i-=this.rem,i>0){for(e=this.h1;;){if(n=11601*n+3432906752*(65535&n)&4294967295,n=n<<15|n>>>17,n=13715*n+461832192*(65535&n)&4294967295,e^=n,e=e<<13|e>>>19,e=5*e+3864292196&4294967295,o>=i)break;n=65535&t.charCodeAt(o++)^(65535&t.charCodeAt(o++))<<8^(65535&t.charCodeAt(o++))<<16,r=t.charCodeAt(o++),n^=(255&r)<<24^(65280&r)>>8}switch(n=0,this.rem){case 3:n^=(65535&t.charCodeAt(o+2))<<16;case 2:n^=(65535&t.charCodeAt(o+1))<<8;case 1:n^=65535&t.charCodeAt(o)}this.h1=e}return this.k1=n,this},t.prototype.result=function(){var t,e;return t=this.k1,e=this.h1,t>0&&(t=11601*t+3432906752*(65535&t)&4294967295,t=t<<15|t>>>17,t=13715*t+461832192*(65535&t)&4294967295,e^=t),e^=this.len,e^=e>>>16,e=51819*e+2246770688*(65535&e)&4294967295,e^=e>>>13,e=44597*e+3266445312*(65535&e)&4294967295,e^=e>>>16,e>>>0},t.prototype.reset=function(t){return this.h1="number"==typeof t?t:0,this.rem=this.k1=this.len=0,this},n=new t,"undefined"!=typeof e?e.exports=t:this.MurmurHash3=t}()},{}],9:[function(t,e,n){(function(){var e,o,r,i,s,c,a,u,f,l,h,p,d,y,m=function(t,e){function n(){this.constructor=t}for(var o in e)v.call(e,o)&&(t[o]=e[o]);return n.prototype=e.prototype,t.prototype=new n,t.__super__=e.prototype,t},v={}.hasOwnProperty;d=t("path"),p=t("fs"),h=t("events"),y=t("write-file-atomic").sync,o="---.EMPTY_STRING.---",a=function(t){var e,n,o,r,i;for(r=p.readdirSync(t),i=[],e=0,n=r.length;e<n;e++)o=r[e],i.push(f(d.join(t,o)));return i},f=function(t){return p.statSync(t).isDirectory()?(a(t),p.rmdirSync(t)):p.unlinkSync(t)},u=function(t){var e;return e=""===t?o:t.toString()},s=function(t){function e(t){this.message=null!=t?t:"Unknown error.",null!=Error.captureStackTrace&&Error.captureStackTrace(this,this.constructor),this.name=this.constructor.name}return m(e,t),e.prototype.toString=function(){return this.name+": "+this.message},e}(Error),c=function(){function t(t,e,n,o,r){this.key=t,this.oldValue=e,this.newValue=n,this.url=o,this.storageArea=null!=r?r:"localStorage"}return t}(),i=function(){function t(e,n){if(this.key=e,this.index=n,!(this instanceof t))return new t(this.key,this.index)}return t}(),l=function(){var t;return t=function(){},t.prototype=Object.create(null),new t},r=function(t){function e(t,o){return this._location=t,this.quota=null!=o?o:5242880,this instanceof e?(this._location=d.resolve(this._location),null!=n[this._location]?n[this._location]:(this.length=0,this._bytesInUse=0,this._keys=[],this._metaKeyMap=l(),this._eventUrl="pid:"+process.pid,this._init(),this._QUOTA_EXCEEDED_ERR=s,n[this._location]=this,n[this._location])):new e(this._location,this.quota)}var n;return m(e,t),n={},e.prototype._init=function(){var t,e,n,o,r,s,c,a;try{if(a=p.statSync(this._location),null!=a&&!a.isDirectory())throw new Error("A file exists at the location '"+this._location+"' when trying to create/open localStorage");for(this._bytesInUse=0,this.length=0,n=p.readdirSync(this._location),r=o=0,c=n.length;o<c;r=++o)s=n[r],e=decodeURIComponent(s),this._keys.push(e),t=new i(s,r),this._metaKeyMap[e]=t,a=this._getStat(s),null!=(null!=a?a.size:void 0)&&(t.size=a.size,this._bytesInUse+=a.size);this.length=n.length}catch(u){p.mkdirSync(this._location)}},e.prototype.setItem=function(t,e){var n,o,r,a,f,l,p,m,v,g;if(f=h.EventEmitter.listenerCount(this,"storage"),m=null,f&&(m=this.getItem(t)),t=u(t),n=encodeURIComponent(t),a=d.join(this._location,n),v=e.toString(),g=v.length,l=this._metaKeyMap[t],r=!!l,p=r?l.size:0,this._bytesInUse-p+g>this.quota)throw new s;if(y(a,v,"utf8"),r||(l=new i(n,this._keys.push(t)-1),l.size=g,this._metaKeyMap[t]=l,this.length+=1,this._bytesInUse+=g),f)return o=new c(t,m,e,this._eventUrl),this.emit("storage",o)},e.prototype.getItem=function(t){var e,n;return t=u(t),n=this._metaKeyMap[t],n?(e=d.join(this._location,n.key),p.readFileSync(e,"utf8")):null},e.prototype._getStat=function(t){var e;t=u(t),e=d.join(this._location,encodeURIComponent(t));try{return p.statSync(e)}catch(n){return null}},e.prototype.removeItem=function(t){var e,n,o,r,i,s,a,l,p;if(t=u(t),s=this._metaKeyMap[t]){o=h.EventEmitter.listenerCount(this,"storage"),a=null,o&&(a=this.getItem(t)),delete this._metaKeyMap[t],this.length-=1,this._bytesInUse-=s.size,n=d.join(this._location,s.key),this._keys.splice(s.index,1),l=this._metaKeyMap;for(r in l)p=l[r],i=this._metaKeyMap[r],i.index>s.index&&(i.index-=1);if(f(n),o)return e=new c(t,a,null,this._eventUrl),this.emit("storage",e)}},e.prototype.key=function(t){return this._keys[t]},e.prototype.clear=function(){var t;if(a(this._location),this._metaKeyMap=l(),this._keys=[],this.length=0,this._bytesInUse=0,h.EventEmitter.listenerCount(this,"storage"))return t=new c(null,null,null,this._eventUrl),this.emit("storage",t)},e.prototype._getBytesInUse=function(){return this._bytesInUse},e.prototype._deleteLocation=function(){return delete n[this._location],f(this._location),this._metaKeyMap={},this._keys=[],this.length=0,this._bytesInUse=0},e}(h.EventEmitter),e=function(t){function e(){return e.__super__.constructor.apply(this,arguments)}return m(e,t),e.prototype.setItem=function(t,n){var o;return o=JSON.stringify(n),e.__super__.setItem.call(this,t,o)},e.prototype.getItem=function(t){return JSON.parse(e.__super__.getItem.call(this,t))},e}(r),n.LocalStorage=r,n.JSONStorage=e,n.QUOTA_EXCEEDED_ERR=s}).call(this)},{events:void 0,fs:void 0,path:void 0,"write-file-atomic":14}],10:[function(t,e,n){function o(){function t(u){u&&!s&&(s=u);for(var f=arguments.length,l=1;l<f;l++)void 0!==arguments[l]&&(i[l-1]=(i[l-1]||[]).concat(arguments[l]));if(n.length>c){var h=n.slice(c);a+=(n.length-c)*r,c=n.length,process.nextTick(function(){h.forEach(function(n){e.forEach(function(e){e(n,t)})})})}0===--a&&o.apply(null,[s].concat(i))}var e=Array.prototype.slice.call(arguments),n=e.shift()||[],o=e.pop();if("function"!=typeof o)throw new Error("No callback provided to asyncMap");if(!n)return o(null,[]);Array.isArray(n)||(n=[n]);var r=e.length,i=[],s=null,c=n.length,a=c*r;return a?void n.forEach(function(n){e.forEach(function(e){e(n,t)})}):o(null,[])}e.exports=o},{}],11:[function(t,e,n){function o(){var t,e=Array.prototype.slice.call(arguments),n=null;return"object"==typeof e[0]?(n=e.shift(),t=e.shift(),"string"==typeof t&&(t=n[t])):t=e.shift(),function(o){t.apply(n,e.concat(o))}}e.exports=o},{}],12:[function(t,e,n){function o(t,e){var n=[];!function i(s,c){return s>=c?e(null,n):(Array.isArray(t[s])&&(t[s]=r.apply(null,t[s].map(function(t){return t===o.first?n[0]:t===o.last?n[n.length-1]:t}))),t[s]?void t[s](function(t,o){return t?e(t,n):(void 0!==o&&(n=n.concat(o)),void i(s+1,c))}):i(s+1,c))}(0,t.length)}e.exports=o;var r=t("./bind-actor.js");o.first={},o.last={}},{"./bind-actor.js":11}],13:[function(t,e,n){n.asyncMap=t("./async-map"),n.bindActor=t("./bind-actor"),n.chain=t("./chain")},{"./async-map":10,"./bind-actor":11,"./chain":12}],14:[function(t,e,n){(function(n){"use strict";function o(){for(var t=new s,e=0;e<arguments.length;++e)t.hash(""+arguments[e]);return t.result()}var r=t("graceful-fs"),i=t("slide").chain,s=t("imurmurhash"),c=0,a=function(t){return t+"."+o(n,process.pid,++c)};e.exports=function(t,e,n,o){n instanceof Function&&(o=n,n=null),n||(n={});var s=a(t);i([[r,r.writeFile,s,e,n],n.chown&&[r,r.chown,s,n.chown.uid,n.chown.gid],[r,r.rename,s,t]],function(t){t?r.unlink(s,function(){o(t)}):o()})},e.exports.sync=function(t,e,n){n||(n={});var o=a(t);try{r.writeFileSync(o,e,n),n.chown&&r.chownSync(o,n.chown.uid,n.chown.gid),r.renameSync(o,t)}catch(i){try{r.unlinkSync(o)}catch(s){}throw i}}}).call(this,"/home/vsilva/pt-inovacao/rethink-project/dev-service-framework/node_modules/write-file-atomic/index.js")},{"graceful-fs":5,imurmurhash:8,slide:13}],15:[function(t,e,n){"use strict";function o(t){return t&&t.__esModule?t:{"default":t}}Object.defineProperty(n,"__esModule",{value:!0});var r=t("babel-runtime/core-js/json/stringify"),i=o(r),s=t("./universal-localstorage"),c=o(s),a={set:function(t,e,n){c["default"].setItem(t,(0,i["default"])({version:e,value:n}))},get:function(t){try{return JSON.parse(c["default"].getItem(t)).value}catch(e){}},getVersion:function(t){try{return JSON.parse(c["default"].getItem(t)).version}catch(e){}},"delete":function(t){c["default"].removeItem(t)}};n["default"]=a,e.exports=n["default"]},{"./universal-localstorage":17,"babel-runtime/core-js/json/stringify":1}],16:[function(t,e,n){"use strict";function o(t){return t&&t.__esModule?t:{"default":t}}var r=t("babel-runtime/core-js/json/stringify"),i=o(r);"undefined"!=typeof window.localStorage&&"undefined"!=typeof window.sessionStorage||function(){var t=function(t){function e(t,e,n){var o,r;n?(o=new Date,o.setTime(o.getTime()+24*n*60*60*1e3),r="; expires="+o.toGMTString()):r="",document.cookie=t+"="+e+r+"; path=/"}function n(t){var e,n,o=t+"=",r=document.cookie.split(";");for(e=0;e<r.length;e++){for(n=r[e];" "==n.charAt(0);)n=n.substring(1,n.length);if(0==n.indexOf(o))return n.substring(o.length,n.length)}return null}function o(n){n=(0,i["default"])(n),"session"==t?window.name=n:e("localStorage",n,365)}function r(){"session"==t?window.name="":e("localStorage","",365)}function s(){var e="session"==t?window.name:n("localStorage");return e?JSON.parse(e):{}}var c=s();return{length:0,clear:function(){c={},this.length=0,r()},getItem:function(t){return void 0===c[t]?null:c[t]},key:function(t){var e=0;for(var n in c){if(e==t)return n;e++}return null},removeItem:function(t){delete c[t],this.length--,o(c)},setItem:function(t,e){c[t]=e+"",this.length++,o(c)}}};"undefined"==typeof window.localStorage&&(window.localStorage=new t("local")),"undefined"==typeof window.sessionStorage&&(window.sessionStorage=new t("session"))}()},{"babel-runtime/core-js/json/stringify":1}],17:[function(t,e,n){"use strict";Object.defineProperty(n,"__esModule",{value:!0});var o=void 0;if("undefined"==typeof window){var r=t("node-localstorage").LocalStorage;o=new r("./uls-scratch")}else o="undefined"==typeof window.localStorage||"undefined"==typeof window.sessionStorage?t("./rem-localstorage"):window.localStorage;n["default"]=o,e.exports=n["default"]},{"./rem-localstorage":16,"node-localstorage":9}]},{},[15])(15)});
+
+
+}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"_process":1}],3:[function(require,module,exports){
 (function (global){
 /**
 * Copyright 2016 PT Inovação e Sistemas SA
@@ -33,344 +162,11 @@ this._fireEvent({cType:_.ADD,oType:i,field:c,data:(0,l.deepClone)(a)})),"delete"
 
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],2:[function(require,module,exports){
-'use strict';
+},{}],4:[function(require,module,exports){
+'use strict';Object.defineProperty(exports,"__esModule",{value:true});var _createClass=function(){function defineProperties(target,props){for(var i=0;i<props.length;i++){var descriptor=props[i];descriptor.enumerable=descriptor.enumerable||false;descriptor.configurable=true;if("value" in descriptor)descriptor.writable=true;Object.defineProperty(target,descriptor.key,descriptor);}}return function(Constructor,protoProps,staticProps){if(protoProps)defineProperties(Constructor.prototype,protoProps);if(staticProps)defineProperties(Constructor,staticProps);return Constructor;};}();exports.default=activate;var _Syncher=require('service-framework/dist/Syncher');var _utils=require('../utils/utils');var _PersistenceManager=require('service-framework/dist/PersistenceManager');var _PersistenceManager2=_interopRequireDefault(_PersistenceManager);function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}function _classCallCheck(instance,Constructor){if(!(instance instanceof Constructor)){throw new TypeError("Cannot call a class as a function");}}var BraceletSensorReporter=function(){function BraceletSensorReporter(hypertyURL,bus,configuration){_classCallCheck(this,BraceletSensorReporter);if(!hypertyURL)throw new Error('The hypertyURL is a needed parameter');if(!bus)throw new Error('The MiniBus is a needed parameter');if(!configuration)throw new Error('The configuration is a needed parameter');var _this=this;_this.firstTime=true;_this.reconnecting=false;_this._domain=(0,_utils.divideURL)(hypertyURL).domain;_this._objectDescURL='hyperty-catalogue://catalogue.'+_this._domain+'/.well-known/dataschema/Context';console.log('Init BraceletSensorReporter: ',hypertyURL);_this._syncher=new _Syncher.Syncher(hypertyURL,bus,configuration);_this._persistenceManager=_PersistenceManager2.default;console.log('PM',_this._persistenceManager);}_createClass(BraceletSensorReporter,[{key:'getLastDevice',value:function getLastDevice(){var _this=this;if(_this._onConnect)_this._onConnect(_this._persistenceManager.get('btLEAddress'));}},{key:'Discover',value:function Discover(){return new Promise(function(resolve,reject){console.log('DISCOVERING!!');var _this=this;var devicesList=[];var params={services:[],allowDuplicates:true,scanMode:bluetoothle.SCAN_MODE_LOW_LATENCY,matchMode:bluetoothle.MATCH_MODE_AGGRESSIVE,matchNum:bluetoothle.MATCH_NUM_MAX_ADVERTISEMENT,callbackType:bluetoothle.CALLBACK_TYPE_ALL_MATCHES};var scanSucces=function scanSucces(device){console.log('scan success',device);if('address' in device){var newDevice={id:device.address,name:device.name,description:'Xiaomi Band'};devicesList.push(newDevice);}};var scanError=function scanError(){console.log('scan error');};var time=setTimeout(function(){bluetoothle.stopScan(function(a){console.log('status2',a);resolve(devicesList);},function(b){console.log('status3',b);});},10000);bluetoothle.initialize(function(a){console.log('ble initialized',a);bluetoothle.startScan(scanSucces,scanError,params);},function(){console.log('ble not initialized');});});}},{key:'Connect',value:function Connect(id,options){var _this=this;return new Promise(function(resolve,reject){var data={scheme:'context',id:id,time:new Date().getTime(),values:[]};var params={address:id};var disconnectSuccess=function disconnectSuccess(status){console.log('disconnect success',status);_this.reconnecting=true;var statusChanged={connection:'reconnecting',address:id};if(_this._onStatusChange)_this._onStatusChange(statusChanged);resolve('reconnecting');setTimeout(function(){bluetoothle.reconnect(reconnectSuccess,reconnectError,params);},5000);};var disconnectError=function disconnectError(status){console.log('disconnect error',status);bluetoothle.connect(connectSuccess,connectError,params);};var discoverSuccess=function discoverSuccess(status){console.log('discover success',status);console.log('flag',_this.firstTime);_this._persistenceManager.set('btLEAddress',0,id);if(_this.firstTime){console.log('first true');_this.readBattery(id).then(function(battery){console.log('battery',battery);var value={type:'battery',name:'remaining battery energy level in percents',unit:'%EL',value:battery,time:new Date().getTime()};data.values.push(value);console.log('data',data);_this.readSteps(id).then(function(steps){console.log('STEPS',steps);var value={type:'user_steps',name:'Cumulative number of steps',unit:'steps',value:steps,time:new Date().getTime()};data.values.push(value);console.log('data',data);_this.ReporterBracelet(data);});});console.log('first false');_this.firstTime=false;}else {resolve();}};var discoverError=function discoverError(status){console.log('discover error',status);};var reconnectSuccess=function reconnectSuccess(status){console.log('reconnect success',status);if(status.status==='connected'){_this.reconnecting=false;var statusChanged={connection:'connected',address:id};if(_this._onStatusChange)_this._onStatusChange(statusChanged);resolve('connected');console.log('Connected');bluetoothle.discover(discoverSuccess,discoverError,params);}else if(status.status==='disconnected'){if(!_this.reconnecting){console.log('On Reconnect Success Reconnecting after disconnect');_this.reconnecting=true;var _statusChanged={connection:'reconnecting',address:id};if(_this._onStatusChange)_this._onStatusChange(_statusChanged);resolve('reconnecting');setTimeout(function(){bluetoothle.reconnect(reconnectSuccess,reconnectError,params);},5000);}else {console.log('Already Reconnecting');}}};var reconnectError=function reconnectError(status){console.log('reconnect error',status);if(status.message==='Device isn\'t disconnected'){console.log('disconneting');bluetoothle.disconnect(disconnectSuccess,disconnectError,params);}};var connectSuccess=function connectSuccess(status){console.log('connect success',status);if(status.status==='connected'){resolve('connected');bluetoothle.discover(discoverSuccess,discoverError,params);}else if(status.status==='disconnected'){if(!_this.reconnecting){console.log('Reconnecting after disconnect');_this.reconnecting=true;var statusChanged={connection:'reconnecting',address:id};if(_this._onStatusChange)_this._onStatusChange(statusChanged);resolve('reconnecting');setTimeout(function(){bluetoothle.reconnect(reconnectSuccess,reconnectError,params);},5000);}else {console.log('Already Reconnecting');}}};var connectError=function connectError(status){console.log('connect error',status);if(status.message==='Device previously connected, reconnect or close for new device'){console.log('trying to reconnect',_this.reconnecting);if(!_this.reconnecting){_this.reconnecting=true;var statusChanged={connection:'reconnecting',address:id};if(_this._onStatusChange)_this._onStatusChange(statusChanged);resolve('reconnecting');console.log('trying to reconnect',_this.reconnecting);setTimeout(function(){bluetoothle.reconnect(reconnectSuccess,reconnectError,params);},5000);}}};bluetoothle.initialize(function(a){if(_this.reconnecting){console.log('Still Reconnecting, resolve reconnecting..');var statusChanged={connection:'reconnecting',address:id};if(_this._onStatusChange)_this._onStatusChange(statusChanged);}else {console.log('Connecting');bluetoothle.connect(connectSuccess,connectError,params);}},function(b){console.log(b);});});}},{key:'ReporterBracelet',value:function ReporterBracelet(initialData){var _this=this;console.log('Reporter initialized');_this._syncher.create(_this._objectDescURL,[],initialData).then(function(reporter){console.info('Reporter created',reporter);_this.reporter=reporter;reporter.onSubscription(function(event){console.log('onSubscription:',event);event.accept();});var isConnectedSuccess=function isConnectedSuccess(status){if(status.isConnected){console.log('isConnectedSuccess',status);_this.readBattery(initialData.id).then(function(battery){return _this.pushData(battery,initialData.id);});}else {console.log('isConnectedSuccess',status);_this.Connect(initialData.id);}};var isConnectedError=function isConnectedError(status){console.log('isConnectedError',status);};var params={address:initialData.id};console.log('HYPERTY REPORTER : ',reporter.url);setInterval(function(){bluetoothle.isConnected(isConnectedSuccess,isConnectedError,params);},2000);});}},{key:'pushData',value:function pushData(battery,id){var _this=this;var value={type:'battery',name:'remaining battery energy level in percents',unit:'%EL',value:battery,time:new Date().getTime()};_this.reporter.data.values.push(value);if(_this._onDataChange)_this._onDataChange(value);_this.readSteps(id).then(function(steps){var value={type:'user_steps',name:'Cumulative number of steps',unit:'steps',value:steps,time:new Date().getTime()};_this.reporter.data.values.push(value);console.log('data',_this.reporter.data.values);if(_this._onDataChange)_this._onDataChange(value);});}},{key:'readSteps',value:function readSteps(bleAddress){var _this=this;return new Promise(function(resolve,reject){console.log('reading steps');var params={address:bleAddress,service:'fee0',characteristic:'ff06'};var readSucess=function readSucess(status){console.log('read success',status);var b=bluetoothle.encodedStringToBytes(status.value);var valor=0xff&b[0]|(0xff&b[1])<<8;resolve(valor);};var readError=function readError(status){console.log('read error',status);_this.Connect(bleAddress);};bluetoothle.read(readSucess,readError,params);});}},{key:'readBattery',value:function readBattery(bleAddress){var _this=this;return new Promise(function(resolve,reject){console.log('reading battery');var params={address:bleAddress,service:'fee0',characteristic:'ff0c'};var readSucess=function readSucess(status){console.log('read success',status);var b=bluetoothle.encodedStringToBytes(status.value);var valor=b[0];resolve(valor);};var readError=function readError(status){console.log('read error',status);_this.Connect(bleAddress);};bluetoothle.read(readSucess,readError,params);});}},{key:'onDataChange',value:function onDataChange(callback){var _this=this;_this._onDataChange=callback;}},{key:'onStatusChange',value:function onStatusChange(callback){var _this=this;_this._onStatusChange=callback;}},{key:'onConnect',value:function onConnect(callback){var _this=this;_this._onConnect=callback;}}]);return BraceletSensorReporter;}();function activate(hypertyURL,bus,configuration){return {name:'BraceletSensorReporter',instance:new BraceletSensorReporter(hypertyURL,bus,configuration)};}module.exports=exports['default'];
 
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-exports.default = activate;
-
-var _Syncher = require('service-framework/dist/Syncher');
-
-var _utils = require('../utils/utils');
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var BraceletSensorReporter = function () {
-  function BraceletSensorReporter(hypertyURL, bus, configuration) {
-    _classCallCheck(this, BraceletSensorReporter);
-
-    if (!hypertyURL) throw new Error('The hypertyURL is a needed parameter');
-    if (!bus) throw new Error('The MiniBus is a needed parameter');
-    if (!configuration) throw new Error('The configuration is a needed parameter');
-
-    var _this = this;
-    _this.firstTime = true;
-    _this.reconnecting = false;
-
-    _this._domain = (0, _utils.divideURL)(hypertyURL).domain;
-
-    _this._objectDescURL = 'hyperty-catalogue://catalogue.' + _this._domain + '/.well-known/dataschema/Context';
-
-    console.log('Init BraceletSensorReporter: ', hypertyURL);
-    _this._syncher = new _Syncher.Syncher(hypertyURL, bus, configuration);
-  }
-
-  _createClass(BraceletSensorReporter, [{
-    key: 'Discover',
-    value: function Discover() {
-      return new Promise(function (resolve, reject) {
-        console.log('DISCOVERING!!');
-        var _this = this;
-        var devicesList = [];
-        var params = {
-          services: [],
-          allowDuplicates: true,
-          scanMode: bluetoothle.SCAN_MODE_LOW_LATENCY,
-          matchMode: bluetoothle.MATCH_MODE_AGGRESSIVE,
-          matchNum: bluetoothle.MATCH_NUM_MAX_ADVERTISEMENT,
-          callbackType: bluetoothle.CALLBACK_TYPE_ALL_MATCHES
-        };
-
-        var scanSucces = function scanSucces(device) {
-          console.log('scan success', device);
-          if ('address' in device) {
-            var newDevice = { id: device.address, name: device.name, description: 'Xiaomi Band' };
-            devicesList.push(newDevice);
-          }
-        };
-        var scanError = function scanError() {
-          console.log('scan error');
-        };
-
-        var time = setTimeout(function () {
-          bluetoothle.stopScan(function (a) {
-            console.log('status2', a);
-            resolve(devicesList);
-          }, function (b) {
-            console.log('status3', b);
-          });
-        }, 10000);
-
-        bluetoothle.initialize(function (a) {
-          console.log('ble initialized', a);
-          bluetoothle.startScan(scanSucces, scanError, params);
-        }, function () {
-          console.log('ble not initialized');
-        });
-      });
-    }
-  }, {
-    key: 'Connect',
-    value: function Connect(id, options) {
-      var _this = this;
-      return new Promise(function (resolve, reject) {
-        var data = { scheme: 'context', id: id, time: new Date().getTime(), values: [] };
-
-        var params = {
-          address: id
-        };
-        var disconnectSuccess = function disconnectSuccess(status) {
-          console.log('disconnect success', status);
-          _this.reconnecting = true;
-          var statusChanged = { connection: 'reconnecting', address: id };
-          if (_this._onStatusChange) _this._onStatusChange(statusChanged);
-          resolve('reconnecting');
-          setTimeout(function () {
-            bluetoothle.reconnect(reconnectSuccess, reconnectError, params);
-          }, 5000);
-        };
-        var disconnectError = function disconnectError(status) {
-          console.log('disconnect error', status);
-          bluetoothle.connect(connectSuccess, connectError, params);
-        };
-        var discoverSuccess = function discoverSuccess(status) {
-          console.log('discover success', status);
-          console.log('flag', _this.firstTime);
-          if (_this.firstTime) {
-            console.log('first true');
-            _this.readBattery(id).then(function (battery) {
-              console.log('battery', battery);
-              var value = { type: 'battery', name: 'remaining battery energy level in percents', unit: '%EL', value: battery, time: new Date().getTime() };
-              data.values.push(value);
-              console.log('data', data);
-              _this.readSteps(id).then(function (steps) {
-                console.log('STEPS', steps);
-                var value = { type: 'user_steps', name: 'Cumulative number of steps', unit: 'steps', value: steps, time: new Date().getTime() };
-                data.values.push(value);
-                console.log('data', data);
-                _this.ReporterBracelet(data);
-              });
-            });
-            console.log('first false');
-            _this.firstTime = false;
-          } else {
-            resolve();
-          }
-        };
-        var discoverError = function discoverError(status) {
-          console.log('discover error', status);
-        };
-        var reconnectSuccess = function reconnectSuccess(status) {
-          console.log('reconnect success', status);
-          if (status.status === 'connected') {
-            _this.reconnecting = false;
-            var statusChanged = { connection: 'connected', address: id };
-            if (_this._onStatusChange) _this._onStatusChange(statusChanged);
-            resolve('connected');
-            console.log('Connected');
-            bluetoothle.discover(discoverSuccess, discoverError, params);
-          } else if (status.status === 'disconnected') {
-            if (!_this.reconnecting) {
-              console.log('On Reconnect Success Reconnecting after disconnect');
-              _this.reconnecting = true;
-              var _statusChanged = { connection: 'reconnecting', address: id };
-              if (_this._onStatusChange) _this._onStatusChange(_statusChanged);
-              resolve('reconnecting');
-              setTimeout(function () {
-                bluetoothle.reconnect(reconnectSuccess, reconnectError, params);
-              }, 5000);
-            } else {
-              console.log('Already Reconnecting');
-            }
-          }
-        };
-        var reconnectError = function reconnectError(status) {
-          console.log('reconnect error', status);
-          if (status.message === 'Device isn\'t disconnected') {
-            console.log('disconneting');
-            bluetoothle.disconnect(disconnectSuccess, disconnectError, params);
-          }
-        };
-
-        var connectSuccess = function connectSuccess(status) {
-          console.log('connect success', status);
-
-          if (status.status === 'connected') {
-            resolve('connected');
-            bluetoothle.discover(discoverSuccess, discoverError, params);
-          } else if (status.status === 'disconnected') {
-            if (!_this.reconnecting) {
-              console.log('Reconnecting after disconnect');
-              _this.reconnecting = true;
-              var statusChanged = { connection: 'reconnecting', address: id };
-              if (_this._onStatusChange) _this._onStatusChange(statusChanged);
-              resolve('reconnecting');
-              setTimeout(function () {
-                bluetoothle.reconnect(reconnectSuccess, reconnectError, params);
-              }, 5000);
-            } else {
-              console.log('Already Reconnecting');
-            }
-          }
-        };
-        var connectError = function connectError(status) {
-          console.log('connect error', status);
-          if (status.message === 'Device previously connected, reconnect or close for new device') {
-            console.log('trying to reconnect', _this.reconnecting);
-            if (!_this.reconnecting) {
-              _this.reconnecting = true;
-              var statusChanged = { connection: 'reconnecting', address: id };
-              if (_this._onStatusChange) _this._onStatusChange(statusChanged);
-              resolve('reconnecting');
-              console.log('trying to reconnect', _this.reconnecting);
-              setTimeout(function () {
-                bluetoothle.reconnect(reconnectSuccess, reconnectError, params);
-              }, 5000);
-            }
-          }
-        };
-        if (_this.reconnecting) {
-          console.log('Still Reconnecting, resolve reconnecting..');
-          var statusChanged = { connection: 'reconnecting', address: id };
-          if (_this._onStatusChange) _this._onStatusChange(statusChanged);
-        } else {
-          console.log('Connecting');
-          bluetoothle.connect(connectSuccess, connectError, params);
-        }
-      });
-    }
-  }, {
-    key: 'ReporterBracelet',
-    value: function ReporterBracelet(initialData) {
-      var _this = this;
-      console.log('Reporter initialized');
-      _this._syncher.create(_this._objectDescURL, [], initialData).then(function (reporter) {
-        console.info('Reporter created', reporter);
-        _this.reporter = reporter;
-        reporter.onSubscription(function (event) {
-          console.log('onSubscription:', event);
-
-          event.accept();
-        });
-        var isConnectedSuccess = function isConnectedSuccess(status) {
-          if (status.isConnected) {
-            console.log('isConnectedSuccess', status);
-            _this.readBattery(initialData.id).then(function (battery) {
-              return _this.pushData(battery, initialData.id);
-            });
-          } else {
-            console.log('isConnectedSuccess', status);
-            _this.Connect(initialData.id);
-          }
-        };
-        var isConnectedError = function isConnectedError(status) {
-          console.log('isConnectedError', status);
-        };
-        var params = { address: initialData.id };
-
-        console.log('HYPERTY REPORTER : ', reporter.url);
-        setInterval(function () {
-          bluetoothle.isConnected(isConnectedSuccess, isConnectedError, params);
-        }, 2000);
-      });
-    }
-  }, {
-    key: 'pushData',
-    value: function pushData(battery, id) {
-      var _this = this;
-      var value = { type: 'battery', name: 'remaining battery energy level in percents', unit: '%EL', value: battery, time: new Date().getTime() };
-      _this.reporter.data.values.push(value);
-      if (_this._onDataChange) _this._onDataChange(value);
-      _this.readSteps(id).then(function (steps) {
-        var value = { type: 'user_steps', name: 'Cumulative number of steps', unit: 'steps', value: steps, time: new Date().getTime() };
-        _this.reporter.data.values.push(value);
-        console.log('data', _this.reporter.data.values);
-        if (_this._onDataChange) _this._onDataChange(value);
-      });
-    }
-  }, {
-    key: 'readSteps',
-    value: function readSteps(bleAddress) {
-      var _this = this;
-      return new Promise(function (resolve, reject) {
-        console.log('reading steps');
-        var params = { address: bleAddress, service: 'fee0', characteristic: 'ff06' };
-        var readSucess = function readSucess(status) {
-          console.log('read success', status);
-          var b = bluetoothle.encodedStringToBytes(status.value);
-          var valor = 0xff & b[0] | (0xff & b[1]) << 8;
-          resolve(valor);
-        };
-        var readError = function readError(status) {
-          console.log('read error', status);
-          _this.Connect(bleAddress);
-        };
-        bluetoothle.read(readSucess, readError, params);
-      });
-    }
-  }, {
-    key: 'readBattery',
-    value: function readBattery(bleAddress) {
-      var _this = this;
-      return new Promise(function (resolve, reject) {
-        console.log('reading battery');
-        var params = { address: bleAddress, service: 'fee0', characteristic: 'ff0c' };
-        var readSucess = function readSucess(status) {
-          console.log('read success', status);
-          var b = bluetoothle.encodedStringToBytes(status.value);
-          var valor = b[0];
-          resolve(valor);
-        };
-        var readError = function readError(status) {
-          console.log('read error', status);
-          _this.Connect(bleAddress);
-        };
-        bluetoothle.read(readSucess, readError, params);
-      });
-    }
-  }, {
-    key: 'onDataChange',
-    value: function onDataChange(callback) {
-      var _this = this;
-      _this._onDataChange = callback;
-    }
-  }, {
-    key: 'onStatusChange',
-    value: function onStatusChange(callback) {
-      var _this = this;
-      _this._onStatusChange = callback;
-    }
-  }]);
-
-  return BraceletSensorReporter;
-}();
-
-function activate(hypertyURL, bus, configuration) {
-
-  return {
-    name: 'BraceletSensorReporter',
-    instance: new BraceletSensorReporter(hypertyURL, bus, configuration)
-  };
-}
-module.exports = exports['default'];
-
-},{"../utils/utils":3,"service-framework/dist/Syncher":1}],3:[function(require,module,exports){
-'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.divideURL = divideURL;
-exports.deepClone = deepClone;
-exports.getUserMedia = getUserMedia;
-exports.serialize = serialize;
-exports.getTemplate = getTemplate;
-/**
+},{"../utils/utils":5,"service-framework/dist/PersistenceManager":2,"service-framework/dist/Syncher":3}],5:[function(require,module,exports){
+'use strict';Object.defineProperty(exports,"__esModule",{value:true});exports.divideURL=divideURL;exports.deepClone=deepClone;exports.getUserMedia=getUserMedia;exports.serialize=serialize;exports.getTemplate=getTemplate; /**
  * Copyright 2016 PT Inovação e Sistemas SA
  * Copyright 2016 INESC-ID
  * Copyright 2016 QUOBIS NETWORKS SL
@@ -391,153 +187,33 @@ exports.getTemplate = getTemplate;
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- **/
-
-// jshint browser:true, jquery: true
+ **/ // jshint browser:true, jquery: true
 // jshint varstmt: true
-/* global Handlebars */
-
-/**
+/* global Handlebars */ /**
  * Support module with some functions will be useful
  * @module utils
- */
-
-/**
+ */ /**
  * @typedef divideURL
  * @type Object
  * @property {string} type The type of URL
  * @property {string} domain The domain of URL
  * @property {string} identity The identity of URL
- */
-
-/**
+ */ /**
  * Divide an url in type, domain and identity
  * @param  {URL.URL} url - url address
  * @return {divideURL} the result of divideURL
- */
-function divideURL(url) {
-
-  // let re = /([a-zA-Z-]*)?:\/\/(?:\.)?([-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b)*(\/[\/\d\w\.-]*)*(?:[\?])*(.+)*/gi;
-  var re = /([a-zA-Z-]*):\/\/(?:\.)?([-a-zA-Z0-9@:%._\+~#=]{2,256})([-a-zA-Z0-9@:%._\+~#=\/]*)/gi;
-  var subst = '$1,$2,$3';
-  var parts = url.replace(re, subst).split(',');
-
-  // If the url has no protocol, the default protocol set is https
-  if (parts[0] === url) {
-    parts[0] = 'https';
-    parts[1] = url;
-  }
-
-  var result = {
-    type: parts[0],
-    domain: parts[1],
-    identity: parts[2]
-  };
-
-  return result;
-}
-
-/**
+ */function divideURL(url){ // let re = /([a-zA-Z-]*)?:\/\/(?:\.)?([-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b)*(\/[\/\d\w\.-]*)*(?:[\?])*(.+)*/gi;
+var re=/([a-zA-Z-]*):\/\/(?:\.)?([-a-zA-Z0-9@:%._\+~#=]{2,256})([-a-zA-Z0-9@:%._\+~#=\/]*)/gi;var subst='$1,$2,$3';var parts=url.replace(re,subst).split(','); // If the url has no protocol, the default protocol set is https
+if(parts[0]===url){parts[0]='https';parts[1]=url;}var result={type:parts[0],domain:parts[1],identity:parts[2]};return result;} /**
  * Make a COPY of the original data
  * @param  {Object}  obj - object to be cloned
  * @return {Object}
- */
-function deepClone(obj) {
-  //TODO: simple but inefficient JSON deep clone...
-  if (obj) return JSON.parse(JSON.stringify(obj));
-}
-
-/**
+ */function deepClone(obj){ //TODO: simple but inefficient JSON deep clone...
+if(obj)return JSON.parse(JSON.stringify(obj));} /**
  * Get WebRTC API resources
  * @param  {object}     options Object containing the information that resources will be used (camera, mic, resolution, etc);
  * @return {Promise}
- */
-function getUserMedia(constraints) {
+ */function getUserMedia(constraints){return new Promise(function(resolve,reject){navigator.mediaDevices.getUserMedia(constraints).then(function(mediaStream){resolve(mediaStream);}).catch(function(reason){reject(reason);});});}function serialize(){$.fn.serializeObject=function(){var o={};var a=this.serializeArray();$.each(a,function(){if(o[this.name]!==undefined){if(!o[this.name].push){o[this.name]=[o[this.name]];}o[this.name].push(this.value||'');}else {o[this.name]=this.value||'';}});return o;};$.fn.serializeObjectArray=function(){var o={};var a=this.serializeArray();$.each(a,function(){if(o[this.name]!==undefined){if(!o[this.name].push){o[this.name]=[o[this.name]];}o[this.name].push(this.value||'');}else {if(!o[this.name])o[this.name]=[];o[this.name].push(this.value||'');}});return o;};}function getTemplate(path,script){return new Promise(function(resolve,reject){if(Handlebars.templates===undefined||Handlebars.templates[name]===undefined){Handlebars.templates={};}else {resolve(Handlebars.templates[name]);}var templateFile=$.ajax({url:path+'.hbs',success:function success(data){Handlebars.templates[name]=Handlebars.compile(data);},fail:function fail(reason){return reason;}});var scriptFile=$.getScript(script);var requests=[];if(path)requests.push(templateFile);if(script)requests.push(scriptFile);Promise.all(requests).then(function(result){resolve(Handlebars.templates[name]);}).catch(function(reason){reject(reason);});});}
 
-  return new Promise(function (resolve, reject) {
-
-    navigator.mediaDevices.getUserMedia(constraints).then(function (mediaStream) {
-      resolve(mediaStream);
-    }).catch(function (reason) {
-      reject(reason);
-    });
-  });
-}
-
-function serialize() {
-
-  $.fn.serializeObject = function () {
-    var o = {};
-    var a = this.serializeArray();
-    $.each(a, function () {
-      if (o[this.name] !== undefined) {
-        if (!o[this.name].push) {
-          o[this.name] = [o[this.name]];
-        }
-
-        o[this.name].push(this.value || '');
-      } else {
-        o[this.name] = this.value || '';
-      }
-    });
-
-    return o;
-  };
-
-  $.fn.serializeObjectArray = function () {
-    var o = {};
-    var a = this.serializeArray();
-    $.each(a, function () {
-      if (o[this.name] !== undefined) {
-        if (!o[this.name].push) {
-          o[this.name] = [o[this.name]];
-        }
-
-        o[this.name].push(this.value || '');
-      } else {
-        if (!o[this.name]) o[this.name] = [];
-        o[this.name].push(this.value || '');
-      }
-    });
-
-    return o;
-  };
-}
-
-function getTemplate(path, script) {
-
-  return new Promise(function (resolve, reject) {
-
-    if (Handlebars.templates === undefined || Handlebars.templates[name] === undefined) {
-      Handlebars.templates = {};
-    } else {
-      resolve(Handlebars.templates[name]);
-    }
-
-    var templateFile = $.ajax({
-      url: path + '.hbs',
-      success: function success(data) {
-        Handlebars.templates[name] = Handlebars.compile(data);
-      },
-
-      fail: function fail(reason) {
-        return reason;
-      }
-    });
-
-    var scriptFile = $.getScript(script);
-
-    var requests = [];
-    if (path) requests.push(templateFile);
-    if (script) requests.push(scriptFile);
-
-    Promise.all(requests).then(function (result) {
-      resolve(Handlebars.templates[name]);
-    }).catch(function (reason) {
-      reject(reason);
-    });
-  });
-}
-
-},{}]},{},[2])(2)
+},{}]},{},[4])(4)
 });
