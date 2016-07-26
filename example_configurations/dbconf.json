@@ -2,6 +2,7 @@
   "brokerHost": "mydomain.com",
   "coapHost": "mydomain.com",
   "catalogueObjectsPath": "catalogue_objects",
+  "endpoint": "myDatabase",
   "brokerPort": 15683,
   "coapPort": 10990,
   "coapsPort": 10991,
