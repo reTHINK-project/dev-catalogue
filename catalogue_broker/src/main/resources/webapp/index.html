@@ -55,9 +55,6 @@
             </select></td>
         </tr>
         <tr ng-show="kind != null">
-            <!--<td>(optional) Object name:</td>-->
-            <!--<td><input size="30" type="text" ng-model="name" ng-init="name = 'FirstHyperty'"-->
-            <!--ng-change="name = name == '' ? null : name"></td>-->
             <td align="right">Catalogue Object name:</td>
             <td><select name="singleSelect" ng-model="name" ng-options="name for name in names"
                         ng-init="name = names[0]"></select></td>
@@ -118,12 +115,16 @@
     <div ng-show="kind != null">
         <!-- TODO: improve code -->
         <h2>Generated path:
-            {{address + kind + (name != '' ? '/' + name : '') + (resourceName != '' ? '/' + resourceName : '')}}
+            {{address + kind + (name != '' ? '/' + name : '') + (name != '' && resourceName != '' ? '/' + resourceName :
+            '')}}
         </h2>
 
-        <button ng-click="response = getResource(kind, name, resourceName)">get {{name || kind}}</button>
+        <button ng-click="getResource(kind, name, resourceName)">get {{name || kind}}</button>
         <button ng-hide="name == '' || kind == 'sourcepackage' || kind == 'dataschema' || kind == 'database'"
-                ng-click="response = getAndExecCode(getResource(kind, name, 'sourcePackageURL'))">get & execute code
+                ng-click="makeRequest(getResource(kind, name, 'sourcePackageURL'))">get sourcePackage
+        </button>
+        <button ng-hide="name == '' || kind == 'sourcepackage' || kind == 'dataschema' || kind == 'database'"
+                ng-click="getAndExecCode(getResource(kind, name, 'sourcePackageURL'))">get & execute sourceCode
         </button>
 
         <h2>Result</h2>
@@ -204,31 +205,8 @@
                 }
             }
 
-            $scope.lastRequestUrl = url;
             console.log("trying to send a request to: " + url);
-
-            var xmlHttp = new XMLHttpRequest();
-            xmlHttp.open("GET", url, false); // false for synchronous request
-            xmlHttp.send();
-
-            console.log("got response:", xmlHttp);
-            var resp = xmlHttp.responseText;
-
-            try {
-                resp = JSON.parse(xmlHttp.responseText);
-            } catch (e) {
-//                alert("Error trying to parse json:\r\n" + resp + "\r\nerror: " + e);
-                console.log("json parsing failed, probably not json: ", xmlHttp.responseText);
-            }
-
-            if (xmlHttp.status != 200) {
-                let errString = "error (" + xmlHttp.status + ") " + (xmlHttp.responseText != '' ? xmlHttp.responseText : xmlHttp.statusText);
-                $scope.response = errString;
-                throw new Error(errString);
-            } else {
-                $scope.response = resp;
-            }
-
+            var resp = $scope.makeRequest(url);
             return resp;
         };
 
@@ -248,42 +226,23 @@
         };
 
 
-        $scope.getAndExecCode = function (url) {
+        $scope.getAndExecCode = function (url, skipExecution) {
             console.log("getting sourcePackage from:", url);
-            try {
-                var xmlHttp = new XMLHttpRequest();
-                xmlHttp.open("GET", url, false); // false for synchronous request
-                xmlHttp.send();
+            var resp = $scope.makeRequest(url);
 
-                if (xmlHttp.status != 200) {
-                    let errString = "(" + xmlHttp.status + ") Couldn't get sourcePackage: " + (xmlHttp.responseText != '' ? xmlHttp.responseText : xmlHttp.statusText);
-                    $scope.response = errString;
-                    throw new Error(errString);
-                }
+            $scope.response = resp;
+            console.log("got package:", resp);
 
-                var resp = xmlHttp.responseText;
-                try {
-                    resp = JSON.parse(xmlHttp.responseText);
-                } catch (e) {
-//                    console.log("json parsing failed, probably not json");
-                }
-                $scope.response = resp;
-                console.log("got package:", resp);
+            var sourcePackage = resp;
+            var code = sourcePackage.sourceCode;
 
-                var sourcePackage = resp;
-                var code = sourcePackage.sourceCode;
+            if (sourcePackage.encoding === "base64")
+                code = atob(code);
 
-                if (sourcePackage.encoding === "base64")
-                    code = atob(code);
-
-                console.log("About to exec following code: " + code);
+            console.log("About to exec following code: " + code);
+            if (!skipExecution)
                 eval(code);
-                return code;
-            } catch (e) {
-                let errString = "Error trying to execute code from url:\r\n" + url + "\r\n" + e;
-                console.error(errString);
-                $scope.response = errString;
-            }
+            return code;
         };
 
         let timeoutID = -1;
@@ -319,6 +278,38 @@
                 }, 250);
 
             };
+        };
+        $scope.makeRequest = function (url) {
+            if (url.startsWith("hyperty-catalogue:")) {
+                console.log("protocol 'hyperty-catalogue:' found. Replacing it with 'https:'...");
+                url = "https:" + url.substr("hyperty-catalogue:".length);
+            }
+            $scope.lastRequestUrl = url;
+            try {
+                var xmlHttp = new XMLHttpRequest();
+                xmlHttp.open("GET", url, false); // false for synchronous request
+                xmlHttp.send();
+
+                if (xmlHttp.status != 200) {
+                    let errString = "error (" + xmlHttp.status + ") " + (xmlHttp.responseText != '' ? xmlHttp.responseText : xmlHttp.statusText);
+                    $scope.response = errString;
+                    throw new Error(errString);
+                } else {
+                    var resp = xmlHttp.responseText
+                    try {
+                        resp = JSON.parse(resp);
+                    } catch (e) {
+//                    console.log("json parsing failed, probably not json");
+                    }
+                    $scope.response = resp;
+
+                    return resp;
+                }
+            } catch (e) {
+                console.error(e);
+                $scope.response = "" + e;
+                throw new Error(e);
+            }
         };
 
         $scope.restartDatabase = function (database) {
