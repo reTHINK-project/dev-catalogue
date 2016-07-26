@@ -492,7 +492,13 @@ public class CatalogueDatabase {
                             jPkg.addProperty("cguid", cguid);
 
                             // put sourcePackageURL that references this sourcePackage into descriptor
-                            jDesc.addProperty("sourcePackageURL", accessURL + "sourcepackage/" + cguid);
+                            // use local address if no domain has been set
+                            // (ensures backwards compatibility since sourcePackageURL is now modified by broker)
+                            if (serverDomain == null && !useHttp) {
+                                jDesc.addProperty("sourcePackageURL", "/sourcepackage/" + cguid);
+                            } else {
+                                jDesc.addProperty("sourcePackageURL", accessURL + "sourcepackage/" + cguid);
+                            }
 
                             // check if there is a sourceCode file
                             File code = null;

@@ -109,9 +109,12 @@ public class RequestHandler {
     private LeshanServer server;
     private Map<String, String> defaults = new HashMap<>();
 
-    public RequestHandler(LeshanServer server, Map<String, String> defaults) {
+    private String sourcePackageURLPrefix = null;
+
+    public RequestHandler(LeshanServer server, Map<String, String> defaults, String sourcePackageURLPrefix) {
         this(server);
         this.defaults = defaults;
+        this.sourcePackageURLPrefix = sourcePackageURLPrefix;
     }
 
     public RequestHandler(LeshanServer server) {
@@ -238,7 +241,7 @@ public class RequestHandler {
                     LOG.debug("default instance for type '{}' requested -> using {}", modelType, instanceName);
                 }
                 target = nameToInstanceMap.get(instanceName);
-                LOG.debug(String.format("target for object '%s': %s", instanceName, target));
+                LOG.debug(String.format("path for object '%s': %s", instanceName, target));
 
                 if (target != null) {
                     if (resourceID != null)
@@ -254,10 +257,11 @@ public class RequestHandler {
                         final long startTime = System.currentTimeMillis();
                         final String[] finalDetails = details;
                         final String finalResourceName = resourceName;
+                        final String finalPath = path;
                         server.send(client, request, new ResponseCallback<ReadResponse>() {
                             @Override
                             public void onResponse(ReadResponse readResponse) {
-                                RequestResponse response = new RequestResponse(readResponse, id);
+                                RequestResponse response = new RequestResponse(readResponse, id, finalPath);
                                 long respTime = System.currentTimeMillis();
                                 LOG.debug("response received after {}ms", respTime - startTime);
                                 if (finalDetails != null && response.isSuccess()) {
@@ -550,6 +554,7 @@ public class RequestHandler {
     public class RequestResponse {
         private LwM2mResponse response;
         private int model;
+        private String path = null;
 
 
         public RequestResponse(LwM2mResponse response) {
@@ -557,9 +562,15 @@ public class RequestHandler {
             this.model = -1;
         }
 
-        public RequestResponse(ReadResponse response, int model) {
+        public RequestResponse(LwM2mResponse response, int model) {
             this.response = response;
             this.model = model;
+        }
+
+        public RequestResponse(LwM2mResponse response, int model, String path) {
+            this.response = response;
+            this.model = model;
+            this.path = path;
         }
 
         public boolean isSuccess() {
@@ -603,6 +614,10 @@ public class RequestHandler {
                         for (Map.Entry<Integer, LwM2mResource> entry : resources.entrySet()) {
                             String name = modelMap.get(entry.getKey()).name;
                             String value = entry.getValue().getValue().toString();
+                            // add sourcePackageURLPrefix if we are handling sourcePackageURL currently
+                            if (name.equals("sourcePackageURL")) {
+                                value = sourcePackageURLPrefix + value;
+                            }
                             try {
                                 jResponse.add(name, gson.fromJson(value, JsonElement.class));
                             } catch (JsonSyntaxException e) {
@@ -619,7 +634,12 @@ public class RequestHandler {
                         //LOG.debug("value: {}", val);
 
                         try {
-                            resp[0] = gson.fromJson(val, JsonElement.class);
+                            // check if sourcePackageURL was directly requested
+                            if (path != null && path.endsWith("sourcePackageURL")) {
+                                resp[0] = new JsonPrimitive(sourcePackageURLPrefix + val);
+                            } else {
+                                resp[0] = gson.fromJson(val, JsonElement.class);
+                            }
                         } catch (JsonSyntaxException e) {
                             resp[0] = new JsonPrimitive(val);
                         }

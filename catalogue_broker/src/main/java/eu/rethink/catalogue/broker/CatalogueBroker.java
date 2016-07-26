@@ -233,8 +233,10 @@ public class CatalogueBroker {
         sslConnector.setPort(sslPort);
         server.addConnector(sslConnector);
 
+        // create sourcePackageURLPrefix, e.g. "https://mydomain.com:8443/.well-known"
+        String sourcePackageURLPrefix = "https://" + (host != null ? host : "localhost") + (sslPort != 443 ? (":" + sslPort) : "") + "/.well-known";
         // rethink request handler
-        RequestHandler rethinkRequestHandler = new RequestHandler(lwServer, defaultMap);
+        RequestHandler rethinkRequestHandler = new RequestHandler(lwServer, defaultMap, sourcePackageURLPrefix);
 
         //ServletContextHandler servletContextHandler = new ServletContextHandler(server, "/", true, false);
 
@@ -300,7 +302,6 @@ public class CatalogueBroker {
         // setup SLF4JBridgeHandler needed for proper logging
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         SLF4JBridgeHandler.install();
-
         CatalogueBroker broker = new CatalogueBroker();
 
         for (int i = 0; i < args.length; i++) {
