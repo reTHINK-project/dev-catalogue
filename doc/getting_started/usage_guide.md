@@ -16,11 +16,11 @@ option                      | description
 -host                       | set coap & http host name
 -http, -h                   | set http port
 -ssl, -s, -https, -hs       | set https port
-~~-coap, -c                   | set coap address (host[:port])~~ DEPRECATED, use -coaphost & -coapport
-~~-coaps, -cs                 | set coap address (host[:port])~~ DEPRECATED, use -coaphost & -coapsport
+~~-coap, -c~~               | ~~set coap address (host[:port])~~ *DEPRECATED, use -coaphost & -coapport*
+~~-coaps, -cs~~             | ~~set coap address (host[:port])~~ *DEPRECATED, use -coaphost & -coapsport*
 -coaphost, -ch              | set coap host
 -coapport, -cp              | set coap port
-~~-coapshost, -ch             | set coaps host~~ DEPRECATED, use -coaphost
+~~-coapshost, -ch~~         | ~~set coaps host~~ *DEPRECATED, use -coaphost*
 -coapsport, -cp             | set coaps port
 -keystorePath, -kp          | set keystore path
 -truststorePath, -tp        | set truststore path
@@ -50,14 +50,14 @@ option              | description
 -host, -h           | specify Catalogue Broker hostname/IP
 -domain, -d         | specify Catalogue Broker domain/IP used for sourcePackageURL generation
 -port, -p           | specify Catalogue Broker coap port
-~~-coapaddress, -ca   | set Database CoAP address (host[:port])~~ DEPRECATED, use -coaphost & -coapport
+~~-coapaddress, -ca~~   | ~~set Database CoAP address (host[:port])~~ *DEPRECATED, use -coaphost & -coapport*
 -coaphost, -ch      | set Database CoAP host name
 -coapport, -cp      | set Database CoAP port
-~~-coapsaddress, -csa | set Database CoAPs address (host[:port])~~ DEPRECATED, use -coaphost & -coapsport
-~~-coapshost, -ch     | set Database CoAPs host name~~ DEPRECATED, use -coaphost
+~~-coapsaddress, -csa~~ | ~~set Database CoAPs address (host[:port])~~ *DEPRECATED, use -coaphost & -coapsport*
+~~-coapshost, -ch~~     | ~~set Database CoAPs host name~~ *DEPRECATED, use -coaphost*
 -coapsport, -cp     | set Database CoAPs port
 -objpath, -o        | path of folder containing catalogue objects (e.g. provided catalogue_objects folder)
-~~-usehttp            | change protocol of generated sourcePackageURLs to http (otherwise, https is used)~~ DEPRECATED, broker now modifies sourcePackageURLs
+~~-usehttp~~            | ~~change protocol of generated sourcePackageURLs to http (otherwise, https is used)~~ *DEPRECATED, broker now modifies sourcePackageURLs*
 -lifetime, -t       | set the time between client updates (default = 60)
 -endpoint, -e       | set Catalogue Database endpoint name
 -v, -vv, -vvv       | increase logging level
