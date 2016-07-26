@@ -18,6 +18,7 @@
 package eu.rethink.catalogue.database;
 
 import com.google.gson.*;
+import eu.rethink.catalogue.database.config.DatabaseConfig;
 import eu.rethink.catalogue.database.exception.CatalogueObjectParsingException;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -106,25 +107,7 @@ public class CatalogueDatabase {
     private static final String NAME_FIELD_NAME = "objectName";
     private static final String CGUID_FIELD_NAME = "cguid";
 
-
-    private final String DEFAULT_SERVER_HOSTNAME = "localhost";
-    private final int DEFAULT_SERVER_COAP_PORT = 5683;
     private LeshanClient client;
-
-    private String serverHostName = DEFAULT_SERVER_HOSTNAME;
-    private String serverDomain = null;
-    private String accessURL = null;
-    private String catObjsPath = "./catalogue_objects";
-    private String localHost = null;
-    private int localPort = 0;
-    private String localSecureHost = null;
-    private int localSecurePort = 0;
-    private int serverPort = DEFAULT_SERVER_COAP_PORT;
-    private boolean useHttp = false;
-    private int lifetime = 60;
-
-    private String endpoint = "DB_" + new Random().nextInt(Integer.MAX_VALUE);
-
     private Thread hook = null;
 
     private Map<Integer, ObjectModel> objectModelMap = new HashMap<>(MODEL_IDS.size());
@@ -132,162 +115,54 @@ public class CatalogueDatabase {
     private final String CALIFORNIUM_FILE_NAME = "Californium.properties";
     private final String CALIFORNIUM_TEMP_EXTENTION = ".database.tmp";
 
-    public void setUseHttp(boolean useHttp) {
-        this.useHttp = useHttp;
-    }
+    private DatabaseConfig config;
 
-    public void setServerHostName(String serverHostName) {
-        this.serverHostName = serverHostName;
-    }
-
-    public void setServerDomain(String serverDomain) {
-        this.serverDomain = serverDomain;
-    }
-
-    public void setCatObjsPath(String catObjsPath) {
-        this.catObjsPath = catObjsPath;
-    }
-
-    public void setServerPort(int serverPort) {
-        this.serverPort = serverPort;
-    }
-
-    public void setLifetime(int lifetime) {
-        this.lifetime = lifetime;
-    }
-
-    public void setEndpoint(String endpoint) {
-        this.endpoint = endpoint;
-    }
-
-    public void setLocalHost(String localHost) {
-        this.localHost = localHost;
-    }
-
-    public void setLocalPort(int localPort) {
-        this.localPort = localPort;
-    }
-
-    public void setLocalSecureHost(String localSecureHost) {
-        this.localSecureHost = localSecureHost;
-    }
-
-    public void setLocalSecurePort(int localSecurePort) {
-        this.localSecurePort = localSecurePort;
-    }
-
-    public static void main(final String[] args) {
-        // setup SLF4JBridgeHandler needed for proper logging
-        SLF4JBridgeHandler.removeHandlersForRootLogger();
-        SLF4JBridgeHandler.install();
-
-        CatalogueDatabase d = new CatalogueDatabase();
-
-        try {
-            for (int i = 0; i < args.length; i++) {
-                String arg = args[i];
-                switch (arg) {
-                    case "-h":
-                    case "-host":
-                        d.setServerHostName(args[++i]);
-                        break;
-                    case "-usehttp":
-                        if (args.length <= i + 1 || args[i + 1].startsWith("-")) { // check if boolean value is not given, assume true
-                            d.setUseHttp(true);
-                        } else {
-                            d.setUseHttp(Boolean.parseBoolean(args[++i]));
-                        }
-                        break;
-                    case "-p":
-                    case "-port":
-                        d.setServerPort(Integer.parseInt(args[++i]));
-                        break;
-                    case "-o":
-                    case "-op":
-                    case "-objpath":
-                        d.setCatObjsPath(args[++i]);
-                        break;
-                    case "-d":
-                    case "-domain":
-                        d.setServerDomain(args[++i]);
-                        break;
-                    case "-lifetime":
-                    case "-t":
-                        d.setLifetime(Integer.parseInt(args[++i]));
-                        break;
-                    case "-endpoint":
-                    case "-e":
-                        d.setEndpoint(args[++i]);
-                        break;
-                    case "-coapaddress":
-                    case "-ca":
-                        String[] addr = args[++i].split(":");
-                        d.setLocalHost(addr[0]);
-                        if (addr.length > 1)
-                            d.setLocalPort(Integer.parseInt(addr[1]));
-                        else
-                            LOG.warn("used -coapaddress without providing port!");
-                        break;
-                    case "-coaphost":
-                    case "-ch":
-                        d.setLocalHost(args[++i]);
-                        break;
-                    case "-coapport":
-                    case "-cp":
-                        d.setLocalPort(Integer.parseInt(args[++i]));
-                        break;
-                    case "-coapsaddress":
-                    case "-csa":
-                        String[] sAddr = args[++i].split(":");
-                        d.setLocalSecureHost(sAddr[0]);
-                        if (sAddr.length > 1)
-                            d.setLocalSecurePort(Integer.parseInt(sAddr[1]));
-                        else
-                            LOG.warn("used -coapsecureaddress without providing port!");
-                        break;
-                    case "-coapshost":
-                    case "-csh":
-                        d.setLocalSecureHost(args[++i]);
-                        break;
-                    case "-coapsport":
-                    case "-csp":
-                        d.setLocalSecurePort(Integer.parseInt(args[++i]));
-                        break;
-                    case "-v":
-                        // increase log level
-                        LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-                        Configuration conf = ctx.getConfiguration();
-                        conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
-                        conf.getRootLogger().setLevel(Level.INFO);
-                        ctx.updateLoggers(conf);
-                        break;
-                    case "-vv":
-                        // increase log level
-                        LoggerContext vctx = (LoggerContext) LogManager.getContext(false);
-                        Configuration vconf = vctx.getConfiguration();
-                        vconf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
-                        vconf.getRootLogger().setLevel(Level.DEBUG);
-                        vctx.updateLoggers(vconf);
-                        break;
-                }
-            }
-        } catch (Exception e) {
-            LOG.error("Error parsing launch options: " + Arrays.toString(args), e);
-            return;
+    public CatalogueDatabase(DatabaseConfig config) {
+        if (config == null) {
+            LOG.warn("Catalogue Broker started without BrokerConfig! Using default...");
+            config = new DatabaseConfig();
         }
 
-        try {
-            d.start();
-        } catch (Exception e) {
-            LOG.error("Unable to start Catalogue Database", e);
-        }
+        this.config = config;
+    }
+
+    public static void main(final String[] args) throws CatalogueObjectParsingException {
+        DatabaseConfig databaseConfig = DatabaseConfig.fromFile();
+        databaseConfig.parseArgs(args);
+
+        CatalogueDatabase database = new CatalogueDatabase(databaseConfig);
+        database.start();
     }
 
     /**
      * Start the Catalogue Database.
      */
     public void start() throws CatalogueObjectParsingException {
-        LOG.info("Starting Catalogue Database...");
+        LOG.info("Starting Catalogue Database based on config:\r\n{}", config.toString());
+
+        // setup SLF4JBridgeHandler needed for proper logging
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        SLF4JBridgeHandler.install();
+
+        if (config.logLevel == 2) {
+            LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+            Configuration conf = ctx.getConfiguration();
+            conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
+            conf.getRootLogger().setLevel(Level.INFO);
+            ctx.updateLoggers(conf);
+        } else if (config.logLevel == 1) {
+            LoggerContext vctx = (LoggerContext) LogManager.getContext(false);
+            Configuration vconf = vctx.getConfiguration();
+            vconf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.TRACE);
+            vconf.getRootLogger().setLevel(Level.DEBUG);
+            vctx.updateLoggers(vconf);
+        } else if (config.logLevel == 0) {
+            LoggerContext vctx = (LoggerContext) LogManager.getContext(false);
+            Configuration vconf = vctx.getConfiguration();
+            vconf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.TRACE);
+            vconf.getRootLogger().setLevel(Level.TRACE);
+            vctx.updateLoggers(vconf);
+        }
 
         // set californium properties
         try {
@@ -310,24 +185,10 @@ public class CatalogueDatabase {
             LOG.warn("Unable to use Californium properties from resources folder: {}", e);
         }
 
-        if (serverDomain == null) {
-            serverDomain = serverHostName;
-        }
-
-        if (useHttp) {
-            accessURL = "http://" + serverDomain + "/.well-known/";
-        } else {
-            accessURL = "https://" + serverDomain + "/.well-known/";
-        }
-
-        LOG.info("Catalogue Broker host name: " + serverHostName);
-        LOG.info("Catalogue Broker CoAP port: " + serverPort);
-        LOG.info("Catalogue Objects location: " + catObjsPath);
-
         // parse all catalogue objects
-        File catObjs = new File(catObjsPath);
+        File catObjs = new File(config.catalogueObjectsPath);
         if (!catObjs.exists() || !catObjs.isDirectory()) {
-            LOG.error("Catalogue Objects folder '" + catObjsPath + "' does not exist or is not a directory!");
+            LOG.error("Catalogue Objects folder '" + config.catalogueObjectsPath + "' does not exist or is not a directory!");
             return;
         }
 
@@ -354,10 +215,10 @@ public class CatalogueDatabase {
         ObjectsInitializer initializer = new ObjectsInitializer(new LwM2mModel(objectModels));
 
         // add broker address to intializer
-        String serverURI = String.format("coap://%s:%s", serverHostName, serverPort);
+        String serverURI = String.format("coap://%s:%s", config.brokerHost, config.brokerPort);
 
         initializer.setInstancesForObject(LwM2mId.SECURITY, noSec(serverURI, 123));
-        initializer.setInstancesForObject(LwM2mId.SERVER, new Server(123, lifetime, BindingMode.U, false));
+        initializer.setInstancesForObject(LwM2mId.SERVER, new Server(123, config.lifeTime, BindingMode.U, false));
 
         // set dummy Device
         Device device = new Device();
@@ -377,19 +238,16 @@ public class CatalogueDatabase {
 
         }
 
-        LeshanClientBuilder builder = new LeshanClientBuilder(endpoint);
+        LeshanClientBuilder builder = new LeshanClientBuilder(config.endpoint);
         builder.setObjects(enablers);
-        builder.setLocalAddress(localHost, localPort);
-        builder.setLocalSecureAddress(localSecureHost, localSecurePort);
+        builder.setLocalAddress(config.coapHost, config.coapPort);
+        builder.setLocalSecureAddress(config.coapHost, config.coapsPort);
 
         client = builder.build();
 
         // Start the client
         client.start();
         LOG.info("Catalogue Database is running");
-        LOG.info("      Name: {}", endpoint);
-        LOG.info(" CoAP port: {}", client.getNonSecureAddress().getPort());
-        LOG.info("CoAPs port: {}", client.getSecureAddress().getPort());
         final CatalogueDatabase ref = this;
 
         // Deregister on shutdown and stop client.
@@ -492,13 +350,7 @@ public class CatalogueDatabase {
                             jPkg.addProperty("cguid", cguid);
 
                             // put sourcePackageURL that references this sourcePackage into descriptor
-                            // use local address if no domain has been set
-                            // (ensures backwards compatibility since sourcePackageURL is now modified by broker)
-                            if (serverDomain == null && !useHttp) {
-                                jDesc.addProperty("sourcePackageURL", "/sourcepackage/" + cguid);
-                            } else {
-                                jDesc.addProperty("sourcePackageURL", accessURL + "sourcepackage/" + cguid);
-                            }
+                            jDesc.addProperty("sourcePackageURL", "/sourcepackage/" + cguid);
 
                             // check if there is a sourceCode file
                             File code = null;

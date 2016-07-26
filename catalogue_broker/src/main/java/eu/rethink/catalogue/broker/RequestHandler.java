@@ -615,7 +615,7 @@ public class RequestHandler {
                             String name = modelMap.get(entry.getKey()).name;
                             String value = entry.getValue().getValue().toString();
                             // add sourcePackageURLPrefix if we are handling sourcePackageURL currently
-                            if (name.equals("sourcePackageURL")) {
+                            if (name.equals("sourcePackageURL") && value.startsWith("/")) {
                                 value = sourcePackageURLPrefix + value;
                             }
                             try {
@@ -635,7 +635,7 @@ public class RequestHandler {
 
                         try {
                             // check if sourcePackageURL was directly requested
-                            if (path != null && path.endsWith("sourcePackageURL")) {
+                            if (path != null && path.endsWith("sourcePackageURL") && val.startsWith("/")) {
                                 resp[0] = new JsonPrimitive(sourcePackageURLPrefix + val);
                             } else {
                                 resp[0] = gson.fromJson(val, JsonElement.class);
