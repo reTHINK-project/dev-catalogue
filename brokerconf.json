@@ -1,0 +1,18 @@
+{
+  "host": "mydomain.com",
+  "coapHost": "mydomain.com",
+  "keystorePath": "ssl/keystore",
+  "keystorePassword": "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
+  "truststorePath": "ssl/keystore",
+  "truststorePassword": "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
+  "keystoreManagerPassword": "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
+  "httpPort": 10080,
+  "httpsPort": 10443,
+  "coapPort": 15683,
+  "coapsPort": 15684,
+  "logLevel": 3,
+  "defaultDescriptors": {
+    "hyperty": "SecondHyperty"
+  },
+  "sourcePackageURLProtocol": "hyperty-catalogue"
+}

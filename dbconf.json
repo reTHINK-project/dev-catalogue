@@ -1,0 +1,10 @@
+{
+  "brokerHost": "mydomain.com",
+  "coapHost": "mydomain.com",
+  "catalogueObjectsPath": "catalogue_objects",
+  "brokerPort": 15683,
+  "coapPort": 10990,
+  "coapsPort": 10991,
+  "lifeTime": 60,
+  "logLevel": 3
+}
