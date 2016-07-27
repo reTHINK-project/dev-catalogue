@@ -79,3 +79,8 @@
   * can be configured using dbconf.json in root directory
 * californium
   * changed deduplicator from DEDUPLICATOR_MARK_AND_SWEEP to DEDUPLICATOR_CROP_ROTATION
+
+## 1.2.1
+* catch handling client responses twice
+* removed need to rely on Californium.properties
+* minor fix for handling sourcePackageURLProtocol option
