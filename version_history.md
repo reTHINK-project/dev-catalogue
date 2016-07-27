@@ -56,12 +56,13 @@
   * fixed database initialization failing if there is no instance for a model
 
 ## 1.2.0
-* added more logging options (see logLevel in configuration or use -v, -vv or -vvv launch option)
-* changed sourcePackageURL now being modified by the Catalogue Broker
-* updated leshan to version 0.1.11-M12
 * changed way of defining default hyperty/protostub/etc.
   * either use "-default" for broker to set default instance for a certain type, e.g. -default "hyperty/myHyperty"
   * or use configuration file
+* added ability to configure Catalogue Broker and Database with a configuration file
+* changed sourcePackageURL now being modified by the Catalogue Broker
+* updated leshan to version 0.1.11-M12
+* added more logging options (see logLevel in configuration or use -v, -vv or -vvv launch option)
 * Broker
   * implemented async request handling
   * added option "-default" to set default instances for a certain type, e.g. -default "hyperty/myHyperty"
