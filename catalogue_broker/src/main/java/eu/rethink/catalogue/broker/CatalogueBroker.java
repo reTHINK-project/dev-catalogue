@@ -174,9 +174,9 @@ public class CatalogueBroker {
         // create sourcePackageURLPrefix, e.g. "hyperty-catalogue://mydomain.com:8443/.well-known"
         // start with protocol and host
         String sourcePackageURLPrefix = config.sourcePackageURLProtocol + "://" + config.host;
-        if (config.sourcePackageURLProtocol.equals("http") && config.httpPort != 80)
+        if (config.sourcePackageURLProtocol.equals("http") && config.httpPort != 80) {
             sourcePackageURLPrefix += ":" + config.httpPort; // append http port if protocol is http and port != 80
-        else if (config.httpsPort != 443)
+        } else if (!config.sourcePackageURLProtocol.equals("http") && config.httpsPort != 443)
             sourcePackageURLPrefix += ":" + config.httpsPort; // only append https port if port != 443
 
         // finally append the /.well-known path
