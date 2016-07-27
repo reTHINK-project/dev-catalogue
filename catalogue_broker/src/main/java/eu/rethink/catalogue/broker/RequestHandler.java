@@ -69,11 +69,26 @@ public class RequestHandler {
 
     private static final String SOURCEPACKAGE_TYPE_NAME = "sourcepackage";
 
+    // fields that define the name of the catalogue object when requesting it using the http interface
+    private static final String NAME_FIELD_NAME = "objectName"; // for all objects except sourcePackage
+    private static final String CGUID_FIELD_NAME = "cguid"; // for sourcePackages
+
+    // {MODEL_ID : MODEL}
+    private static final Map<Integer, Map<Integer, ResourceModel>> MODEL_MAP = new HashMap<>();
+    private static final Gson gson = new GsonBuilder()
+            .setPrettyPrinting()
+            .setDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX")
+            .create();
+
     // name to ID map
     private static Map<String, Integer> MODEL_NAME_TO_ID_MAP = new HashMap<>();
-
     // {MODEL_ID : { INSTANCE_NAME : INSTANCE_PATH}}
     private static Map<Integer, Map<String, String>> nameToInstanceMapMap = new HashMap<>();
+    // {MODEL_ID : {RESOURCE_NAME : RESOURCE_ID}}
+    private static Map<Integer, Map<String, Integer>> resourceNameToIdMapMap = new ConcurrentHashMap<>();
+
+    // {CLIENT_REG_ID : {MODEL_ID : [INSTANCE_NAME]}
+    private static Map<String, Map<Integer, List<String>>> clientToObjectsMap = new ConcurrentHashMap<>();
 
     static {
         MODEL_NAME_TO_ID_MAP.put(HYPERTY_TYPE_NAME, HYPERTY_MODEL_ID);
@@ -88,272 +103,10 @@ public class RequestHandler {
         }
     }
 
-    // fields that define the name of the catalogue object when requesting it using the http interface
-    private static final String NAME_FIELD_NAME = "objectName"; // for all objects except sourcePackage
-    private static final String CGUID_FIELD_NAME = "cguid"; // for sourcePackages
-
-    // {MODEL_ID : MODEL}
-    private static final Map<Integer, Map<Integer, ResourceModel>> MODEL_MAP = new HashMap<>();
-
-    // {MODEL_ID : {RESOURCE_NAME : RESOURCE_ID}}
-    private static Map<Integer, Map<String, Integer>> resourceNameToIdMapMap = new ConcurrentHashMap<>();
-
-    // {CLIENT_REG_ID : {MODEL_ID : [INSTANCE_NAME]}
-    private static Map<String, Map<Integer, List<String>>> clientToObjectsMap = new ConcurrentHashMap<>();
-
-    private static final Gson gson = new GsonBuilder()
-            .setPrettyPrinting()
-            .setDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX")
-            .create();
-
     private LeshanServer server;
     private Map<String, String> defaults = new HashMap<>();
 
     private String sourcePackageURLPrefix = null;
-
-    public RequestHandler(LeshanServer server, Map<String, String> defaults, String sourcePackageURLPrefix) {
-        this(server);
-        this.defaults = defaults;
-        this.sourcePackageURLPrefix = sourcePackageURLPrefix;
-    }
-
-    public RequestHandler(LeshanServer server) {
-        this.server = server;
-
-        // get LwM2mModel from model provider
-        LwM2mModel customModel = server.getModelProvider().getObjectModel(null);
-
-        // setup MODEL_MAP and resourceNameToIdMapMap (which is basically the inverse of it)
-        for (Integer modelId : MODEL_IDS) {
-            Map<Integer, ResourceModel> model = customModel.getObjectModel(modelId).resources;
-            MODEL_MAP.put(modelId, model);
-            Map<String, Integer> resourceNameToIdMap = new LinkedHashMap<>(model.size());
-            // populate id:name map from resources
-            for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
-                resourceNameToIdMap.put(entry.getValue().name, entry.getKey());
-            }
-
-            resourceNameToIdMapMap.put(modelId, resourceNameToIdMap);
-            LOG.debug("generated name:id map for model " + modelId + ": " + gson.toJson(resourceNameToIdMap));
-        }
-
-        server.getClientRegistry().addListener(clientRegistryListener);
-    }
-
-    /**
-     * Makes a ReadRequest via CoAP to a client based on the provided URL path
-     *
-     * @param path - URL GET request path, e.g. /.well-known/hyperty/myHyperty/version
-     * @param cb   - callback to be called when a response is ready
-     */
-    public void handleGET(String path, final RequestCallback cb) {
-        //LOG.info("Handling GET for: " + path);
-        // path should start with /.well-known/
-        // but coap has no slash at the start, so check for it and prepend it if necessary.
-        if (!path.startsWith("/"))
-            path = "/" + path;
-
-        // remove /.well-known/ from path
-        path = StringUtils.removeStart(path, WELLKNOWN_PREFIX);
-        // LOG.debug("adapted path: " + path);
-        // split path up
-        String[] pathParts = StringUtils.split(path, '/');
-
-        // example path: <objectType>/<instanceName>/<resourceName>
-
-        if (pathParts.length == 0) {
-            String response = String.format("Please provide at least a type from %s or 'restart' or 'database'", MODEL_NAME_TO_ID_MAP.keySet());
-            LOG.warn(response);
-            cb.result(new RequestResponse(ReadResponse.internalServerError(response)));
-        } else if (pathParts.length == 1) { // hyperty | protostub | sourcepackage etc. only
-
-            String type = pathParts[0];
-
-            Integer id = MODEL_NAME_TO_ID_MAP.get(type);
-
-            if (id != null) {
-                String response = gson.toJson(nameToInstanceMapMap.get(id).keySet());
-                LOG.debug("Returning list: " + response);
-                cb.result(new RequestResponse(ReadResponse.success(0, response), id));
-            } else if (type.equals("restart")) {
-                try {
-                    restartClients();
-                    String response = "Restart executed on all connected databases";
-                    LOG.debug(response);
-                    cb.result(new RequestResponse(ReadResponse.success(0, response)));
-                } catch (InterruptedException e) {
-                    LOG.warn("Restarting databases failed", e);
-                    cb.result(new RequestResponse(ReadResponse.internalServerError("Restarting databases failed: " + e.getMessage())));
-                }
-            } else if (type.equals("database")) {
-                List<String> databases = new LinkedList<>();
-                for (Client database : server.getClientRegistry().allClients()) {
-                    databases.add(database.getEndpoint());
-                }
-                String response = gson.toJson(databases);
-                LOG.debug("Returning database list: " + response);
-                cb.result(new RequestResponse(ReadResponse.success(0, response)));
-            } else {
-                String response = String.format("Unknown object type, please use one of: %s or 'restart' or 'database'", MODEL_NAME_TO_ID_MAP.keySet());
-                LOG.warn(response);
-                cb.result(new RequestResponse(ReadResponse.internalServerError(response), -1));
-            }
-        } else {
-            String modelType = pathParts[0];
-            String instanceName = pathParts[1];
-            String resourceName = null;
-            String[] details = null;
-
-            LOG.debug("modelType:    " + modelType);
-            LOG.debug("instanceName: " + instanceName);
-
-            if (pathParts.length > 2) {
-                resourceName = pathParts[2];
-                LOG.debug("resourceName: " + resourceName);
-            }
-
-            if (pathParts.length > 3) {
-                details = Arrays.copyOfRange(pathParts, 3, pathParts.length);
-                LOG.debug("further specifications: " + Arrays.toString(details));
-            }
-
-            //check if resourceName is valid
-            final Integer id = MODEL_NAME_TO_ID_MAP.get(modelType);
-            Integer resourceID;
-            String target = null;
-
-            if (id != null) {
-                Map<String, Integer> resourceNameToIdMap = resourceNameToIdMapMap.get(id);
-                resourceID = resourceNameToIdMap.get(resourceName);
-
-                //resource name was given, but not found in the name:id map
-                if (resourceName != null && resourceID == null) {
-                    String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, resourceNameToIdMap.keySet());
-                    LOG.warn(response);
-                    cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
-                    return;
-                }
-
-                Map<String, String> nameToInstanceMap = nameToInstanceMapMap.get(id);
-
-                if (instanceName.equals("default") && defaults.containsKey(modelType)) {
-                    instanceName = defaults.get(modelType);
-                    LOG.debug("default instance for type '{}' requested -> using {}", modelType, instanceName);
-                }
-                target = nameToInstanceMap.get(instanceName);
-                LOG.debug(String.format("path for object '%s': %s", instanceName, target));
-
-                if (target != null) {
-                    if (resourceID != null)
-                        target += "/" + resourceID;
-
-                    String[] targetPaths = StringUtils.split(target, "/");
-                    LOG.debug("checking endpoint: " + targetPaths[0]);
-                    final Client client = server.getClientRegistry().get(targetPaths[0]);
-                    if (client != null) {
-                        final String t = StringUtils.removeStart(target, "/" + targetPaths[0]);
-                        LOG.debug("requesting {}", t);
-                        ReadRequest request = new ReadRequest(t);
-                        final long startTime = System.currentTimeMillis();
-                        final String[] finalDetails = details;
-                        final String finalResourceName = resourceName;
-                        final String finalPath = path;
-                        server.send(client, request, new ResponseCallback<ReadResponse>() {
-                            @Override
-                            public void onResponse(ReadResponse readResponse) {
-                                RequestResponse response = new RequestResponse(readResponse, id, finalPath);
-                                long respTime = System.currentTimeMillis();
-                                LOG.debug("response received after {}ms", respTime - startTime);
-                                if (finalDetails != null && response.isSuccess()) {
-                                    try {
-                                        // assume json objects down the "detail" route
-                                        JsonElement current = response.getJson();
-                                        for (String detail : finalDetails) {
-                                            //LOG.debug("current: {}", current);
-                                            current = current.getAsJsonObject().get(detail);
-                                        }
-                                        //LOG.debug("final current: {}");
-                                        // now current is what we want
-                                        String sResp = current.toString();
-                                        LOG.debug("Returning: " + sResp);
-                                        cb.result(new RequestResponse(ReadResponse.success(0, sResp)));
-                                    } catch (Exception e) {
-                                        //e.printStackTrace();
-                                        String detailPath = "";
-                                        for (String detail : finalDetails) {
-                                            detailPath += "/" + detail;
-                                        }
-                                        String error = detailPath + " not found in " + finalResourceName;
-                                        LOG.warn(error, e);
-                                        cb.result(new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, error)));
-                                    }
-                                } else {
-                                    cb.result(response);
-                                }
-                            }
-                        }, new ErrorCallback() {
-                            @Override
-                            public void onError(Exception e) {
-                                String error = "unable to request " + t + " from database " + client;
-                                LOG.warn(error, e);
-                                cb.result(new RequestResponse(ReadResponse.internalServerError(error + ": " + e.getMessage()), id));
-                            }
-                        });
-
-                    } else {
-                        String response = String.format("Found target for '%s', but endpoint is invalid. Redundany error? Requested endpoint: %s", instanceName, targetPaths[0]);
-                        LOG.warn(response);
-                        cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
-                    }
-                } else {
-                    String response;
-                    if (instanceName.equals("default")) {
-                        response = String.format("No instance defined as default for type '%s'", modelType);
-                    } else {
-                        response = String.format("Could not find instance: %s", instanceName);
-                    }
-                    LOG.warn(response);
-                    cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
-                }
-            } else if (pathParts[0].equals("restart")) {
-                LOG.debug("trying to disconnect {}", instanceName);
-                Client client = server.getClientRegistry().get(instanceName);
-                LOG.debug("search for database {} returned {}", instanceName, client);
-                if (client != null) {
-                    try {
-                        ExecuteResponse executeResponse = restartClient(client);
-                        LOG.debug("Restarting database {} {}", client.getEndpoint(), executeResponse.isSuccess() ? "succeeded" : "failed");
-                        cb.result(new RequestResponse(executeResponse));
-                    } catch (InterruptedException e) {
-                        String errorMessage = "Unable to restart database " + client.getEndpoint() + ": " + e.getMessage();
-                        LOG.warn(errorMessage, e);
-                        cb.result(new RequestResponse(ReadResponse.internalServerError(errorMessage)));
-                    }
-                } else {
-                    String errorMessage = "Client " + instanceName + " not found";
-                    LOG.warn(errorMessage);
-                    cb.result(new RequestResponse(ReadResponse.internalServerError(errorMessage)));
-                }
-            } else if (pathParts[0].equals("database")) {
-                LOG.debug("trying to get information about database {}", instanceName);
-                Client client = server.getClientRegistry().get(instanceName);
-                if (client != null) {
-                    String response = client.toString();
-                    LOG.debug("database " + instanceName + " found: {}", response);
-                    cb.result(new RequestResponse(ReadResponse.success(0, response)));
-                } else {
-                    String errorMessage = "database " + instanceName + " not found";
-                    LOG.warn(errorMessage);
-                    cb.result(new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, errorMessage)));
-                }
-            } else {
-                String response = String.format("Unknown object type, please use one of: %s or 'restart'", MODEL_NAME_TO_ID_MAP.keySet());
-                LOG.warn(response);
-                cb.result(new RequestResponse(ReadResponse.internalServerError(response)));
-            }
-        }
-    }
-
     /**
      * Keeps track of currently registered clients.
      */
@@ -524,12 +277,254 @@ public class RequestHandler {
         }
     };
 
+    public RequestHandler(LeshanServer server, Map<String, String> defaults, String sourcePackageURLPrefix) {
+        this(server);
+        this.defaults = defaults;
+        this.sourcePackageURLPrefix = sourcePackageURLPrefix;
+    }
+
+    public RequestHandler(LeshanServer server) {
+        this.server = server;
+
+        // get LwM2mModel from model provider
+        LwM2mModel customModel = server.getModelProvider().getObjectModel(null);
+
+        // setup MODEL_MAP and resourceNameToIdMapMap (which is basically the inverse of it)
+        for (Integer modelId : MODEL_IDS) {
+            Map<Integer, ResourceModel> model = customModel.getObjectModel(modelId).resources;
+            MODEL_MAP.put(modelId, model);
+            Map<String, Integer> resourceNameToIdMap = new LinkedHashMap<>(model.size());
+            // populate id:name map from resources
+            for (Map.Entry<Integer, ResourceModel> entry : model.entrySet()) {
+                resourceNameToIdMap.put(entry.getValue().name, entry.getKey());
+            }
+
+            resourceNameToIdMapMap.put(modelId, resourceNameToIdMap);
+            LOG.debug("generated name:id map for model " + modelId + ": " + gson.toJson(resourceNameToIdMap));
+        }
+
+        server.getClientRegistry().addListener(clientRegistryListener);
+    }
+
+    /**
+     * Makes a ReadRequest via CoAP to a client based on the provided URL path
+     *
+     * @param path - URL GET request path, e.g. /.well-known/hyperty/myHyperty/version
+     * @param cb   - callback to be called when a response is ready
+     */
+    public void handleGET(String path, final RequestCallback cb) {
+        //LOG.info("Handling GET for: " + path);
+        // path should start with /.well-known/
+        // but coap has no slash at the start, so check for it and prepend it if necessary.
+        if (!path.startsWith("/"))
+            path = "/" + path;
+
+        // remove /.well-known/ from path
+        path = StringUtils.removeStart(path, WELLKNOWN_PREFIX);
+        // LOG.debug("adapted path: " + path);
+        // split path up
+        String[] pathParts = StringUtils.split(path, '/');
+
+        // example path: <objectType>/<instanceName>/<resourceName>
+
+        if (pathParts.length == 0) {
+            String response = String.format("Please provide at least a type from %s or 'restart' or 'database'", MODEL_NAME_TO_ID_MAP.keySet());
+            LOG.warn(response);
+            cb.result(new RequestResponse(ReadResponse.internalServerError(response)));
+        } else if (pathParts.length == 1) { // hyperty | protostub | sourcepackage etc. only
+
+            String type = pathParts[0];
+
+            Integer id = MODEL_NAME_TO_ID_MAP.get(type);
+
+            if (id != null) {
+                String response = gson.toJson(nameToInstanceMapMap.get(id).keySet());
+                LOG.debug("Returning list: " + response);
+                cb.result(new RequestResponse(ReadResponse.success(0, response), id));
+            } else if (type.equals("restart")) {
+                try {
+                    restartClients();
+                    String response = "Restart executed on all connected databases";
+                    LOG.debug(response);
+                    cb.result(new RequestResponse(ReadResponse.success(0, response)));
+                } catch (InterruptedException e) {
+                    LOG.warn("Restarting databases failed", e);
+                    cb.result(new RequestResponse(ReadResponse.internalServerError("Restarting databases failed: " + e.getMessage())));
+                }
+            } else if (type.equals("database")) {
+                List<String> databases = new LinkedList<>();
+                for (Client database : server.getClientRegistry().allClients()) {
+                    databases.add(database.getEndpoint());
+                }
+                String response = gson.toJson(databases);
+                LOG.debug("Returning database list: " + response);
+                cb.result(new RequestResponse(ReadResponse.success(0, response)));
+            } else {
+                String response = String.format("Unknown object type, please use one of: %s or 'restart' or 'database'", MODEL_NAME_TO_ID_MAP.keySet());
+                LOG.warn(response);
+                cb.result(new RequestResponse(ReadResponse.internalServerError(response), -1));
+            }
+        } else {
+            String modelType = pathParts[0];
+            String instanceName = pathParts[1];
+            String resourceName = null;
+            String[] details = null;
+
+            //LOG.debug("modelType:    " + modelType);
+            //LOG.debug("instanceName: " + instanceName);
+
+            if (pathParts.length > 2) {
+                resourceName = pathParts[2];
+                //LOG.debug("resourceName: " + resourceName);
+            }
+
+            if (pathParts.length > 3) {
+                details = Arrays.copyOfRange(pathParts, 3, pathParts.length);
+                //LOG.debug("further specifications: " + Arrays.toString(details));
+            }
+
+            //check if resourceName is valid
+            final Integer id = MODEL_NAME_TO_ID_MAP.get(modelType);
+            Integer resourceID;
+            String target = null;
+
+            if (id != null) {
+                Map<String, Integer> resourceNameToIdMap = resourceNameToIdMapMap.get(id);
+                resourceID = resourceNameToIdMap.get(resourceName);
+
+                //resource name was given, but not found in the name:id map
+                if (resourceName != null && resourceID == null) {
+                    String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, resourceNameToIdMap.keySet());
+                    LOG.warn(response);
+                    cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
+                    return;
+                }
+
+                Map<String, String> nameToInstanceMap = nameToInstanceMapMap.get(id);
+
+                if (instanceName.equals("default") && defaults.containsKey(modelType)) {
+                    instanceName = defaults.get(modelType);
+                    LOG.debug("default instance for type '{}' requested -> using {}", modelType, instanceName);
+                }
+                target = nameToInstanceMap.get(instanceName);
+                LOG.debug(String.format("path for object '%s': %s", instanceName, target));
+
+                if (target != null) {
+                    if (resourceID != null)
+                        target += "/" + resourceID;
+
+                    String[] targetPaths = StringUtils.split(target, "/");
+                    LOG.debug("checking endpoint: " + targetPaths[0]);
+                    final Client client = server.getClientRegistry().get(targetPaths[0]);
+                    if (client != null) {
+                        final String t = StringUtils.removeStart(target, "/" + targetPaths[0]);
+                        LOG.debug("requesting {}", t);
+                        ReadRequest request = new ReadRequest(t);
+                        final long startTime = System.currentTimeMillis();
+                        final String[] finalDetails = details;
+                        final String finalResourceName = resourceName;
+                        final String finalPath = path;
+                        server.send(client, request, new ResponseCallback<ReadResponse>() {
+                            @Override
+                            public void onResponse(ReadResponse readResponse) {
+                                RequestResponse response = new RequestResponse(readResponse, id, finalPath);
+                                long respTime = System.currentTimeMillis();
+                                LOG.debug("response received after {}ms", respTime - startTime);
+                                if (finalDetails != null && response.isSuccess()) {
+                                    try {
+                                        // assume json objects down the "detail" route
+                                        JsonElement current = response.getJson();
+                                        for (String detail : finalDetails) {
+                                            //LOG.debug("current: {}", current);
+                                            current = current.getAsJsonObject().get(detail);
+                                        }
+                                        //LOG.debug("final current: {}");
+                                        // now current is what we want
+                                        String sResp = current.toString();
+                                        LOG.debug("Returning: " + sResp);
+                                        cb.result(new RequestResponse(ReadResponse.success(0, sResp)));
+                                    } catch (Exception e) {
+                                        //e.printStackTrace();
+                                        String detailPath = "";
+                                        for (String detail : finalDetails) {
+                                            detailPath += "/" + detail;
+                                        }
+                                        String error = detailPath + " not found in " + finalResourceName;
+                                        LOG.warn(error, e);
+                                        cb.result(new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, error)));
+                                    }
+                                } else {
+                                    cb.result(response);
+                                }
+                            }
+                        }, new ErrorCallback() {
+                            @Override
+                            public void onError(Exception e) {
+                                String error = "unable to request " + t + " from database " + client;
+                                LOG.warn(error, e);
+                                cb.result(new RequestResponse(ReadResponse.internalServerError(error + ": " + e.getMessage()), id));
+                            }
+                        });
+
+                    } else {
+                        String response = String.format("Found target for '%s', but endpoint is invalid. Redundany error? Requested endpoint: %s", instanceName, targetPaths[0]);
+                        LOG.warn(response);
+                        cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
+                    }
+                } else {
+                    String response;
+                    if (instanceName.equals("default")) {
+                        response = String.format("No instance defined as default for type '%s'", modelType);
+                    } else {
+                        response = String.format("Could not find instance: %s", instanceName);
+                    }
+                    LOG.warn(response);
+                    cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
+                }
+            } else if (pathParts[0].equals("restart")) {
+                LOG.debug("trying to disconnect {}", instanceName);
+                Client client = server.getClientRegistry().get(instanceName);
+                LOG.debug("search for database {} returned {}", instanceName, client);
+                if (client != null) {
+                    try {
+                        ExecuteResponse executeResponse = restartClient(client);
+                        LOG.debug("Restarting database {} {}", client.getEndpoint(), executeResponse.isSuccess() ? "succeeded" : "failed");
+                        cb.result(new RequestResponse(executeResponse));
+                    } catch (InterruptedException e) {
+                        String errorMessage = "Unable to restart database " + client.getEndpoint() + ": " + e.getMessage();
+                        LOG.warn(errorMessage, e);
+                        cb.result(new RequestResponse(ReadResponse.internalServerError(errorMessage)));
+                    }
+                } else {
+                    String errorMessage = "Client " + instanceName + " not found";
+                    LOG.warn(errorMessage);
+                    cb.result(new RequestResponse(ReadResponse.internalServerError(errorMessage)));
+                }
+            } else if (pathParts[0].equals("database")) {
+                LOG.debug("trying to get information about database {}", instanceName);
+                Client client = server.getClientRegistry().get(instanceName);
+                if (client != null) {
+                    String response = client.toString();
+                    LOG.debug("database " + instanceName + " found: {}", response);
+                    cb.result(new RequestResponse(ReadResponse.success(0, response)));
+                } else {
+                    String errorMessage = "database " + instanceName + " not found";
+                    LOG.warn(errorMessage);
+                    cb.result(new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, errorMessage)));
+                }
+            } else {
+                String response = String.format("Unknown object type, please use one of: %s or 'restart'", MODEL_NAME_TO_ID_MAP.keySet());
+                LOG.warn(response);
+                cb.result(new RequestResponse(ReadResponse.internalServerError(response)));
+            }
+        }
+    }
+
     /**
      * Tries to restart all connected clients.
      *
      * @throws InterruptedException
      */
-
     public void restartClients() throws InterruptedException {
         LOG.debug("Restarting all databases...");
         for (Client client : server.getClientRegistry().allClients()) {
@@ -551,11 +546,14 @@ public class RequestHandler {
         return response;
     }
 
+    public interface RequestCallback {
+        void result(RequestResponse response);
+    }
+
     public class RequestResponse {
         private LwM2mResponse response;
         private int model;
         private String path = null;
-
 
         public RequestResponse(LwM2mResponse response) {
             this.response = response;
@@ -607,7 +605,7 @@ public class RequestHandler {
 
                     @Override
                     public void visit(LwM2mObjectInstance instance) {
-                        LOG.debug("visiting instance {}", instance);
+                        LOG.trace("visiting instance {}", instance);
                         JsonObject jResponse = new JsonObject();
                         Map<Integer, LwM2mResource> resources = instance.getResources();
                         // parse resources into json
@@ -629,7 +627,7 @@ public class RequestHandler {
 
                     @Override
                     public void visit(LwM2mResource resource) {
-                        LOG.debug("visiting resource {}", resource);
+                        LOG.trace("visiting resource {}", resource);
                         String val = resource.getValue().toString();
                         //LOG.debug("value: {}", val);
 
@@ -669,9 +667,5 @@ public class RequestHandler {
                     ", model=" + model +
                     '}';
         }
-    }
-
-    public interface RequestCallback {
-        void result(RequestResponse response);
     }
 }

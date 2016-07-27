@@ -24,7 +24,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.leshan.LwM2mId;
 import org.eclipse.leshan.client.californium.LeshanClient;
 import org.eclipse.leshan.client.californium.LeshanClientBuilder;
@@ -87,10 +86,13 @@ public class CatalogueDatabase {
     private static final String IDPPROXY_TYPE_NAME = "idp-proxy";
 
     private static final String SOURCEPACKAGE_TYPE_NAME = "sourcepackage";
+    private static final String NAME_FIELD_NAME = "objectName";
+    private static final String CGUID_FIELD_NAME = "cguid";
+
+    private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     // mapping of model IDs to their path names
-    private static Map<String, Integer> MODEL_NAME_TO_ID_MAP = new LinkedHashMap<>();
-    private Map<Integer, Map<Integer, ResourceModel>> MODEL_ID_TO_RESOURCES_MAP_MAP = new LinkedHashMap<>();
+    private static final Map<String, Integer> MODEL_NAME_TO_ID_MAP = new LinkedHashMap<>(6);
 
     static {
         MODEL_NAME_TO_ID_MAP.put(HYPERTY_TYPE_NAME, HYPERTY_MODEL_ID);
@@ -101,22 +103,18 @@ public class CatalogueDatabase {
         MODEL_NAME_TO_ID_MAP.put(SOURCEPACKAGE_TYPE_NAME, SOURCEPACKAGE_MODEL_ID);
     }
 
-    private static Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    private Map<Integer, Map<Integer, ResourceModel>> MODEL_ID_TO_RESOURCES_MAP_MAP = new LinkedHashMap<>();
     private JsonParser parser = new JsonParser();
-
-    private static final String NAME_FIELD_NAME = "objectName";
-    private static final String CGUID_FIELD_NAME = "cguid";
-
     private LeshanClient client;
     private Thread hook = null;
-
     private Map<Integer, ObjectModel> objectModelMap = new HashMap<>(MODEL_IDS.size());
-
-    private final String CALIFORNIUM_FILE_NAME = "Californium.properties";
-    private final String CALIFORNIUM_TEMP_EXTENTION = ".database.tmp";
-
     private DatabaseConfig config;
 
+    /**
+     * Create Catalogue Database instance with the given configuration
+     *
+     * @param config - configuration object for the Catalogue Database
+     */
     public CatalogueDatabase(DatabaseConfig config) {
         if (config == null) {
             LOG.warn("Catalogue Broker started without BrokerConfig! Using default...");
@@ -127,6 +125,7 @@ public class CatalogueDatabase {
     }
 
     public static void main(final String[] args) throws CatalogueObjectParsingException {
+        // create Catalogue Database configuration object and feed it with the arguments
         DatabaseConfig databaseConfig = DatabaseConfig.fromFile();
         databaseConfig.parseArgs(args);
 
@@ -135,7 +134,7 @@ public class CatalogueDatabase {
     }
 
     /**
-     * Start the Catalogue Database.
+     * Start the Catalogue Database
      */
     public void start() throws CatalogueObjectParsingException {
         LOG.info("Starting Catalogue Database based on config:\r\n{}", config.toString());
@@ -162,27 +161,6 @@ public class CatalogueDatabase {
             vconf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.TRACE);
             vconf.getRootLogger().setLevel(Level.TRACE);
             vctx.updateLoggers(vconf);
-        }
-
-        // set californium properties
-        try {
-            InputStream in = getClass().getResourceAsStream("/" + CALIFORNIUM_FILE_NAME);
-            File tmpFile = new File(CALIFORNIUM_FILE_NAME + CALIFORNIUM_TEMP_EXTENTION);
-            if (!tmpFile.exists()) {
-                OutputStream out = new FileOutputStream(tmpFile);
-                byte[] buffer = new byte[1024];
-                int len = in.read(buffer);
-                while (len != -1) {
-                    out.write(buffer, 0, len);
-                    len = in.read(buffer);
-                }
-                out.close();
-                tmpFile = new File("Californium.properties.tmp");
-            }
-            NetworkConfig.createStandardWithFile(tmpFile);
-            tmpFile.deleteOnExit();
-        } catch (IOException e) {
-            LOG.warn("Unable to use Californium properties from resources folder: {}", e);
         }
 
         // parse all catalogue objects
@@ -238,6 +216,7 @@ public class CatalogueDatabase {
 
         }
 
+        // build leshan client
         LeshanClientBuilder builder = new LeshanClientBuilder(config.endpoint);
         builder.setObjects(enablers);
         builder.setLocalAddress(config.coapHost, config.coapPort);
@@ -263,22 +242,45 @@ public class CatalogueDatabase {
         }
     }
 
+    /**
+     * Stop leshan client
+     */
     public void stop() {
         LOG.info("Device: Deregistering Client");
         if (client != null)
             client.destroy(true);
     }
 
+    /**
+     * Load and return custom Object Models from models.json
+     *
+     * @return List of ObjectModels
+     */
     private List<ObjectModel> getCustomObjectModels() {
         InputStream modelStream = getClass().getResourceAsStream("/model.json");
         return ObjectLoader.loadJsonStream(modelStream);
     }
 
+    /**
+     * Parse file and return it as a JSONObject
+     *
+     * @param f - file to be parsed
+     * @return JsonObject based on the contents of the given file
+     * @throws FileNotFoundException
+     * @throws JsonParseException
+     */
     private JsonObject parseJson(File f) throws FileNotFoundException, JsonParseException {
         LOG.debug("parsing to JSON: " + f.getPath());
         return parser.parse(new FileReader(f)).getAsJsonObject();
     }
 
+    /**
+     * Parses the Catalogue Objects folder
+     *
+     * @param dir - Catalogue Objects folder
+     * @return modelID:CatalogueObjectInstances map
+     * @throws CatalogueObjectParsingException - thrown on parsing error
+     */
     private Map<Integer, Set<CatalogueObjectInstance>> parseObjects(File dir) throws CatalogueObjectParsingException {
         LOG.debug("parsing objects in " + dir.getPath());
         if (!dir.exists() || !dir.isDirectory())
@@ -387,6 +389,11 @@ public class CatalogueDatabase {
         return modelObjectsMap;
     }
 
+    /**
+     * Print file contents in case of parsing error
+     *
+     * @param f - file to be logged
+     */
     private void printBrokenFile(File f) {
         LOG.error("Contents of file " + f.getPath() + ":");
         try {
@@ -403,126 +410,71 @@ public class CatalogueDatabase {
     }
 
     /**
-     * InstanceEnabler for reTHINK Catalogue Object instances.
-     */
-    public class CatalogueObjectInstance extends BaseInstanceEnabler {
-        private Logger LOG;
-        private JsonObject descriptor = null;
-        private File sourceCode = null;
-        private int model;
-        private boolean isValid = true;
-        private String name = "unknown";
-
-        public JsonObject getDescriptor() {
-            return descriptor;
-        }
-
-        public File getSourceCode() {
-            return sourceCode;
-        }
-
-        public int getModel() {
-            return model;
-        }
-
-        public boolean isValid() {
-            return isValid;
-        }
-
-        public CatalogueObjectInstance(int model, JsonObject descriptor, File sourceCode) {
-            this.model = model;
-            this.descriptor = descriptor;
-            this.sourceCode = sourceCode;
-
-            setup();
-        }
-
-        public CatalogueObjectInstance(int model, JsonObject descriptor) {
-            this.model = model;
-            this.descriptor = descriptor;
-
-            setup();
-        }
-
-        public CatalogueObjectInstance() {
-            setup();
-        }
-
-        private String findName() {
-            JsonElement name = descriptor.get("objectName");
-            if (name == null)
-                name = descriptor.get("cguid");
-
-            if (name != null)
-                this.name = name.getAsString();
-
-            return this.name;
-        }
-
-        private void setup() {
-            findName();
-            LOG = LoggerFactory.getLogger(this.getClass().getPackage().getName() + "." + this.name);
-            isValid = validate();
-
-        }
-
-        private boolean validate() {
-            LOG.debug("validating {} against model {}", descriptor.toString(), model);
-
-            if (model == 0) {
-                LOG.warn("Unable to validate instance: modelId not set!");
-                return false;
-            }
-
-            if (descriptor == null) {
-                LOG.warn("Unable to validate instance: descriptor json not set!");
-                return false;
-            }
-
-            for (Map.Entry<Integer, ResourceModel> entry : objectModelMap.get(model).resources.entrySet()) {
-                String name = entry.getValue().name;
-                if (entry.getValue().mandatory && (!descriptor.has(name) && (name.equals("sourceCode") && sourceCode == null))) {
-                    LOG.warn("Validation of {} (has sourceCode file: {}) against model {} failed. '{}' is mandatory, but not included", descriptor, sourceCode != null, model);
-                    return false;
-                }
-            }
-            LOG.debug("validation succeeded");
-            return true;
-        }
-
-        @Override
-        public ReadResponse read(int resourceid) {
-            String resourceName = MODEL_ID_TO_RESOURCES_MAP_MAP.get(model).get(resourceid).name;
-            LOG.debug("Read on {} ({})", resourceid, resourceName);
-            ReadResponse response;
-            if (descriptor.has(resourceName)) {
-                JsonElement element = descriptor.get(resourceName);
-                response = ReadResponse.success(resourceid, element.isJsonPrimitive() ? element.getAsString() : element.toString());
-            } else if (resourceName.equals("sourceCode")) {
-                try {
-                    response = ReadResponse.success(resourceid, new String(Files.readAllBytes(Paths.get(sourceCode.toURI())), "UTF-8"));
-                } catch (IOException e) {
-                    LOG.error("Unable to read sourceCode file of " + descriptor.toString(), e);
-                    response = ReadResponse.internalServerError("Unable to read sourceCode file: " + e.getMessage());
-                }
-            } else {
-                response = ReadResponse.notFound();
-            }
-            return response;
-        }
-    }
-
-
-    /**
      * Provides the default device description of a Database instance.
      */
     public static class Device extends BaseInstanceEnabler {
+
+        private static String utcOffset = new SimpleDateFormat("X").format(Calendar.getInstance().getTime());
+        private static String timeZone = TimeZone.getDefault().getID();
+        private CatalogueDatabase database = null;
 
         public Device() {
 
         }
 
-        private CatalogueDatabase database = null;
+        private static String getManufacturer() {
+            return "Rethink Example Catalogue";
+        }
+
+        private static String getModelNumber() {
+            return "Model 1337";
+        }
+
+        private static String getSerialNumber() {
+            return "RT-500-000-0001";
+        }
+
+        private static String getFirmwareVersion() {
+            return "0.1.0";
+        }
+
+        private static int getErrorCode() {
+            return 0;
+        }
+
+        private static int getBatteryLevel() {
+            final Random rand = new Random();
+            return rand.nextInt(100);
+        }
+
+        private static int getMemoryFree() {
+            final Random rand = new Random();
+            return rand.nextInt(50) + 114;
+        }
+
+        private static Date getCurrentTime() {
+            return new Date();
+        }
+
+        private static String getUtcOffset() {
+            return utcOffset;
+        }
+
+        private static void setUtcOffset(String t) {
+            utcOffset = t;
+        }
+
+        private static String getTimezone() {
+            return timeZone;
+        }
+
+        private void setTimezone(String t) {
+            timeZone = t;
+        }
+
+        private static String getSupportedBinding() {
+            return "U";
+        }
 
         public void setDatabase(CatalogueDatabase database) {
             this.database = database;
@@ -591,63 +543,115 @@ public class CatalogueDatabase {
             return super.write(resourceid, value);
         }
 
-        private static String getManufacturer() {
-            return "Rethink Example Catalogue";
+    }
+
+    /**
+     * InstanceEnabler for reTHINK Catalogue Object instances.
+     */
+    public class CatalogueObjectInstance extends BaseInstanceEnabler {
+        private Logger LOG;
+        private JsonObject descriptor = null;
+        private File sourceCode = null;
+        private int model;
+        private boolean isValid = true;
+        private String name = "unknown";
+
+        public CatalogueObjectInstance(int model, JsonObject descriptor, File sourceCode) {
+            this.model = model;
+            this.descriptor = descriptor;
+            this.sourceCode = sourceCode;
+
+            setup();
         }
 
-        private static String getModelNumber() {
-            return "Model 1337";
+        public CatalogueObjectInstance(int model, JsonObject descriptor) {
+            this.model = model;
+            this.descriptor = descriptor;
+
+            setup();
         }
 
-        private static String getSerialNumber() {
-            return "RT-500-000-0001";
+        public CatalogueObjectInstance() {
+            setup();
         }
 
-        private static String getFirmwareVersion() {
-            return "0.1.0";
+        public JsonObject getDescriptor() {
+            return descriptor;
         }
 
-        private static int getErrorCode() {
-            return 0;
+        public File getSourceCode() {
+            return sourceCode;
         }
 
-        private static int getBatteryLevel() {
-            final Random rand = new Random();
-            return rand.nextInt(100);
+        public int getModel() {
+            return model;
         }
 
-        private static int getMemoryFree() {
-            final Random rand = new Random();
-            return rand.nextInt(50) + 114;
+        public boolean isValid() {
+            return isValid;
         }
 
-        private static Date getCurrentTime() {
-            return new Date();
+        private String findName() {
+            JsonElement name = descriptor.get("objectName");
+            if (name == null)
+                name = descriptor.get("cguid");
+
+            if (name != null)
+                this.name = name.getAsString();
+
+            return this.name;
         }
 
-        private static String utcOffset = new SimpleDateFormat("X").format(Calendar.getInstance().getTime());
+        private void setup() {
+            findName();
+            LOG = LoggerFactory.getLogger(this.getClass().getPackage().getName() + "." + this.name);
+            isValid = validate();
 
-        private static String getUtcOffset() {
-            return utcOffset;
         }
 
-        private static void setUtcOffset(String t) {
-            utcOffset = t;
+        private boolean validate() {
+            LOG.debug("validating {} against model {}", descriptor.toString(), model);
+
+            if (model == 0) {
+                LOG.warn("Unable to validate instance: modelId not set!");
+                return false;
+            }
+
+            if (descriptor == null) {
+                LOG.warn("Unable to validate instance: descriptor json not set!");
+                return false;
+            }
+
+            for (Map.Entry<Integer, ResourceModel> entry : objectModelMap.get(model).resources.entrySet()) {
+                String name = entry.getValue().name;
+                if (entry.getValue().mandatory && (!descriptor.has(name) && (name.equals("sourceCode") && sourceCode == null))) {
+                    LOG.warn("Validation of {} (has sourceCode file: {}) against model {} failed. '{}' is mandatory, but not included", descriptor, sourceCode != null, model);
+                    return false;
+                }
+            }
+            LOG.debug("validation succeeded");
+            return true;
         }
 
-        private static String timeZone = TimeZone.getDefault().getID();
-
-        private static String getTimezone() {
-            return timeZone;
+        @Override
+        public ReadResponse read(int resourceid) {
+            String resourceName = MODEL_ID_TO_RESOURCES_MAP_MAP.get(model).get(resourceid).name;
+            LOG.debug("Read on {} ({})", resourceid, resourceName);
+            ReadResponse response;
+            if (descriptor.has(resourceName)) {
+                JsonElement element = descriptor.get(resourceName);
+                response = ReadResponse.success(resourceid, element.isJsonPrimitive() ? element.getAsString() : element.toString());
+            } else if (resourceName.equals("sourceCode")) {
+                try {
+                    response = ReadResponse.success(resourceid, new String(Files.readAllBytes(Paths.get(sourceCode.toURI())), "UTF-8"));
+                } catch (IOException e) {
+                    LOG.error("Unable to read sourceCode file of " + descriptor.toString(), e);
+                    response = ReadResponse.internalServerError("Unable to read sourceCode file: " + e.getMessage());
+                }
+            } else {
+                response = ReadResponse.notFound();
+            }
+            return response;
         }
-
-        private void setTimezone(String t) {
-            timeZone = t;
-        }
-
-        private static String getSupportedBinding() {
-            return "U";
-        }
-
     }
 }

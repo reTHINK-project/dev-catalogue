@@ -29,7 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Created by Robert Ende on 26.07.16.
+ * Configuration Object for the Catalogue Broker
  */
 public class BrokerConfig {
     private static final Logger LOG = LoggerFactory.getLogger(BrokerConfig.class);
@@ -55,6 +55,12 @@ public class BrokerConfig {
 
     public Map<String, String> defaultDescriptors = new HashMap<>();
 
+    /**
+     * Create a BrokerConfig instance from a file
+     *
+     * @param file - JSON file, e.g. "brokerconf.json"
+     * @return BrokerConfig instance based on the given file, or the default BrokerConfig if  the file does not exist.
+     */
     public static BrokerConfig fromFile(String file) {
         File f = new File(file);
         BrokerConfig config = null;
@@ -85,6 +91,12 @@ public class BrokerConfig {
         return config;
     }
 
+    /**
+     * Create a BrokerConfig instance from the default file ("brokerconf.json"), if it exists
+     *
+     * @return BrokerConfig instance based on the default file ("brokerconf.json"), if it exists,
+     * therwise it returns the default BrokerConfig with its default configuration
+     */
     public static BrokerConfig fromFile() {
         return fromFile(DEFAULT_FILENAME);
     }
@@ -106,6 +118,11 @@ public class BrokerConfig {
         }
     }
 
+    /**
+     * Parse launch arguments into this configuration
+     *
+     * @param args - launch arguments (options) the Broker was launched with
+     */
     public void parseArgs(String[] args) {
         for (int i = 0; i < args.length; i++) {
             try {

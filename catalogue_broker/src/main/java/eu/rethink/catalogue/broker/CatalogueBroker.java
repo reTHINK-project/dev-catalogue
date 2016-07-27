@@ -15,7 +15,6 @@
  * limitations under the License.
  **/
 
-
 package eu.rethink.catalogue.broker;
 
 import eu.rethink.catalogue.broker.config.BrokerConfig;
@@ -26,7 +25,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.*;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -37,8 +35,6 @@ import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
-
-import java.io.*;
 
 /**
  * The reTHINK Catalogue Broker
@@ -52,17 +48,11 @@ public class CatalogueBroker {
 
     private BrokerConfig config;
 
-    private final String CALIFORNIUM_FILE_NAME = "Californium.properties";
-    private final String CALIFORNIUM_TEMP_EXTENTION = ".database.tmp";
-
-    public static void main(String[] args) {
-        BrokerConfig brokerConfig = BrokerConfig.fromFile();
-        brokerConfig.parseArgs(args);
-
-        CatalogueBroker broker = new CatalogueBroker(brokerConfig);
-        broker.start();
-    }
-
+    /**
+     * Create Catalogue Broker instance with the given configuration
+     *
+     * @param config - configuration object for the Catalogue Broker
+     */
     public CatalogueBroker(BrokerConfig config) {
         if (config == null) {
             LOG.warn("Catalogue Broker started without BrokerConfig! Using default...");
@@ -72,6 +62,17 @@ public class CatalogueBroker {
         this.config = config;
     }
 
+    public static void main(String[] args) {
+        BrokerConfig brokerConfig = BrokerConfig.fromFile();
+        brokerConfig.parseArgs(args);
+
+        CatalogueBroker broker = new CatalogueBroker(brokerConfig);
+        broker.start();
+    }
+
+    /**
+     * Start the Catalogue Broker
+     */
     public void start() {
         LOG.info("Starting Catalogue Broker based on config:\r\n{}", config.toString());
 
@@ -97,27 +98,6 @@ public class CatalogueBroker {
             vconf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.TRACE);
             vconf.getRootLogger().setLevel(Level.TRACE);
             vctx.updateLoggers(vconf);
-        }
-
-        // set californium properties
-        try {
-            InputStream in = getClass().getResourceAsStream("/" + CALIFORNIUM_FILE_NAME);
-            File tmpFile = new File(CALIFORNIUM_FILE_NAME + CALIFORNIUM_TEMP_EXTENTION);
-            if (!tmpFile.exists()) {
-                OutputStream out = new FileOutputStream(tmpFile);
-                byte[] buffer = new byte[1024];
-                int len = in.read(buffer);
-                while (len != -1) {
-                    out.write(buffer, 0, len);
-                    len = in.read(buffer);
-                }
-                out.close();
-                tmpFile = new File("Californium.properties.tmp");
-            }
-            NetworkConfig.createStandardWithFile(tmpFile);
-            tmpFile.deleteOnExit();
-        } catch (IOException e) {
-            LOG.warn("Unable to use Californium properties from resources folder: {}", e);
         }
 
         // Build LWM2M server
@@ -153,7 +133,6 @@ public class CatalogueBroker {
 
         // === jetty-https.xml ===
         // SSL Context Factory
-
         SslContextFactory sslContextFactory = new SslContextFactory();
         sslContextFactory.setKeyStorePath(config.keystorePath);
         sslContextFactory.setKeyStorePassword(config.keystorePassword);
@@ -209,7 +188,6 @@ public class CatalogueBroker {
         eventServletHolder.setAsyncSupported(true);
         root.addServlet(eventServletHolder, "/event/*");
         server.setHandler(root);
-
 
         // Start jetty & webApp
         try {

@@ -30,7 +30,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 /**
- * Created by Robert Ende on 26.07.16.
+ * Configuration Object for the Catalogue Database
  */
 public class DatabaseConfig {
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseConfig.class);
@@ -50,6 +50,12 @@ public class DatabaseConfig {
             lifeTime = 60,
             logLevel = 3;
 
+    /**
+     * Create a DatabaseConfig instance from a file
+     *
+     * @param file - JSON file, e.g. "dbconf.json"
+     * @return DatabaseConfig instance based on the given file, or the default DatabaseConfig if  the file does not exist.
+     */
     public static DatabaseConfig fromFile(String file) {
         File f = new File(file);
         DatabaseConfig config = null;
@@ -80,10 +86,21 @@ public class DatabaseConfig {
         return config;
     }
 
+    /**
+     * Create a DatabaseConfig instance from the default file ("dbconf.json"), if it exists
+     *
+     * @return DatabaseConfig instance based on the default file ("dbconf.json"), if it exists,
+     * therwise it returns the default DatabaseConfig with its default configuration
+     */
     public static DatabaseConfig fromFile() {
         return fromFile(DEFAULT_FILENAME);
     }
 
+    /**
+     * Parse launch arguments into this configuration
+     *
+     * @param args - launch arguments (options) the Database was launched with
+     */
     public void parseArgs(String[] args) {
         for (int i = 0; i < args.length; i++) {
             try {
