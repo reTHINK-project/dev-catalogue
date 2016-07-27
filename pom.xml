@@ -11,7 +11,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <catalogue.version>1.2.0</catalogue.version>
+        <catalogue.version>1.2.1</catalogue.version>
         <leshan.version>0.1.11-M12</leshan.version>
         <jetty.version>9.1.4.v20140401</jetty.version>
         <log4j.version>2.5</log4j.version>
