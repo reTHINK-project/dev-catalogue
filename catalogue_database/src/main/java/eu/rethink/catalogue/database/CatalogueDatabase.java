@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.leshan.LwM2mId;
 import org.eclipse.leshan.client.californium.LeshanClient;
 import org.eclipse.leshan.client.californium.LeshanClientBuilder;
@@ -170,6 +171,14 @@ public class CatalogueDatabase {
             return;
         }
 
+        // set custom Californium settings
+        NetworkConfig.getStandard().setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION);
+        NetworkConfig.getStandard().setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 1024);
+        try {
+            NetworkConfig.getStandard().store(new File(NetworkConfig.DEFAULT));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         // get default models
         List<ObjectModel> objectModels = ObjectLoader.loadDefault();
 

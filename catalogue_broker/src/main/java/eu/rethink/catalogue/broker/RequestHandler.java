@@ -424,9 +424,17 @@ public class RequestHandler {
                         final String[] finalDetails = details;
                         final String finalResourceName = resourceName;
                         final String finalPath = path;
+                        final boolean[] gotResponse = {false};
                         server.send(client, request, new ResponseCallback<ReadResponse>() {
                             @Override
                             public void onResponse(ReadResponse readResponse) {
+                                if (gotResponse[0]) {
+                                    // response already (being) handled, so ignore the second occurrence
+                                    LOG.warn("got second response for request on {}!", finalPath);
+                                    return;
+                                }
+
+                                gotResponse[0] = true;
                                 RequestResponse response = new RequestResponse(readResponse, id, finalPath);
                                 long respTime = System.currentTimeMillis();
                                 LOG.debug("response received after {}ms", respTime - startTime);

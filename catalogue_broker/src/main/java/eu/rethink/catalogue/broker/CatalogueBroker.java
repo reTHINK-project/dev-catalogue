@@ -25,6 +25,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.*;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -35,6 +36,9 @@ import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
+
+import java.io.File;
+import java.io.IOException;
 
 /**
  * The reTHINK Catalogue Broker
@@ -100,6 +104,15 @@ public class CatalogueBroker {
             vctx.updateLoggers(vconf);
         }
 
+        // set custom Californium settings
+        NetworkConfig.getStandard().setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION);
+        NetworkConfig.getStandard().setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 1024);
+        try {
+            NetworkConfig.getStandard().store(new File(NetworkConfig.DEFAULT));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         // Build LWM2M server
         LeshanServerBuilder builder = new LeshanServerBuilder();
         builder.setObjectModelProvider(new RethinkModelProvider());
@@ -161,9 +174,9 @@ public class CatalogueBroker {
         // create sourcePackageURLPrefix, e.g. "hyperty-catalogue://mydomain.com:8443/.well-known"
         // start with protocol and host
         String sourcePackageURLPrefix = config.sourcePackageURLProtocol + "://" + config.host;
-        if (config.sourcePackageURLProtocol.equals("http") && config.httpPort != 80)
+        if (config.sourcePackageURLProtocol.equals("http") && config.httpPort != 80) {
             sourcePackageURLPrefix += ":" + config.httpPort; // append http port if protocol is http and port != 80
-        else if (config.httpsPort != 443)
+        } else if (!config.sourcePackageURLProtocol.equals("http") && config.httpsPort != 443)
             sourcePackageURLPrefix += ":" + config.httpsPort; // only append https port if port != 443
 
         // finally append the /.well-known path
