@@ -21,5 +21,5 @@ RUN cd /opt/reTHINK/catalogue && mvn install
 RUN ln -s /opt/reTHINK/catalogue/catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependencies.jar /opt/reTHINK/catalogue/catalogue_broker/target/rethink-catalogue-broker-jar-with-dependencies.jar
 
 # ENTRYPOINT is the command that is always run.
-ENTRYPOINT ["java", "-jar", "/opt/reTHINK/catalogue/catalogue_broker/target/rethink-catalogue-broker-jar-with-dependencies.jar", "-kp", "/opt/reTHINK/catalogue/ssl/keystore", "-tp", "/opt/reTHINK/catalogue/ssl/keystore"]
+ENTRYPOINT ["java", "-jar", "/opt/reTHINK/catalogue/catalogue_broker/target/rethink-catalogue-broker-jar-with-dependencies.jar", "-kp", "/opt/reTHINK/catalogue/ssl/keystore", "-tp", "/opt/reTHINK/catalogue/ssl/keystore", "-httpport", "80", "-httpsport", "443"]
 

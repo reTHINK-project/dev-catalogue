@@ -12,15 +12,11 @@ After having generated the JARs for the catalogue broker and database, you may s
 
 1.) For the Catalogue:
 ```
-java -jar catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependencies.jar -http 8090 -coap "localhost:5683" -coaps 5684
+java -jar catalogue_broker/target/rethink-catalogue-broker-*-jar-with-dependencies.jar
 ```
 2.) For the Broker:
 ```
-java -jar catalogue_database/target/rethink-catalogue-database-*-jar-with-dependencies.jar -h mydomain.com -p 5683 -o catalogue_objects
-```
-3.) For the Catalogue testsite:
-```
-java -jar catalogue_test/target/rethink-catalogue-test-*-jar-with-dependencies.jar 8090
+java -jar catalogue_database/target/rethink-catalogue-database-*-jar-with-dependencies.jar
 ```
 
 Please refer to the [usage guide](./usage_guide.md) to learn about supported arguments and configuration options.
@@ -32,10 +28,9 @@ A set of docker images is provided, one for each catalogue components. The image
 ```
 docker run -it --net=host rethink/catalogue-broker
 docker run -it --net=host rethink/catalogue-database
-docker run -it --net=host rethink/catalogue-test-client
 ```
 Note:  in order to provide a configuration as included in the docker files that allows a user to run the catalogue without the need to
-do any further configuration, all instances need to be accessable vie "localhost".  Hence, docker is run using the --net=host option.
+do any further configuration, all instances need to be accessible vie "localhost".  Hence, docker is run using the --net=host option.
 In case you defer from that way of running the images, you might have to configure the ip-addresses and ports under which each component
 can be reached from another.  Please refer to the commands' options description for details.
 

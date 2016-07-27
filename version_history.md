@@ -54,3 +54,28 @@
   * added -endpoint option to set database endpoint name
   * added options for setting coap(s) host name and port
   * fixed database initialization failing if there is no instance for a model
+
+## 1.2.0
+* changed way of defining default hyperty/protostub/etc.
+  * either use "-default" for broker to set default instance for a certain type, e.g. -default "hyperty/myHyperty"
+  * or use configuration file
+* added ability to configure Catalogue Broker and Database with a configuration file
+* changed sourcePackageURL now being modified by the Catalogue Broker
+* updated leshan to version 0.1.11-M12
+* added more logging options (see logLevel in configuration or use -v, -vv or -vvv launch option)
+* Broker
+  * implemented async request handling
+  * added option "-default" to set default instances for a certain type, e.g. -default "hyperty/myHyperty"
+  * added option "-sourcePackageURLProtocol" to specify the protocol used when modifying sourcePackageURLs
+  * Broker will respond with an error, if the default instance has been requested, but was not defined
+  * improved Broker Test Page
+  * can be configured using brokerconf.json in root directory
+  * requesting a list of instances for a certain type now returns a sorted list
+  * added EventServlet that notifies about changes of connected Databases to the Broker
+  * changed northbound interface to react to /.well-known/database instead of /.well-known/client
+  * updated Test Page
+* Database
+  * no longer supports instances with the name "default" (a warning will be printed)
+  * can be configured using dbconf.json in root directory
+* californium
+  * changed deduplicator from DEDUPLICATOR_MARK_AND_SWEEP to DEDUPLICATOR_CROP_ROTATION
