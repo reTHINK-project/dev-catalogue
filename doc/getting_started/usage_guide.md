@@ -46,22 +46,22 @@ Example:
 
 You can configure the Catalogue Database using the following options:
 
-option              | description
-------------------- | ---------------------------
--host, -h           | specify Catalogue Broker hostname/IP
--domain, -d         | specify Catalogue Broker domain/IP used for sourcePackageURL generation
--port, -p           | specify Catalogue Broker coap port
+option                  | description
+----------------------- | ---------------------------
+-host, -h               | specify Catalogue Broker hostname/IP
+~~-domain, -d~~         | ~~specify Catalogue Broker domain/IP used for sourcePackageURL generation~~ *DEPRECATED, use Broker's "-sourcePackageURLHost"*
+-port, -p               | specify Catalogue Broker coap port
 ~~-coapaddress, -ca~~   | ~~set Database CoAP address (host[:port])~~ *DEPRECATED, use -coaphost & -coapport*
--coaphost, -ch      | set Database CoAP host name
--coapport, -cp      | set Database CoAP port
+-coaphost, -ch          | set Database CoAP host name
+-coapport, -cp          | set Database CoAP port
 ~~-coapsaddress, -csa~~ | ~~set Database CoAPs address (host[:port])~~ *DEPRECATED, use -coaphost & -coapsport*
 ~~-coapshost, -ch~~     | ~~set Database CoAPs host name~~ *DEPRECATED, use -coaphost*
--coapsport, -cp     | set Database CoAPs port
--objpath, -o        | path of folder containing catalogue objects (e.g. provided catalogue_objects folder)
+-coapsport, -cp         | set Database CoAPs port
+-objpath, -o            | path of folder containing catalogue objects (e.g. provided catalogue_objects folder)
 ~~-usehttp~~            | ~~change protocol of generated sourcePackageURLs to http (otherwise, https is used)~~ *DEPRECATED, broker now modifies sourcePackageURLs*
--lifetime, -t       | set the time between client updates (default = 60)
--endpoint, -e       | set Catalogue Database endpoint name
--v, -vv, -vvv       | increase logging level
+-lifetime, -t           | set the time between client updates (default = 60)
+-endpoint, -e           | set Catalogue Database endpoint name
+-v, -vv, -vvv           | increase logging level
 
 If you run the Catalogue Database without launch arguments,
 it tries to connect to the Catalogue Broker on localhost:5683 by default,
