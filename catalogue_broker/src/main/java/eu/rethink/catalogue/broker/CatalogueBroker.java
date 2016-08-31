@@ -171,16 +171,11 @@ public class CatalogueBroker {
         sslConnector.setPort(config.httpsPort);
         server.addConnector(sslConnector);
 
-        // create sourcePackageURLPrefix, e.g. "hyperty-catalogue://mydomain.com:8443/.well-known"
-        // start with protocol and host
-        String sourcePackageURLPrefix = config.sourcePackageURLProtocol + "://" + config.host;
-        if (config.sourcePackageURLProtocol.equals("http") && config.httpPort != 80) {
-            sourcePackageURLPrefix += ":" + config.httpPort; // append http port if protocol is http and port != 80
-        } else if (!config.sourcePackageURLProtocol.equals("http") && config.httpsPort != 443)
-            sourcePackageURLPrefix += ":" + config.httpsPort; // only append https port if port != 443
-
-        // finally append the /.well-known path
-        sourcePackageURLPrefix += "/.well-known";
+        // setup sourcePackageURLPrefix
+        String sourcePackageURLPrefix = "hyperty-catalogue://" // protocol
+                + config.sourcePackageURLHost // hostname
+                + (config.httpsPort != 443 ? ":" + config.httpsPort : "") // port
+                + "/.well-known"; // path
 
         // rethink request handler
         RequestHandler rethinkRequestHandler = new RequestHandler(lwServer, config.defaultDescriptors, sourcePackageURLPrefix);

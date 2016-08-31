@@ -84,3 +84,7 @@
 * catch handling client responses twice
 * removed need to rely on Californium.properties
 * minor fix for handling sourcePackageURLProtocol option
+
+## 1.2.2
+* dropped ability to set sourcePackageURL protocol
+* added ability to manually set sourcePackageURL hostname
