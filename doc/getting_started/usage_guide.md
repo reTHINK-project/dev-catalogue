@@ -11,25 +11,26 @@ Example:
 
 You can configure the Catalogue Broker using the following options:
 
-option                      | description
---------------------------- | ---------------------------
--host                       | set coap & http host name
--http, -h                   | set http port
--ssl, -s, -https, -hs       | set https port
-~~-coap, -c~~               | ~~set coap address (host[:port])~~ *DEPRECATED, use -coaphost & -coapport*
-~~-coaps, -cs~~             | ~~set coap address (host[:port])~~ *DEPRECATED, use -coaphost & -coapsport*
--coaphost, -ch              | set coap host
--coapport, -cp              | set coap port
-~~-coapshost, -ch~~         | ~~set coaps host~~ *DEPRECATED, use -coaphost*
--coapsport, -cp             | set coaps port
--keystorePath, -kp          | set keystore path
--truststorePath, -tp        | set truststore path
--keystorePassword, -kpw     | set keystore password
--keyManagerPassword, -kmpw  | set keystore manager password
--truststorePassword, -tpw   | set truststore password
--default                    | set default instance (type/instanceName)
--sourcePackageURLProtocol   | set the protocol used when the Broker modifies the sourcePackageURL after requesting it
--v, -vv, -vvv               | increase logging level
+option                        | description
+----------------------------- | ---------------------------
+-host                         | set coap & http host name
+-http, -h                     | set http port
+-ssl, -s, -https, -hs         | set https port
+~~-coap, -c~~                 | ~~set coap address (host[:port])~~ *DEPRECATED, use -coaphost & -coapport*
+~~-coaps, -cs~~               | ~~set coap address (host[:port])~~ *DEPRECATED, use -coaphost & -coapsport*
+-coaphost, -ch                | set coap host
+-coapport, -cp                | set coap port
+~~-coapshost, -ch~~           | ~~set coaps host~~ *DEPRECATED, use -coaphost*
+-coapsport, -cp               | set coaps port
+-keystorePath, -kp            | set keystore path
+-truststorePath, -tp          | set truststore path
+-keystorePassword, -kpw       | set keystore password
+-keyManagerPassword, -kmpw    | set keystore manager password
+-truststorePassword, -tpw     | set truststore password
+-default                      | set default instance (type/instanceName)
+~~-sourcePackageURLProtocol~~ | ~~set the protocol used when the Broker modifies the sourcePackageURL after requesting it~~ *REMOVED, protocol is now always "hyperty-catalogue"*
+-sourcePackageURLHost         | set custom sourcePackageURL hostname (otherwise, Broker hostname is used)
+-v, -vv, -vvv                 | increase logging level
 
 Note: By default, the Catalogue Broker uses https for everything. If not configured with the options mentioned below, it runs on port 80 for http, and 443 for https. Usually you are only permitted to use those ports when running the jar with sudo.
 If testing in a browser, please also make sure your browser accepts the provided self-signed certificates.
@@ -87,7 +88,7 @@ Example Configuration for the Catalogue Broker containing all possible settings:
   "truststorePath": "ssl/keystore",
   "truststorePassword": "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
   "keystoreManagerPassword": "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
-  "sourcePackageURLProtocol": "https",
+  "sourcePackageURLHost": "localhost",
   "httpPort": 8080,
   "httpsPort": 8443,
   "coapPort": 5683,
