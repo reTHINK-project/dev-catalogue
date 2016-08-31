@@ -38,13 +38,13 @@ public class BrokerConfig {
 
     public String
             host = "localhost",
-            coapHost = "localhost",
+            coapHost = host,
             keystorePath = "ssl/keystore",
             keystorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
             truststorePath = "ssl/keystore",
             truststorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
             keystoreManagerPassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
-            sourcePackageURLProtocol = "https";
+            sourcePackageURLHost = host;
 
     public int
             httpPort = 8080,
@@ -54,6 +54,23 @@ public class BrokerConfig {
             logLevel = 3;
 
     public Map<String, String> defaultDescriptors = new HashMap<>();
+
+    public BrokerConfig() {
+        host = "localhost";
+        coapHost = "localhost";
+        keystorePath = "ssl/keystore";
+        keystorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
+        truststorePath = "ssl/keystore";
+        truststorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
+        keystoreManagerPassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
+        sourcePackageURLHost = host;
+
+        httpPort = 8080;
+        httpsPort = 8443;
+        coapPort = 5683;
+        coapsPort = 5684;
+        logLevel = 3;
+    }
 
     /**
      * Create a BrokerConfig instance from a file
@@ -129,7 +146,12 @@ public class BrokerConfig {
                 switch (args[i].toLowerCase()) {
                     case "-host":
                         //broker.setHost(args[i+1]);
-                        host = args[++i];
+                        if (sourcePackageURLHost.equals(host))
+                            sourcePackageURLHost = args[i + 1];
+                        if (coapHost.equals(host))
+                            coapHost = args[i + 1];
+                        host = args[i + 1];
+
                         break;
                     case "-httpport":
                     case "-http":
@@ -200,8 +222,8 @@ public class BrokerConfig {
                             LOG.warn("Unable to parse option: -default " + def);
                         }
                         break;
-                    case "-sourcepackageurlprotocol":
-                        sourcePackageURLProtocol = args[i + 1];
+                    case "-sourcepackageurlhost":
+                        sourcePackageURLHost = args[i + 1];
                         break;
                     case "-v":
                         // increase log level

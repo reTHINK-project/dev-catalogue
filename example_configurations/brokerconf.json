@@ -14,5 +14,5 @@
   "defaultDescriptors": {
     "hyperty": "SecondHyperty"
   },
-  "sourcePackageURLProtocol": "hyperty-catalogue"
+  "sourcePackageURLHost": "someotherdomain.com"
 }
