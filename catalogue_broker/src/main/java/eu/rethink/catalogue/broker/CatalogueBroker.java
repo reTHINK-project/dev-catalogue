@@ -174,7 +174,7 @@ public class CatalogueBroker {
         // setup sourcePackageURLPrefix
         String sourcePackageURLPrefix = "hyperty-catalogue://" // protocol
                 + config.sourcePackageURLHost // hostname
-                + (config.httpsPort != 443 ? ":" + config.httpsPort : "") // port
+        //        + (config.httpsPort != 443 ? ":" + config.httpsPort : "") // port
                 + "/.well-known"; // path
 
         // rethink request handler
