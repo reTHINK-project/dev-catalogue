@@ -37,7 +37,7 @@ public class BrokerConfig {
     private static final String DEFAULT_FILENAME = "brokerconf.json";
 
     public String
-            host = "localhost",
+            host = "0.0.0.0",
             coapHost = host,
             keystorePath = "ssl/keystore",
             keystorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
@@ -54,23 +54,6 @@ public class BrokerConfig {
             logLevel = 3;
 
     public Map<String, String> defaultDescriptors = new HashMap<>();
-
-    public BrokerConfig() {
-        host = "localhost";
-        coapHost = "localhost";
-        keystorePath = "ssl/keystore";
-        keystorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
-        truststorePath = "ssl/keystore";
-        truststorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
-        keystoreManagerPassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
-        sourcePackageURLHost = host;
-
-        httpPort = 8080;
-        httpsPort = 8443;
-        coapPort = 5683;
-        coapsPort = 5684;
-        logLevel = 3;
-    }
 
     /**
      * Create a BrokerConfig instance from a file
