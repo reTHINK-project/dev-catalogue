@@ -88,3 +88,20 @@
 ## 1.2.2
 * dropped ability to set sourcePackageURL protocol
 * added ability to manually set sourcePackageURL hostname
+
+## 1.3.0
+* removed catalogue_objects folder (was deprecated/unusable)
+* updated to leshan version 0.1.11-M13
+* improved logging
+* launch options that use the same names as the config files
+* Current version now logged on Broker/Database start
+* Californium.properties not stored or loaded anymore
+* 'encoding' field in sourcePackage not mandatory anymore
+* sourcePackages are now get the name of the descriptor it belongs to, with a "_sp" suffix
+* sourcePackages get added a objectName field instead of cguid field
+* Broker specific changes:
+  * removed need for setting sourcePackageURLHost, it is now extracted from HTTP request
+* Database specific changes:
+  * optimized code
+  * increased stability
+  * better validation
