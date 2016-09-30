@@ -17,25 +17,19 @@
 
 package eu.rethink.catalogue.database;
 
-import com.google.gson.*;
 import eu.rethink.catalogue.database.config.DatabaseConfig;
 import eu.rethink.catalogue.database.exception.CatalogueObjectParsingException;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.Configuration;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.leshan.LwM2mId;
 import org.eclipse.leshan.client.californium.LeshanClient;
 import org.eclipse.leshan.client.californium.LeshanClientBuilder;
 import org.eclipse.leshan.client.object.Server;
+import org.eclipse.leshan.client.observer.LwM2mClientObserverAdapter;
 import org.eclipse.leshan.client.resource.BaseInstanceEnabler;
 import org.eclipse.leshan.client.resource.LwM2mObjectEnabler;
 import org.eclipse.leshan.client.resource.ObjectsInitializer;
+import org.eclipse.leshan.client.servers.DmServerInfo;
 import org.eclipse.leshan.core.model.LwM2mModel;
-import org.eclipse.leshan.core.model.ObjectLoader;
-import org.eclipse.leshan.core.model.ObjectModel;
-import org.eclipse.leshan.core.model.ResourceModel;
 import org.eclipse.leshan.core.node.LwM2mResource;
 import org.eclipse.leshan.core.request.BindingMode;
 import org.eclipse.leshan.core.response.ExecuteResponse;
@@ -43,14 +37,14 @@ import org.eclipse.leshan.core.response.ReadResponse;
 import org.eclipse.leshan.core.response.WriteResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.bridge.SLF4JBridgeHandler;
 
-import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static eu.rethink.catalogue.database.Parser.ObjectsParser.parseObjects;
+import static eu.rethink.catalogue.database.Utils.objectModels;
+import static eu.rethink.catalogue.database.Utils.setLoggerLevel;
 import static org.eclipse.leshan.client.object.Security.noSec;
 
 /**
@@ -59,56 +53,8 @@ import static org.eclipse.leshan.client.object.Security.noSec;
 public class CatalogueDatabase {
     private static final Logger LOG = LoggerFactory.getLogger(CatalogueDatabase.class);
 
-    // directory filter used in CatalogueObjectInstance class
-    private static final FileFilter dirFilter = new FileFilter() {
-        @Override
-        public boolean accept(File file) {
-            return file.isDirectory();
-        }
-    };
-
-    // model IDs that define the custom models inside model.json
-    private static final int HYPERTY_MODEL_ID = 1337;
-    private static final int PROTOSTUB_MODEL_ID = 1338;
-    private static final int RUNTIME_MODEL_ID = 1339;
-    private static final int SCHEMA_MODEL_ID = 1340;
-    private static final int IDPPROXY_MODEL_ID = 1341;
-
-    private static final int SOURCEPACKAGE_MODEL_ID = 1350;
-
-    // list of supported models
-    private static final Set<Integer> MODEL_IDS = new HashSet<>(Arrays.asList(HYPERTY_MODEL_ID, PROTOSTUB_MODEL_ID, RUNTIME_MODEL_ID, SCHEMA_MODEL_ID, IDPPROXY_MODEL_ID, SOURCEPACKAGE_MODEL_ID));
-
-    // path names for the models
-    private static final String HYPERTY_TYPE_NAME = "hyperty";
-    private static final String PROTOSTUB_TYPE_NAME = "protocolstub";
-    private static final String RUNTIME_TYPE_NAME = "runtime";
-    private static final String SCHEMA_TYPE_NAME = "dataschema";
-    private static final String IDPPROXY_TYPE_NAME = "idp-proxy";
-
-    private static final String SOURCEPACKAGE_TYPE_NAME = "sourcepackage";
-    private static final String NAME_FIELD_NAME = "objectName";
-    private static final String CGUID_FIELD_NAME = "cguid";
-
-    private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-    // mapping of model IDs to their path names
-    private static final Map<String, Integer> MODEL_NAME_TO_ID_MAP = new LinkedHashMap<>(6);
-
-    static {
-        MODEL_NAME_TO_ID_MAP.put(HYPERTY_TYPE_NAME, HYPERTY_MODEL_ID);
-        MODEL_NAME_TO_ID_MAP.put(PROTOSTUB_TYPE_NAME, PROTOSTUB_MODEL_ID);
-        MODEL_NAME_TO_ID_MAP.put(RUNTIME_TYPE_NAME, RUNTIME_MODEL_ID);
-        MODEL_NAME_TO_ID_MAP.put(SCHEMA_TYPE_NAME, SCHEMA_MODEL_ID);
-        MODEL_NAME_TO_ID_MAP.put(IDPPROXY_TYPE_NAME, IDPPROXY_MODEL_ID);
-        MODEL_NAME_TO_ID_MAP.put(SOURCEPACKAGE_TYPE_NAME, SOURCEPACKAGE_MODEL_ID);
-    }
-
-    private Map<Integer, Map<Integer, ResourceModel>> MODEL_ID_TO_RESOURCES_MAP_MAP = new LinkedHashMap<>();
-    private JsonParser parser = new JsonParser();
     private LeshanClient client;
     private Thread hook = null;
-    private Map<Integer, ObjectModel> objectModelMap = new HashMap<>(MODEL_IDS.size());
     private DatabaseConfig config;
 
     /**
@@ -117,6 +63,7 @@ public class CatalogueDatabase {
      * @param config - configuration object for the Catalogue Database
      */
     public CatalogueDatabase(DatabaseConfig config) {
+        LOG.info("Catalogue Database Version {}", getClass().getPackage().getImplementationVersion());
         if (config == null) {
             LOG.warn("Catalogue Broker started without BrokerConfig! Using default...");
             config = new DatabaseConfig();
@@ -137,105 +84,74 @@ public class CatalogueDatabase {
     /**
      * Start the Catalogue Database
      */
-    public void start() throws CatalogueObjectParsingException {
-        LOG.info("Starting Catalogue Database based on config:\r\n{}", config.toString());
+    public void start() {
+        LOG.info("Starting Catalogue Database: {}", config.toString());
 
-        // setup SLF4JBridgeHandler needed for proper logging
-        SLF4JBridgeHandler.removeHandlersForRootLogger();
-        SLF4JBridgeHandler.install();
-
-        if (config.logLevel == 2) {
-            LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-            Configuration conf = ctx.getConfiguration();
-            conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
-            conf.getRootLogger().setLevel(Level.INFO);
-            ctx.updateLoggers(conf);
-        } else if (config.logLevel == 1) {
-            LoggerContext vctx = (LoggerContext) LogManager.getContext(false);
-            Configuration vconf = vctx.getConfiguration();
-            vconf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.TRACE);
-            vconf.getRootLogger().setLevel(Level.DEBUG);
-            vctx.updateLoggers(vconf);
-        } else if (config.logLevel == 0) {
-            LoggerContext vctx = (LoggerContext) LogManager.getContext(false);
-            Configuration vconf = vctx.getConfiguration();
-            vconf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.TRACE);
-            vconf.getRootLogger().setLevel(Level.TRACE);
-            vctx.updateLoggers(vconf);
-        }
-
-        // parse all catalogue objects
-        File catObjs = new File(config.catalogueObjectsPath);
-        if (!catObjs.exists() || !catObjs.isDirectory()) {
-            LOG.error("Catalogue Objects folder '" + config.catalogueObjectsPath + "' does not exist or is not a directory!");
-            return;
-        }
+        setLoggerLevel(config.logLevel);
 
         // set custom Californium settings
+        NetworkConfig.createStandardWithoutFile();
         NetworkConfig.getStandard().setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION);
         NetworkConfig.getStandard().setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 1024);
-        try {
-            NetworkConfig.getStandard().store(new File(NetworkConfig.DEFAULT));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        // get default models
-        List<ObjectModel> objectModels = ObjectLoader.loadDefault();
 
-        // add custom models from model.json
-        List<ObjectModel> customObjectModels = getCustomObjectModels();
-        objectModels.addAll(customObjectModels);
-
-        // setup objectModelMap
-        for (ObjectModel objectModel : customObjectModels) {
-            objectModelMap.put(objectModel.id, objectModel);
-        }
-
-        // setup MODEL_ID_TO_RESOURCES_MAP
-        for (ObjectModel customObjectModel : customObjectModels) {
-            MODEL_ID_TO_RESOURCES_MAP_MAP.put(customObjectModel.id, customObjectModel.resources);
-        }
-
-        // parse catalogue objects
-        Map<Integer, Set<CatalogueObjectInstance>> parsedObjects = parseObjects(catObjs);
-        // Initialize object list
-        ObjectsInitializer initializer = new ObjectsInitializer(new LwM2mModel(objectModels));
-
+        // build leshan client
+        LeshanClientBuilder builder = new LeshanClientBuilder(config.endpoint);
         // add broker address to intializer
         String serverURI = String.format("coap://%s:%s", config.brokerHost, config.brokerPort);
+        ObjectsInitializer initializer = new ObjectsInitializer(new LwM2mModel(objectModels));
 
+        // set SECURITY
         initializer.setInstancesForObject(LwM2mId.SECURITY, noSec(serverURI, 123));
+
+        // set SERVER
         initializer.setInstancesForObject(LwM2mId.SERVER, new Server(123, config.lifeTime, BindingMode.U, false));
 
-        // set dummy Device
+        // set DEVICE
         Device device = new Device();
         device.setDatabase(this);
         initializer.setInstancesForObject(LwM2mId.DEVICE, device);
 
         List<LwM2mObjectEnabler> enablers = initializer.create(LwM2mId.SECURITY, LwM2mId.SERVER, LwM2mId.DEVICE);
 
-        for (Map.Entry<Integer, Set<CatalogueObjectInstance>> entry : parsedObjects.entrySet()) {
-            if (!entry.getValue().isEmpty()) {
-                LOG.debug("setting instances: {}", gson.toJson(entry.getValue()));
-                initializer.setInstancesForObject(entry.getKey(), entry.getValue().toArray(new CatalogueObjectInstance[entry.getValue().size()]));
-                enablers.add(initializer.create(entry.getKey()));
-            } else {
-                LOG.debug("no instances for model {}", entry.getKey());
-            }
+        // parse all catalogue objects
+        File catObjs = new File(config.catalogueObjectsPath);
+        // skip parsing if catalogue objects folder does not exist or is not a directory
+        if (!catObjs.exists()) {
+            LOG.warn("Catalogue Objects folder '" + catObjs.getAbsolutePath() + "' does not exist!");
+        } else if (!catObjs.isDirectory()) {
+            LOG.warn("Catalogue Objects folder '" + catObjs.getAbsolutePath() + "' is not a directory!");
+        } else {
+            LOG.info("Catalogue Objects folder location: {}", catObjs.getAbsolutePath());
+            try {
+                // parse catalogue objects
+                Map<Integer, Set<CatalogueObjectInstance>> parsedObjects = parseObjects(catObjs);
+                // Initialize object list
 
+                for (Map.Entry<Integer, Set<CatalogueObjectInstance>> entry : parsedObjects.entrySet()) {
+                    if (!entry.getValue().isEmpty()) {
+                        //LOG.debug("Setting instances: {}", gson.toJson(entry.getValue()));
+                        initializer.setInstancesForObject(entry.getKey(), entry.getValue().toArray(new CatalogueObjectInstance[entry.getValue().size()]));
+                        enablers.add(initializer.create(entry.getKey()));
+                    }
+                    LOG.debug("Setting {} instance(s) for model {}", String.format("%02d", entry.getValue().size()), entry.getKey());
+
+                }
+
+            } catch (CatalogueObjectParsingException e) {
+                //e.printStackTrace();
+                LOG.warn("Parsing exception!", e);
+            }
         }
 
-        // build leshan client
-        LeshanClientBuilder builder = new LeshanClientBuilder(config.endpoint);
         builder.setObjects(enablers);
         builder.setLocalAddress(config.coapHost, config.coapPort);
         builder.setLocalSecureAddress(config.coapHost, config.coapsPort);
 
         client = builder.build();
-
+        client.addObserver(observer);
         // Start the client
         client.start();
-        LOG.info("Catalogue Database is running");
+        LOG.info("Catalogue Database is running. Registering...");
         final CatalogueDatabase ref = this;
 
         // Deregister on shutdown and stop client.
@@ -255,168 +171,18 @@ public class CatalogueDatabase {
      * Stop leshan client
      */
     public void stop() {
-        LOG.info("Device: Deregistering Client");
-        if (client != null)
+        LOG.info("Stopping Catalogue Database");
+        if (client != null) {
             client.destroy(true);
-    }
-
-    /**
-     * Load and return custom Object Models from models.json
-     *
-     * @return List of ObjectModels
-     */
-    private List<ObjectModel> getCustomObjectModels() {
-        InputStream modelStream = getClass().getResourceAsStream("/model.json");
-        return ObjectLoader.loadJsonStream(modelStream);
-    }
-
-    /**
-     * Parse file and return it as a JSONObject
-     *
-     * @param f - file to be parsed
-     * @return JsonObject based on the contents of the given file
-     * @throws FileNotFoundException
-     * @throws JsonParseException
-     */
-    private JsonObject parseJson(File f) throws FileNotFoundException, JsonParseException {
-        LOG.debug("parsing to JSON: " + f.getPath());
-        return parser.parse(new FileReader(f)).getAsJsonObject();
-    }
-
-    /**
-     * Parses the Catalogue Objects folder
-     *
-     * @param dir - Catalogue Objects folder
-     * @return modelID:CatalogueObjectInstances map
-     * @throws CatalogueObjectParsingException - thrown on parsing error
-     */
-    private Map<Integer, Set<CatalogueObjectInstance>> parseObjects(File dir) throws CatalogueObjectParsingException {
-        LOG.debug("parsing objects in " + dir.getPath());
-        if (!dir.exists() || !dir.isDirectory())
-            throw new CatalogueObjectParsingException("catalogue objects folder '" + dir + "' does not exist or is not a directory");
-
-        File[] typeFolders = dir.listFiles(dirFilter);
-        Map<Integer, Set<CatalogueObjectInstance>> modelObjectsMap = new LinkedHashMap<>(MODEL_IDS.size());
-
-        // setup modelObjectsMap
-        for (Integer modelId : MODEL_IDS) {
-            modelObjectsMap.put(modelId, new LinkedHashSet<CatalogueObjectInstance>());
-        }
-
-        for (File typeFolder : typeFolders) {
-            LOG.debug("parsing type folder " + typeFolder.getPath());
-            Integer modelId = MODEL_NAME_TO_ID_MAP.get(typeFolder.getName());
-
-            if (modelId == null) {
-                throw new CatalogueObjectParsingException("No model ID found for folder '" + typeFolder + "'");
-            }
-
-            File[] instanceFolders = typeFolder.listFiles(dirFilter);
-
-            for (File instanceFolder : instanceFolders) {
-                LOG.debug("parsing instance folder " + instanceFolder.getPath());
-                if (instanceFolder.getName().toLowerCase().equals("default")) {
-                    LOG.warn("Defining default instance by calling it 'default' is not supported anymore. " +
-                            "Please use the Catalogue Broker option '-default' instead. " +
-                            "Folder " + instanceFolder.getPath() + " will be skipped...");
-                    continue;
-                }
-                File desc = new File(instanceFolder, "description.json");
-                File pkg = new File(instanceFolder, "sourcePackage.json");
-                if (!desc.exists()) {
-                    LOG.error("description.json not found in " + instanceFolder.getPath() + " and will be skipped!");
-                } else {
-                    JsonObject jDesc = null;
-                    try {
-                        jDesc = parseJson(desc);
-                    } catch (FileNotFoundException e) {
-                        // should never happen
-                        e.printStackTrace();
-                    } catch (JsonParseException e) {
-                        LOG.error("Parsing " + desc.getPath() + " failed!", e);
-                        printBrokenFile(desc);
-                    }
-
-                    // only continue if file was parsed successfully
-                    if (jDesc != null) {
-                        JsonObject jPkg = null;
-                        if (pkg.exists()) {
-                            LOG.debug("parsing " + pkg.getPath());
-                            try {
-                                jPkg = parseJson(pkg);
-                            } catch (FileNotFoundException e) {
-                                // should never happen
-                                e.printStackTrace();
-                            } catch (JsonParseException e) {
-                                LOG.error("Parsing " + pkg.getPath() + " failed!", e);
-                                printBrokenFile(desc);
-                            }
-                        } else if (jDesc.has("sourcePackage")) {
-                            jPkg = jDesc.remove("sourcePackage").getAsJsonObject();
-                        }
-
-                        if (jPkg != null) {
-                            // put cguid from descriptor into sourcePackage
-                            String cguid = jDesc.get("cguid").getAsString();
-                            jPkg.addProperty("cguid", cguid);
-
-                            // put sourcePackageURL that references this sourcePackage into descriptor
-                            jDesc.addProperty("sourcePackageURL", "/sourcepackage/" + cguid);
-
-                            // check if there is a sourceCode file
-                            File code = null;
-                            for (File file : instanceFolder.listFiles()) {
-                                if (file.getName().startsWith("sourceCode")) {
-                                    LOG.debug("found sourceCode for instance " + instanceFolder.getPath());
-                                    code = file;
-                                    break;
-                                }
-                            }
-
-                            CatalogueObjectInstance sourcePackage = new CatalogueObjectInstance(SOURCEPACKAGE_MODEL_ID, jPkg, code);
-
-                            if (sourcePackage.isValid()) {
-                                modelObjectsMap.get(SOURCEPACKAGE_MODEL_ID).add(sourcePackage);
-                            } else {
-                                LOG.warn("Validation failed for sourcePackage " + jPkg.toString() + " and will be ignored");
-                            }
-                        }
-
-                        CatalogueObjectInstance descriptor = null;
-                        descriptor = new CatalogueObjectInstance(modelId, jDesc);
-
-                        if (descriptor.isValid) {
-                            modelObjectsMap.get(modelId).add(descriptor);
-                        } else {
-                            LOG.warn("Validation failed for descriptor " + jDesc.toString() + " and will be ignored");
-                        }
-                    }
-
-                }
-            }
-        }
-        return modelObjectsMap;
-    }
-
-    /**
-     * Print file contents in case of parsing error
-     *
-     * @param f - file to be logged
-     */
-    private void printBrokenFile(File f) {
-        LOG.error("Contents of file " + f.getPath() + ":");
-        try {
-            try (BufferedReader br = new BufferedReader(new FileReader(f))) {
-                String line = null;
-                while ((line = br.readLine()) != null) {
-                    LOG.error(line);
-                }
-            }
-        } catch (IOException e) {
-            //e.printStackTrace();
-            LOG.error("Error while printing file contents:", e);
         }
     }
+
+    private LwM2mClientObserverAdapter observer = new LwM2mClientObserverAdapter() {
+        @Override
+        public void onRegistrationSuccess(DmServerInfo dmServerInfo, String s) {
+            LOG.info("Successfully registered on '{}'", dmServerInfo.getFullUri().toString());
+        }
+    };
 
     /**
      * Provides the default device description of a Database instance.
@@ -523,17 +289,18 @@ public class CatalogueDatabase {
 
         @Override
         public ExecuteResponse execute(int resourceid, String params) {
-            LOG.debug("Execute on Device resource ({}, {})", resourceid, params);
+            LOG.info("Device restart requested");
             new Thread(new Runnable() {
                 @Override
                 public void run() {
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                     if (database != null) {
                         database.stop();
-                        try {
-                            database.start();
-                        } catch (CatalogueObjectParsingException e) {
-                            LOG.error("Unable to restart database", e);
-                        }
+                        database.start();
                     } else {
                         LOG.warn("database reference not set!");
                     }
@@ -554,113 +321,4 @@ public class CatalogueDatabase {
 
     }
 
-    /**
-     * InstanceEnabler for reTHINK Catalogue Object instances.
-     */
-    public class CatalogueObjectInstance extends BaseInstanceEnabler {
-        private Logger LOG;
-        private JsonObject descriptor = null;
-        private File sourceCode = null;
-        private int model;
-        private boolean isValid = true;
-        private String name = "unknown";
-
-        public CatalogueObjectInstance(int model, JsonObject descriptor, File sourceCode) {
-            this.model = model;
-            this.descriptor = descriptor;
-            this.sourceCode = sourceCode;
-
-            setup();
-        }
-
-        public CatalogueObjectInstance(int model, JsonObject descriptor) {
-            this.model = model;
-            this.descriptor = descriptor;
-
-            setup();
-        }
-
-        public CatalogueObjectInstance() {
-            setup();
-        }
-
-        public JsonObject getDescriptor() {
-            return descriptor;
-        }
-
-        public File getSourceCode() {
-            return sourceCode;
-        }
-
-        public int getModel() {
-            return model;
-        }
-
-        public boolean isValid() {
-            return isValid;
-        }
-
-        private String findName() {
-            JsonElement name = descriptor.get("objectName");
-            if (name == null)
-                name = descriptor.get("cguid");
-
-            if (name != null)
-                this.name = name.getAsString();
-
-            return this.name;
-        }
-
-        private void setup() {
-            findName();
-            LOG = LoggerFactory.getLogger(this.getClass().getPackage().getName() + "." + this.name);
-            isValid = validate();
-
-        }
-
-        private boolean validate() {
-            LOG.debug("validating {} against model {}", descriptor.toString(), model);
-
-            if (model == 0) {
-                LOG.warn("Unable to validate instance: modelId not set!");
-                return false;
-            }
-
-            if (descriptor == null) {
-                LOG.warn("Unable to validate instance: descriptor json not set!");
-                return false;
-            }
-
-            for (Map.Entry<Integer, ResourceModel> entry : objectModelMap.get(model).resources.entrySet()) {
-                String name = entry.getValue().name;
-                if (entry.getValue().mandatory && (!descriptor.has(name) && (name.equals("sourceCode") && sourceCode == null))) {
-                    LOG.warn("Validation of {} (has sourceCode file: {}) against model {} failed. '{}' is mandatory, but not included", descriptor, sourceCode != null, model);
-                    return false;
-                }
-            }
-            LOG.debug("validation succeeded");
-            return true;
-        }
-
-        @Override
-        public ReadResponse read(int resourceid) {
-            String resourceName = MODEL_ID_TO_RESOURCES_MAP_MAP.get(model).get(resourceid).name;
-            LOG.debug("Read on {} ({})", resourceid, resourceName);
-            ReadResponse response;
-            if (descriptor.has(resourceName)) {
-                JsonElement element = descriptor.get(resourceName);
-                response = ReadResponse.success(resourceid, element.isJsonPrimitive() ? element.getAsString() : element.toString());
-            } else if (resourceName.equals("sourceCode")) {
-                try {
-                    response = ReadResponse.success(resourceid, new String(Files.readAllBytes(Paths.get(sourceCode.toURI())), "UTF-8"));
-                } catch (IOException e) {
-                    LOG.error("Unable to read sourceCode file of " + descriptor.toString(), e);
-                    response = ReadResponse.internalServerError("Unable to read sourceCode file: " + e.getMessage());
-                }
-            } else {
-                response = ReadResponse.notFound();
-            }
-            return response;
-        }
-    }
 }
