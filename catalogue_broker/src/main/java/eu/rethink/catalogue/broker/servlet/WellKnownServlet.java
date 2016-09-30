@@ -19,7 +19,6 @@ package eu.rethink.catalogue.broker.servlet;
 
 import eu.rethink.catalogue.broker.RequestHandler;
 import org.eclipse.leshan.ResponseCode;
-import org.eclipse.leshan.server.californium.impl.LeshanServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +64,7 @@ public class WellKnownServlet extends HttpServlet {
      *
      * @param requestHandler handles requests on /.well-known/*
      */
-    public WellKnownServlet(LeshanServer server, RequestHandler requestHandler) {
+    public WellKnownServlet(RequestHandler requestHandler) {
         this.requestHandler = requestHandler;
         //server.getCoapServer().add(new WellKnownCoapResource(requestHandler));
         LOG.info("WellKnownServlet started");
@@ -109,9 +108,9 @@ public class WellKnownServlet extends HttpServlet {
             @Override
             public void run() {
                 final ServletRequest aReq = asyncContext.getRequest();
-
+                final String path = String.valueOf(aReq.getAttribute("javax.servlet.async.request_uri"));
                 // let it be handled by RequestHandler
-                requestHandler.handleGET(String.valueOf(aReq.getAttribute("javax.servlet.async.request_uri")), finalHost, new RequestHandler.RequestCallback() {
+                requestHandler.handleGET(path, new RequestHandler.RequestCallback() {
                     @Override
                     public void result(RequestHandler.RequestResponse response) {
                         ServletResponse aResp = asyncContext.getResponse();
@@ -127,14 +126,14 @@ public class WellKnownServlet extends HttpServlet {
                         // forward response
                         if (response.isSuccess()) {
                             try {
-                                aResp.getWriter().write(response.getJsonString());
+                                aResp.getWriter().write(response.getJsonString(finalHost, path));
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
                         } else {
-                            LOG.debug("returning error ({}): {}", code, response.getJsonString());
+                            LOG.debug("returning error ({}): {}", code, response.getJsonString(finalHost, path));
                             try {
-                                aResp.getWriter().write(response.getJsonString());
+                                aResp.getWriter().write(response.getJsonString(finalHost, path));
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
