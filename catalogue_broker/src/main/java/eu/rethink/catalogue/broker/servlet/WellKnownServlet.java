@@ -97,16 +97,21 @@ public class WellKnownServlet extends HttpServlet {
                 LOG.trace("has parameter: ({}:{})", parameterName, req.getParameter(parameterName));
             }
         }
-        
+
+        String host = req.getHeader("X-Forwarded-Host");
+        if (host == null)
+            host = req.getHeader("Host");
+
         resp.addHeader("Access-Control-Allow-Origin", "*");
         final AsyncContext asyncContext = req.startAsync();
+        final String finalHost = host;
         asyncContext.start(new Runnable() {
             @Override
             public void run() {
                 final ServletRequest aReq = asyncContext.getRequest();
 
                 // let it be handled by RequestHandler
-                requestHandler.handleGET(String.valueOf(aReq.getAttribute("javax.servlet.async.request_uri")), new RequestHandler.RequestCallback() {
+                requestHandler.handleGET(String.valueOf(aReq.getAttribute("javax.servlet.async.request_uri")), finalHost, new RequestHandler.RequestCallback() {
                     @Override
                     public void result(RequestHandler.RequestResponse response) {
                         ServletResponse aResp = asyncContext.getResponse();

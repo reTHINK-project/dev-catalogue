@@ -43,8 +43,7 @@ public class BrokerConfig {
             keystorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
             truststorePath = "ssl/keystore",
             truststorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
-            keystoreManagerPassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
-            sourcePackageURLHost = host;
+            keystoreManagerPassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
 
     public int
             httpPort = 8080,
@@ -129,8 +128,6 @@ public class BrokerConfig {
                 switch (args[i].toLowerCase()) {
                     case "-host":
                         //broker.setHost(args[i+1]);
-                        if (sourcePackageURLHost.equals(host))
-                            sourcePackageURLHost = args[i + 1];
                         if (coapHost.equals(host))
                             coapHost = args[i + 1];
                         host = args[i + 1];
@@ -206,7 +203,7 @@ public class BrokerConfig {
                         }
                         break;
                     case "-sourcepackageurlhost":
-                        sourcePackageURLHost = args[i + 1];
+                        LOG.warn("sourcePackageURLHost is deprecated and not needed anymore! Host is now extracted from HTTP request");
                         break;
                     case "-v":
                         // increase log level

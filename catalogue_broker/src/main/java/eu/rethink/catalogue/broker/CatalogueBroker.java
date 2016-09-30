@@ -165,14 +165,8 @@ public class CatalogueBroker {
         sslConnector.setPort(config.httpsPort);
         server.addConnector(sslConnector);
 
-        // setup sourcePackageURLPrefix
-        String sourcePackageURLPrefix = "hyperty-catalogue://" // protocol
-                + config.sourcePackageURLHost // hostname
-                + ((config.sourcePackageURLHost.equals(config.host) && config.httpsPort != 443) ? ":" + config.httpsPort : "") // port
-                + "/.well-known"; // path
-
         // rethink request handler
-        RequestHandler rethinkRequestHandler = new RequestHandler(lwServer, config.defaultDescriptors, sourcePackageURLPrefix);
+        RequestHandler rethinkRequestHandler = new RequestHandler(lwServer, config.defaultDescriptors);
 
         //ServletContextHandler servletContextHandler = new ServletContextHandler(server, "/", true, false);
 

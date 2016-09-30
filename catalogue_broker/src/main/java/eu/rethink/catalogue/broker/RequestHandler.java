@@ -106,7 +106,6 @@ public class RequestHandler {
     private LeshanServer server;
     private Map<String, String> defaults = new HashMap<>();
 
-    private String sourcePackageURLPrefix = null;
     /**
      * Keeps track of currently registered clients.
      */
@@ -277,10 +276,9 @@ public class RequestHandler {
         }
     };
 
-    public RequestHandler(LeshanServer server, Map<String, String> defaults, String sourcePackageURLPrefix) {
+    public RequestHandler(LeshanServer server, Map<String, String> defaults) {
         this(server);
         this.defaults = defaults;
-        this.sourcePackageURLPrefix = sourcePackageURLPrefix;
     }
 
     public RequestHandler(LeshanServer server) {
@@ -312,7 +310,7 @@ public class RequestHandler {
      * @param path - URL GET request path, e.g. /.well-known/hyperty/myHyperty/version
      * @param cb   - callback to be called when a response is ready
      */
-    public void handleGET(String path, final RequestCallback cb) {
+    public void handleGET(String path, final String host, final RequestCallback cb) {
         //LOG.info("Handling GET for: " + path);
         // path should start with /.well-known/
         // but coap has no slash at the start, so check for it and prepend it if necessary.
@@ -330,7 +328,7 @@ public class RequestHandler {
         if (pathParts.length == 0) {
             String response = String.format("Please provide at least a type from %s or 'restart' or 'database'", MODEL_NAME_TO_ID_MAP.keySet());
             LOG.warn(response);
-            cb.result(new RequestResponse(ReadResponse.internalServerError(response)));
+            cb.result(new RequestResponse(host, ReadResponse.internalServerError(response)));
         } else if (pathParts.length == 1) { // hyperty | protostub | sourcepackage etc. only
 
             String type = pathParts[0];
@@ -340,16 +338,16 @@ public class RequestHandler {
             if (id != null) {
                 String response = gson.toJson(nameToInstanceMapMap.get(id).keySet());
                 LOG.trace("Returning list: " + response);
-                cb.result(new RequestResponse(ReadResponse.success(0, response), id));
+                cb.result(new RequestResponse(host, ReadResponse.success(0, response), id));
             } else if (type.equals("restart")) {
                 try {
                     restartClients();
                     String response = "Restart executed on all connected databases";
                     LOG.trace(response);
-                    cb.result(new RequestResponse(ReadResponse.success(0, response)));
+                    cb.result(new RequestResponse(host, ReadResponse.success(0, response)));
                 } catch (InterruptedException e) {
                     LOG.warn("Restarting databases failed", e);
-                    cb.result(new RequestResponse(ReadResponse.internalServerError("Restarting databases failed: " + e.getMessage())));
+                    cb.result(new RequestResponse(host, ReadResponse.internalServerError("Restarting databases failed: " + e.getMessage())));
                 }
             } else if (type.equals("database")) {
                 List<String> databases = new LinkedList<>();
@@ -358,11 +356,11 @@ public class RequestHandler {
                 }
                 String response = gson.toJson(databases);
                 LOG.trace("Returning database list: " + response);
-                cb.result(new RequestResponse(ReadResponse.success(0, response)));
+                cb.result(new RequestResponse(host, ReadResponse.success(0, response)));
             } else {
                 String response = String.format("Unknown object type, please use one of: %s or 'restart' or 'database'", MODEL_NAME_TO_ID_MAP.keySet());
                 LOG.warn(response);
-                cb.result(new RequestResponse(ReadResponse.internalServerError(response), -1));
+                cb.result(new RequestResponse(host, ReadResponse.internalServerError(response), -1));
             }
         } else {
             String modelType = pathParts[0];
@@ -396,7 +394,7 @@ public class RequestHandler {
                 if (resourceName != null && resourceID == null) {
                     String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, resourceNameToIdMap.keySet());
                     LOG.warn(response);
-                    cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
+                    cb.result(new RequestResponse(host, ReadResponse.internalServerError(response), id));
                     return;
                 }
 
@@ -435,7 +433,7 @@ public class RequestHandler {
                                 }
 
                                 gotResponse[0] = true;
-                                RequestResponse response = new RequestResponse(readResponse, id, finalPath);
+                                RequestResponse response = new RequestResponse(host, readResponse, id, finalPath);
                                 long respTime = System.currentTimeMillis();
                                 LOG.trace("response received after {}ms", respTime - startTime);
                                 if (finalDetails != null && response.isSuccess()) {
@@ -450,7 +448,7 @@ public class RequestHandler {
                                         // now current is what we want
                                         String sResp = current.toString();
                                         LOG.trace("Returning: " + sResp);
-                                        cb.result(new RequestResponse(ReadResponse.success(0, sResp)));
+                                        cb.result(new RequestResponse(host, ReadResponse.success(0, sResp)));
                                     } catch (Exception e) {
                                         //e.printStackTrace();
                                         String detailPath = "";
@@ -459,7 +457,7 @@ public class RequestHandler {
                                         }
                                         String error = detailPath + " not found in " + finalResourceName;
                                         LOG.warn(error, e);
-                                        cb.result(new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, error)));
+                                        cb.result(new RequestResponse(host, new ReadResponse(ResponseCode.NOT_FOUND, null, error)));
                                     }
                                 } else {
                                     cb.result(response);
@@ -470,14 +468,14 @@ public class RequestHandler {
                             public void onError(Exception e) {
                                 String error = "unable to request " + t + " from database " + client;
                                 LOG.warn(error, e);
-                                cb.result(new RequestResponse(ReadResponse.internalServerError(error + ": " + e.getMessage()), id));
+                                cb.result(new RequestResponse(host, ReadResponse.internalServerError(error + ": " + e.getMessage()), id));
                             }
                         });
 
                     } else {
                         String response = String.format("Found target for '%s', but endpoint is invalid. Redundany error? Requested endpoint: %s", instanceName, targetPaths[0]);
                         LOG.warn(response);
-                        cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
+                        cb.result(new RequestResponse(host, ReadResponse.internalServerError(response), id));
                     }
                 } else {
                     String response;
@@ -487,7 +485,7 @@ public class RequestHandler {
                         response = String.format("Could not find instance: %s", instanceName);
                     }
                     LOG.warn(response);
-                    cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
+                    cb.result(new RequestResponse(host, ReadResponse.internalServerError(response), id));
                 }
             } else if (pathParts[0].equals("restart")) {
                 LOG.trace("trying to disconnect {}", instanceName);
@@ -497,16 +495,16 @@ public class RequestHandler {
                     try {
                         ExecuteResponse executeResponse = restartClient(client);
                         LOG.trace("Restarting database {} {}", client.getEndpoint(), executeResponse.isSuccess() ? "succeeded" : "failed");
-                        cb.result(new RequestResponse(executeResponse));
+                        cb.result(new RequestResponse(host, executeResponse));
                     } catch (InterruptedException e) {
                         String errorMessage = "Unable to restart database " + client.getEndpoint() + ": " + e.getMessage();
                         LOG.warn(errorMessage, e);
-                        cb.result(new RequestResponse(ReadResponse.internalServerError(errorMessage)));
+                        cb.result(new RequestResponse(host, ReadResponse.internalServerError(errorMessage)));
                     }
                 } else {
                     String errorMessage = "Client " + instanceName + " not found";
                     LOG.warn(errorMessage);
-                    cb.result(new RequestResponse(ReadResponse.internalServerError(errorMessage)));
+                    cb.result(new RequestResponse(host, ReadResponse.internalServerError(errorMessage)));
                 }
             } else if (pathParts[0].equals("database")) {
                 LOG.trace("trying to get information about database {}", instanceName);
@@ -514,16 +512,16 @@ public class RequestHandler {
                 if (client != null) {
                     String response = client.toString();
                     LOG.trace("database " + instanceName + " found: {}", response);
-                    cb.result(new RequestResponse(ReadResponse.success(0, response)));
+                    cb.result(new RequestResponse(host, ReadResponse.success(0, response)));
                 } else {
                     String errorMessage = "database " + instanceName + " not found";
                     LOG.warn(errorMessage);
-                    cb.result(new RequestResponse(new ReadResponse(ResponseCode.NOT_FOUND, null, errorMessage)));
+                    cb.result(new RequestResponse(host, new ReadResponse(ResponseCode.NOT_FOUND, null, errorMessage)));
                 }
             } else {
                 String response = String.format("Unknown object type, please use one of: %s or 'restart'", MODEL_NAME_TO_ID_MAP.keySet());
                 LOG.warn(response);
-                cb.result(new RequestResponse(ReadResponse.internalServerError(response)));
+                cb.result(new RequestResponse(host, ReadResponse.internalServerError(response)));
             }
         }
     }
@@ -562,21 +560,25 @@ public class RequestHandler {
         private LwM2mResponse response;
         private int model;
         private String path = null;
+        private String host;
 
-        public RequestResponse(LwM2mResponse response) {
+        public RequestResponse(String host, LwM2mResponse response) {
             this.response = response;
             this.model = -1;
+            this.host = host;
         }
 
-        public RequestResponse(LwM2mResponse response, int model) {
+        public RequestResponse(String host, LwM2mResponse response, int model) {
             this.response = response;
             this.model = model;
+            this.host = host;
         }
 
-        public RequestResponse(LwM2mResponse response, int model, String path) {
+        public RequestResponse(String host, LwM2mResponse response, int model, String path) {
             this.response = response;
             this.model = model;
             this.path = path;
+            this.host = host;
         }
 
         public boolean isSuccess() {
@@ -622,7 +624,7 @@ public class RequestHandler {
                             String value = entry.getValue().getValue().toString();
                             // add sourcePackageURLPrefix if we are handling sourcePackageURL currently
                             if (name.equals("sourcePackageURL") && value.startsWith("/")) {
-                                value = sourcePackageURLPrefix + value;
+                                value = "hyperty-catalogue://" + host + "/.well-known" + value;
                             }
                             try {
                                 jResponse.add(name, gson.fromJson(value, JsonElement.class));
@@ -641,7 +643,7 @@ public class RequestHandler {
                         try {
                             // check if sourcePackageURL was directly requested
                             if (path != null && path.endsWith("sourcePackageURL") && val.startsWith("/")) {
-                                resp[0] = new JsonPrimitive(sourcePackageURLPrefix + val);
+                                resp[0] = new JsonPrimitive("hyperty-catalogue://" + host + "/.well-known" + val);
                             } else {
                                 resp[0] = gson.fromJson(val, JsonElement.class);
                             }
