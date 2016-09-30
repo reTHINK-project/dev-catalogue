@@ -84,7 +84,7 @@ public class BrokerConfig {
         }
 
         if (config == null) {
-            LOG.info("Loading default Configuration...");
+            //LOG.info("Loading default Configuration...");
             config = new BrokerConfig();
         }
 

@@ -40,7 +40,7 @@ public class DatabaseConfig {
     public String
             brokerHost = "localhost",
             coapHost = "localhost",
-            endpoint = "DB_" + new Random().nextInt(Integer.MAX_VALUE),
+            endpoint = String.format("DB_%010d", new Random().nextInt(Integer.MAX_VALUE)),
             catalogueObjectsPath = "catalogue_objects";
 
     public int
@@ -79,7 +79,7 @@ public class DatabaseConfig {
         }
 
         if (config == null) {
-            LOG.info("Loading default Configuration...");
+            //LOG.info("Loading default Configuration...");
             config = new DatabaseConfig();
         }
 

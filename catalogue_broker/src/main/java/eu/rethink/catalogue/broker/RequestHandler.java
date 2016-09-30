@@ -129,7 +129,7 @@ public class RequestHandler {
 
         @Override
         public void updated(ClientUpdate update, Client clientUpdated) {
-            LOG.debug("'{}' updated", clientUpdated.getEndpoint());
+            LOG.trace("'{}' updated", clientUpdated.getEndpoint());
 
             //try {
             //    removeClient(clientUpdated);
@@ -167,10 +167,10 @@ public class RequestHandler {
 
             final List<String> foundModels = new LinkedList<>();
 
-            LOG.debug("checking object links of client: " + client);
+            LOG.debug("checking object links of '{}'", client.getEndpoint());
             for (LinkObject link : client.getObjectLinks()) {
                 String linkUrl = link.getUrl();
-                //LOG.debug("checking link: " + link.getUrl());
+                //LOG.trace("checking link: " + link.getUrl());
                 int i = linkUrl.indexOf("/", 1); //only supported if this returns an index
                 if (i > -1) {
                     int id = Integer.parseInt(linkUrl.substring(1, i));
@@ -178,7 +178,7 @@ public class RequestHandler {
                         foundModels.add(link.getUrl());
                 }
             }
-            LOG.debug("{} contains: {}", client.getEndpoint(), foundModels);
+            //LOG.trace("{} contains: {}", client.getEndpoint(), foundModels);
 
             //request instances of each found model
             Thread t = new Thread(new Runnable() {
@@ -186,7 +186,7 @@ public class RequestHandler {
                 public void run() {
                     final Map<String, String> generatedMapping = new LinkedHashMap<>();
                     for (final String foundModelLink : foundModels) {
-                        LOG.debug("send readRequest for modelLink: {}", foundModelLink);
+                        LOG.trace("send readRequest for modelLink: {}", foundModelLink);
 
                         final int model;
                         if (foundModelLink.indexOf("/", 1) > -1) {
@@ -224,7 +224,7 @@ public class RequestHandler {
 
                                 @Override
                                 public void visit(LwM2mResource resource) {
-                                    LOG.debug("resource visit: " + resource);
+                                    LOG.trace("resource visit: " + resource);
                                     String objectName = resource.getValue().toString();
                                     Map<String, String> nametToInstanceMap = nameToInstanceMapMap.get(model);
                                     String instanceVal = "/" + client.getEndpoint() + foundModelLink;
@@ -247,7 +247,7 @@ public class RequestHandler {
 
                                     generatedMapping.put(foundModelLink, objectName);
 
-                                    LOG.debug("Added to client map -> " + objectName + ": " + nametToInstanceMap.get(objectName));
+                                    LOG.trace("Added to client map -> " + objectName + ": " + nametToInstanceMap.get(objectName));
                                 }
                             });
                         } else {
@@ -300,7 +300,7 @@ public class RequestHandler {
             }
 
             resourceNameToIdMapMap.put(modelId, resourceNameToIdMap);
-            LOG.debug("generated name:id map for model " + modelId + ": " + gson.toJson(resourceNameToIdMap));
+            LOG.trace("generated name:id map for model " + modelId + ": " + gson.toJson(resourceNameToIdMap));
         }
 
         server.getClientRegistry().addListener(clientRegistryListener);
@@ -321,7 +321,7 @@ public class RequestHandler {
 
         // remove /.well-known/ from path
         path = StringUtils.removeStart(path, WELLKNOWN_PREFIX);
-        // LOG.debug("adapted path: " + path);
+        LOG.trace("adapted path: " + path);
         // split path up
         String[] pathParts = StringUtils.split(path, '/');
 
@@ -339,13 +339,13 @@ public class RequestHandler {
 
             if (id != null) {
                 String response = gson.toJson(nameToInstanceMapMap.get(id).keySet());
-                LOG.debug("Returning list: " + response);
+                LOG.trace("Returning list: " + response);
                 cb.result(new RequestResponse(ReadResponse.success(0, response), id));
             } else if (type.equals("restart")) {
                 try {
                     restartClients();
                     String response = "Restart executed on all connected databases";
-                    LOG.debug(response);
+                    LOG.trace(response);
                     cb.result(new RequestResponse(ReadResponse.success(0, response)));
                 } catch (InterruptedException e) {
                     LOG.warn("Restarting databases failed", e);
@@ -357,7 +357,7 @@ public class RequestHandler {
                     databases.add(database.getEndpoint());
                 }
                 String response = gson.toJson(databases);
-                LOG.debug("Returning database list: " + response);
+                LOG.trace("Returning database list: " + response);
                 cb.result(new RequestResponse(ReadResponse.success(0, response)));
             } else {
                 String response = String.format("Unknown object type, please use one of: %s or 'restart' or 'database'", MODEL_NAME_TO_ID_MAP.keySet());
@@ -370,17 +370,17 @@ public class RequestHandler {
             String resourceName = null;
             String[] details = null;
 
-            //LOG.debug("modelType:    " + modelType);
-            //LOG.debug("instanceName: " + instanceName);
+            LOG.trace("modelType:    " + modelType);
+            LOG.trace("instanceName: " + instanceName);
 
             if (pathParts.length > 2) {
                 resourceName = pathParts[2];
-                //LOG.debug("resourceName: " + resourceName);
+                LOG.trace("resourceName: " + resourceName);
             }
 
             if (pathParts.length > 3) {
                 details = Arrays.copyOfRange(pathParts, 3, pathParts.length);
-                //LOG.debug("further specifications: " + Arrays.toString(details));
+                LOG.trace("further specifications: " + Arrays.toString(details));
             }
 
             //check if resourceName is valid
@@ -404,21 +404,21 @@ public class RequestHandler {
 
                 if (instanceName.equals("default") && defaults.containsKey(modelType)) {
                     instanceName = defaults.get(modelType);
-                    LOG.debug("default instance for type '{}' requested -> using {}", modelType, instanceName);
+                    LOG.trace("default instance for type '{}' requested -> using {}", modelType, instanceName);
                 }
                 target = nameToInstanceMap.get(instanceName);
-                LOG.debug(String.format("path for object '%s': %s", instanceName, target));
+                LOG.trace(String.format("path for object '%s': %s", instanceName, target));
 
                 if (target != null) {
                     if (resourceID != null)
                         target += "/" + resourceID;
 
                     String[] targetPaths = StringUtils.split(target, "/");
-                    LOG.debug("checking endpoint: " + targetPaths[0]);
+                    LOG.trace("checking endpoint: " + targetPaths[0]);
                     final Client client = server.getClientRegistry().get(targetPaths[0]);
                     if (client != null) {
                         final String t = StringUtils.removeStart(target, "/" + targetPaths[0]);
-                        LOG.debug("requesting {}", t);
+                        LOG.trace("requesting {}", t);
                         ReadRequest request = new ReadRequest(t);
                         final long startTime = System.currentTimeMillis();
                         final String[] finalDetails = details;
@@ -437,19 +437,19 @@ public class RequestHandler {
                                 gotResponse[0] = true;
                                 RequestResponse response = new RequestResponse(readResponse, id, finalPath);
                                 long respTime = System.currentTimeMillis();
-                                LOG.debug("response received after {}ms", respTime - startTime);
+                                LOG.trace("response received after {}ms", respTime - startTime);
                                 if (finalDetails != null && response.isSuccess()) {
                                     try {
                                         // assume json objects down the "detail" route
                                         JsonElement current = response.getJson();
                                         for (String detail : finalDetails) {
-                                            //LOG.debug("current: {}", current);
+                                            //LOG.trace("current: {}", current);
                                             current = current.getAsJsonObject().get(detail);
                                         }
-                                        //LOG.debug("final current: {}");
+                                        //LOG.trace("final current: {}");
                                         // now current is what we want
                                         String sResp = current.toString();
-                                        LOG.debug("Returning: " + sResp);
+                                        LOG.trace("Returning: " + sResp);
                                         cb.result(new RequestResponse(ReadResponse.success(0, sResp)));
                                     } catch (Exception e) {
                                         //e.printStackTrace();
@@ -490,13 +490,13 @@ public class RequestHandler {
                     cb.result(new RequestResponse(ReadResponse.internalServerError(response), id));
                 }
             } else if (pathParts[0].equals("restart")) {
-                LOG.debug("trying to disconnect {}", instanceName);
+                LOG.trace("trying to disconnect {}", instanceName);
                 Client client = server.getClientRegistry().get(instanceName);
-                LOG.debug("search for database {} returned {}", instanceName, client);
+                LOG.trace("search for database {} returned {}", instanceName, client);
                 if (client != null) {
                     try {
                         ExecuteResponse executeResponse = restartClient(client);
-                        LOG.debug("Restarting database {} {}", client.getEndpoint(), executeResponse.isSuccess() ? "succeeded" : "failed");
+                        LOG.trace("Restarting database {} {}", client.getEndpoint(), executeResponse.isSuccess() ? "succeeded" : "failed");
                         cb.result(new RequestResponse(executeResponse));
                     } catch (InterruptedException e) {
                         String errorMessage = "Unable to restart database " + client.getEndpoint() + ": " + e.getMessage();
@@ -509,11 +509,11 @@ public class RequestHandler {
                     cb.result(new RequestResponse(ReadResponse.internalServerError(errorMessage)));
                 }
             } else if (pathParts[0].equals("database")) {
-                LOG.debug("trying to get information about database {}", instanceName);
+                LOG.trace("trying to get information about database {}", instanceName);
                 Client client = server.getClientRegistry().get(instanceName);
                 if (client != null) {
                     String response = client.toString();
-                    LOG.debug("database " + instanceName + " found: {}", response);
+                    LOG.trace("database " + instanceName + " found: {}", response);
                     cb.result(new RequestResponse(ReadResponse.success(0, response)));
                 } else {
                     String errorMessage = "database " + instanceName + " not found";
@@ -534,7 +534,7 @@ public class RequestHandler {
      * @throws InterruptedException
      */
     public void restartClients() throws InterruptedException {
-        LOG.debug("Restarting all databases...");
+        LOG.trace("Restarting all databases...");
         for (Client client : server.getClientRegistry().allClients()) {
             restartClient(client);
         }
@@ -548,9 +548,9 @@ public class RequestHandler {
      * @throws InterruptedException
      */
     public ExecuteResponse restartClient(Client client) throws InterruptedException {
-        //LOG.debug("Trying to restart {}", client.getEndpoint());
+        LOG.trace("Trying to restart {}", client.getEndpoint());
         ExecuteResponse response = server.send(client, new ExecuteRequest(3, 0, 4));
-        //LOG.debug("Restarting client {} " + (response.isSuccess() ? "succeeded" : ("failed: " + response.getCode())), client.getEndpoint());
+        LOG.trace("Restarting client {} " + (response.isSuccess() ? "succeeded" : ("failed: " + response.getCode())), client.getEndpoint());
         return response;
     }
 
@@ -637,7 +637,6 @@ public class RequestHandler {
                     public void visit(LwM2mResource resource) {
                         LOG.trace("visiting resource {}", resource);
                         String val = resource.getValue().toString();
-                        //LOG.debug("value: {}", val);
 
                         try {
                             // check if sourcePackageURL was directly requested
@@ -652,16 +651,16 @@ public class RequestHandler {
                     }
                 });
             } else if (response instanceof ExecuteResponse) {
-                //LOG.debug("is executeResponse");
+                LOG.trace("is executeResponse");
                 resp[0] = new JsonPrimitive("Successfully executed command");
             }
-            //LOG.debug("returning json: {}", resp[0]);
+            LOG.trace("returning json: {}", resp[0]);
             return resp[0];
         }
 
         public String getJsonString() {
             JsonElement json = getJson();
-            //LOG.debug("json: {}", json);
+            //LOG.trace("json: {}", json);
             if (json.isJsonPrimitive()) {
                 return json.getAsJsonPrimitive().getAsString();
             }

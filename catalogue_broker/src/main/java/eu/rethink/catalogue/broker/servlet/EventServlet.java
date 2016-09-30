@@ -65,7 +65,6 @@ public class EventServlet extends EventSourceServlet {
         }
     };
 
-
     /**
      * This EventServlet will notify browser clients about changes of connected Databases
      *
@@ -74,7 +73,7 @@ public class EventServlet extends EventSourceServlet {
     public EventServlet(LeshanServer server) {
         this.server = server;
         server.getClientRegistry().addListener(this.clientRegistryListener);
-        LOG.debug("EventServlet started");
+        LOG.info("EventServlet started");
     }
 
     /**
@@ -91,7 +90,6 @@ public class EventServlet extends EventSourceServlet {
             }
         }
     }
-
 
     @Override
     protected EventSource newEventSource(HttpServletRequest req) {

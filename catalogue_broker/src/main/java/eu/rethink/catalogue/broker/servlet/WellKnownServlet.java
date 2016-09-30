@@ -31,6 +31,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -67,6 +68,7 @@ public class WellKnownServlet extends HttpServlet {
     public WellKnownServlet(LeshanServer server, RequestHandler requestHandler) {
         this.requestHandler = requestHandler;
         //server.getCoapServer().add(new WellKnownCoapResource(requestHandler));
+        LOG.info("WellKnownServlet started");
     }
 
     /**
@@ -75,6 +77,27 @@ public class WellKnownServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, final HttpServletResponse resp) throws ServletException, IOException {
         LOG.debug("Received GET request on {}", req.getRequestURI());
+
+        if (LOG.isTraceEnabled()) {
+            Enumeration<String> headerNames = req.getHeaderNames();
+            while (headerNames.hasMoreElements()) {
+                String headerName = headerNames.nextElement();
+                LOG.trace("has header: ({}:{})", headerName, req.getHeader(headerName));
+            }
+
+            Enumeration<String> attributeNames = req.getAttributeNames();
+            while (attributeNames.hasMoreElements()) {
+                String attributeName = attributeNames.nextElement();
+                LOG.trace("has attribute: ({}:{})", attributeName, req.getAttribute(attributeName));
+            }
+
+            Enumeration<String> parameterNames = req.getParameterNames();
+            while (parameterNames.hasMoreElements()) {
+                String parameterName = parameterNames.nextElement();
+                LOG.trace("has parameter: ({}:{})", parameterName, req.getParameter(parameterName));
+            }
+        }
+        
         resp.addHeader("Access-Control-Allow-Origin", "*");
         final AsyncContext asyncContext = req.startAsync();
         asyncContext.start(new Runnable() {
@@ -117,6 +140,5 @@ public class WellKnownServlet extends HttpServlet {
             }
         });
     }
-
 
 }
