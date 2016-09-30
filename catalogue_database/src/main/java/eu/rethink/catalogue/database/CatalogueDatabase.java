@@ -1,22 +1,22 @@
-/**
- * Copyright [2015-2017] Fraunhofer Gesellschaft e.V., Institute for
- * Open Communication Systems (FOKUS)
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- **/
+/*
+  Copyright [2015-2017] Fraunhofer Gesellschaft e.V., Institute for
+  Open Communication Systems (FOKUS)
 
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+ */
 package eu.rethink.catalogue.database;
 
+import eu.rethink.catalogue.database.Parser.ObjectsParser;
 import eu.rethink.catalogue.database.config.DatabaseConfig;
 import eu.rethink.catalogue.database.exception.CatalogueObjectParsingException;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -38,13 +38,10 @@ import org.eclipse.leshan.core.response.WriteResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import static eu.rethink.catalogue.database.Parser.ObjectsParser.parseObjects;
-import static eu.rethink.catalogue.database.Utils.objectModels;
-import static eu.rethink.catalogue.database.Utils.setLoggerLevel;
+import static eu.rethink.catalogue.database.Utils.*;
 import static org.eclipse.leshan.client.object.Security.noSec;
 
 /**
@@ -85,7 +82,7 @@ public class CatalogueDatabase {
      * Start the Catalogue Database
      */
     public void start() {
-        LOG.info("Starting Catalogue Database: {}", config.toString());
+        LOG.info("Starting Catalogue Database with: {}", config.toString());
 
         setLoggerLevel(config.logLevel);
 
@@ -114,33 +111,28 @@ public class CatalogueDatabase {
         List<LwM2mObjectEnabler> enablers = initializer.create(LwM2mId.SECURITY, LwM2mId.SERVER, LwM2mId.DEVICE);
 
         // parse all catalogue objects
-        File catObjs = new File(config.catalogueObjectsPath);
-        // skip parsing if catalogue objects folder does not exist or is not a directory
-        if (!catObjs.exists()) {
-            LOG.warn("Catalogue Objects folder '" + catObjs.getAbsolutePath() + "' does not exist!");
-        } else if (!catObjs.isDirectory()) {
-            LOG.warn("Catalogue Objects folder '" + catObjs.getAbsolutePath() + "' is not a directory!");
-        } else {
-            LOG.info("Catalogue Objects folder location: {}", catObjs.getAbsolutePath());
-            try {
-                // parse catalogue objects
-                Map<Integer, Set<CatalogueObjectInstance>> parsedObjects = parseObjects(catObjs);
-                // Initialize object list
-
-                for (Map.Entry<Integer, Set<CatalogueObjectInstance>> entry : parsedObjects.entrySet()) {
-                    if (!entry.getValue().isEmpty()) {
-                        //LOG.debug("Setting instances: {}", gson.toJson(entry.getValue()));
-                        initializer.setInstancesForObject(entry.getKey(), entry.getValue().toArray(new CatalogueObjectInstance[entry.getValue().size()]));
-                        enablers.add(initializer.create(entry.getKey()));
+        ObjectsParser parser = new ObjectsParser(config.catalogueObjectsPath);
+        try {
+            // parse catalogue objects
+            Map<Integer, Set<CatalogueObjectInstance>> parsedObjects = parser.parse();
+            // Initialize object list
+            for (Map.Entry<Integer, Set<CatalogueObjectInstance>> entry : parsedObjects.entrySet()) {
+                if (!entry.getValue().isEmpty()) {
+                    //LOG.debug("Setting instances: {}", gson.toJson(entry.getValue()));
+                    initializer.setInstancesForObject(entry.getKey(), entry.getValue().toArray(new CatalogueObjectInstance[entry.getValue().size()]));
+                    enablers.add(initializer.create(entry.getKey()));
+                    // trace log for each instance
+                    if (LOG.isTraceEnabled()) {
+                        for (CatalogueObjectInstance catalogueObjectInstance : entry.getValue()) {
+                            LOG.trace("added instance {}", gson.toJson(catalogueObjectInstance.getDescriptor()));
+                        }
                     }
-                    LOG.debug("Setting {} instance(s) for model {}", String.format("%02d", entry.getValue().size()), entry.getKey());
-
                 }
-
-            } catch (CatalogueObjectParsingException e) {
-                //e.printStackTrace();
-                LOG.warn("Parsing exception!", e);
+                LOG.debug("Set {} instance(s) for model {}", String.format("%02d", entry.getValue().size()), entry.getKey());
             }
+        } catch (CatalogueObjectParsingException e) {
+            //e.printStackTrace();
+            LOG.warn("Parsing exception:", e);
         }
 
         builder.setObjects(enablers);
@@ -192,17 +184,18 @@ public class CatalogueDatabase {
         private static String utcOffset = new SimpleDateFormat("X").format(Calendar.getInstance().getTime());
         private static String timeZone = TimeZone.getDefault().getID();
         private CatalogueDatabase database = null;
+        private static final String version = Device.class.getPackage().getImplementationVersion();
 
         public Device() {
 
         }
 
         private static String getManufacturer() {
-            return "Rethink Example Catalogue";
+            return "reTHINK Catalogue Database";
         }
 
         private static String getModelNumber() {
-            return "Model 1337";
+            return "Model 1";
         }
 
         private static String getSerialNumber() {
@@ -210,7 +203,7 @@ public class CatalogueDatabase {
         }
 
         private static String getFirmwareVersion() {
-            return "0.1.0";
+            return version;
         }
 
         private static int getErrorCode() {

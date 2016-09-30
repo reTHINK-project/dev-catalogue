@@ -20,7 +20,22 @@ package eu.rethink.catalogue.database.exception;
  * A simple Exception to track Catalogue Object parsing errors
  */
 public class CatalogueObjectParsingException extends Exception {
-    public CatalogueObjectParsingException(String message) {
-        super(message);
+    public CatalogueObjectParsingException() {
+    }
+
+    public CatalogueObjectParsingException(String s) {
+        super(s);
+    }
+
+    public CatalogueObjectParsingException(String s, Throwable throwable) {
+        super(s, throwable);
+    }
+
+    public CatalogueObjectParsingException(Throwable throwable) {
+        super(throwable);
+    }
+
+    public CatalogueObjectParsingException(String s, Throwable throwable, boolean b, boolean b1) {
+        super(s, throwable, b, b1);
     }
 }
