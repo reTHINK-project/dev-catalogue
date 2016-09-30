@@ -92,7 +92,7 @@ public class CatalogueObjectInstance extends BaseInstanceEnabler {
 
     private void setup() {
         findName();
-        LOG = LoggerFactory.getLogger(this.getClass().getPackage().getName() + "." + this.name);
+        LOG = LoggerFactory.getLogger(this.getClass().getPackage().getName() + "." + this.name.replace(".", "_"));
         isValid = validate();
 
     }
