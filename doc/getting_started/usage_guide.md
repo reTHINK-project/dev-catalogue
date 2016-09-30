@@ -67,6 +67,8 @@ If you run the Catalogue Database without launch arguments,
 it tries to connect to the Catalogue Broker on localhost:5683 by default,
 trying to use the catalogue_objects folder in the same directory you started the jar from.
 
+Please have a look at [/docker/catalogue-database-reTHINK-HelloWorld/catalogue_objects](/docker/catalogue-database-reTHINK-HelloWorld/catalogue_objects) as an example for a Catalogue Objects folder.
+
 Please be aware that the domain will be used to generate the sourcePackageURL, if a sourcePackage is provided.
 If no domain is specified, the hostname will be used instead.
 If your Catalogue Broker uses ports other than 80/443 for http/https, you have to provide "host:port" as domain for proper sourcePackageURL generation.
