@@ -37,14 +37,13 @@ public class BrokerConfig {
     private static final String DEFAULT_FILENAME = "brokerconf.json";
 
     public String
-            host = "localhost",
+            host = "0.0.0.0",
             coapHost = host,
             keystorePath = "ssl/keystore",
             keystorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
             truststorePath = "ssl/keystore",
             truststorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
-            keystoreManagerPassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
-            sourcePackageURLHost = host;
+            keystoreManagerPassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
 
     public int
             httpPort = 8080,
@@ -54,23 +53,6 @@ public class BrokerConfig {
             logLevel = 3;
 
     public Map<String, String> defaultDescriptors = new HashMap<>();
-
-    public BrokerConfig() {
-        host = "localhost";
-        coapHost = "localhost";
-        keystorePath = "ssl/keystore";
-        keystorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
-        truststorePath = "ssl/keystore";
-        truststorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
-        keystoreManagerPassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
-        sourcePackageURLHost = host;
-
-        httpPort = 8080;
-        httpsPort = 8443;
-        coapPort = 5683;
-        coapsPort = 5684;
-        logLevel = 3;
-    }
 
     /**
      * Create a BrokerConfig instance from a file
@@ -101,7 +83,7 @@ public class BrokerConfig {
         }
 
         if (config == null) {
-            LOG.info("Loading default Configuration...");
+            //LOG.info("Loading default Configuration...");
             config = new BrokerConfig();
         }
 
@@ -146,8 +128,6 @@ public class BrokerConfig {
                 switch (args[i].toLowerCase()) {
                     case "-host":
                         //broker.setHost(args[i+1]);
-                        if (sourcePackageURLHost.equals(host))
-                            sourcePackageURLHost = args[i + 1];
                         if (coapHost.equals(host))
                             coapHost = args[i + 1];
                         host = args[i + 1];
@@ -186,7 +166,7 @@ public class BrokerConfig {
                         break;
                     case "-coapshost":
                     case "-csh":
-                        LOG.warn("-coapshost isi+ 1 deprecated and will be ignored! Use -coaphost instead.");
+                        LOG.warn("-coapshost is deprecated and will be ignored! Use -coaphost instead.");
                         break;
                     case "-coapsport":
                     case "-csp":
@@ -204,6 +184,7 @@ public class BrokerConfig {
                     case "-kpw":
                         keystorePassword = args[i + 1];
                         break;
+                    case "-keystoremanagerpassword":
                     case "-keymanagerpassword":
                     case "-kmpw":
                         keystoreManagerPassword = args[i + 1];
@@ -212,6 +193,7 @@ public class BrokerConfig {
                     case "-tpw":
                         truststorePassword = args[i + 1];
                         break;
+                    case "-defaultdescriptor":
                     case "-default":
                         String def = args[i + 1];
                         try {
@@ -219,11 +201,11 @@ public class BrokerConfig {
                             defaultDescriptors.put(defParts[0], defParts[1]);
                         } catch (Exception e) {
                             //e.printStackTrace();
-                            LOG.warn("Unable to parse option: -default " + def);
+                            LOG.warn("Unable to parse option: -default[descriptor] " + def);
                         }
                         break;
                     case "-sourcepackageurlhost":
-                        sourcePackageURLHost = args[i + 1];
+                        LOG.warn("sourcePackageURLHost is deprecated and not needed anymore! Host is now extracted from HTTP request");
                         break;
                     case "-v":
                         // increase log level
@@ -236,6 +218,9 @@ public class BrokerConfig {
                     case "-vvv":
                         // increase log level
                         logLevel = 0;
+                        break;
+                    case "-loglevel":
+                        logLevel = Integer.parseInt(args[i + 1]);
                         break;
                     default:
                         if (args[i].startsWith("-")) { // unknown option -someOption
