@@ -166,7 +166,7 @@ public class BrokerConfig {
                         break;
                     case "-coapshost":
                     case "-csh":
-                        LOG.warn("-coapshost isi+ 1 deprecated and will be ignored! Use -coaphost instead.");
+                        LOG.warn("-coapshost is deprecated and will be ignored! Use -coaphost instead.");
                         break;
                     case "-coapsport":
                     case "-csp":
@@ -184,6 +184,7 @@ public class BrokerConfig {
                     case "-kpw":
                         keystorePassword = args[i + 1];
                         break;
+                    case "-keystoremanagerpassword":
                     case "-keymanagerpassword":
                     case "-kmpw":
                         keystoreManagerPassword = args[i + 1];
@@ -192,6 +193,7 @@ public class BrokerConfig {
                     case "-tpw":
                         truststorePassword = args[i + 1];
                         break;
+                    case "-defaultdescriptor":
                     case "-default":
                         String def = args[i + 1];
                         try {
@@ -199,7 +201,7 @@ public class BrokerConfig {
                             defaultDescriptors.put(defParts[0], defParts[1]);
                         } catch (Exception e) {
                             //e.printStackTrace();
-                            LOG.warn("Unable to parse option: -default " + def);
+                            LOG.warn("Unable to parse option: -default[descriptor] " + def);
                         }
                         break;
                     case "-sourcepackageurlhost":
@@ -216,6 +218,9 @@ public class BrokerConfig {
                     case "-vvv":
                         // increase log level
                         logLevel = 0;
+                        break;
+                    case "-loglevel":
+                        logLevel = Integer.parseInt(args[i + 1]);
                         break;
                     default:
                         if (args[i].startsWith("-")) { // unknown option -someOption

@@ -107,20 +107,22 @@ public class DatabaseConfig {
                 switch (args[i].toLowerCase()) {
                     case "-h":
                     case "-host":
-                        brokerHost = args[++i];
+                    case "-brokerhost":
+                        brokerHost = args[i + 1];
                         break;
                     case "-usehttp":
-                        LOG.warn("-usehttp is deprecated and will be ignored! Use the option 'sourcePackageURLProtocol' for the broker instead");
+                        LOG.warn("-usehttp is deprecated and will be ignored!");
                         break;
                     case "-p":
                     case "-port":
-                        brokerPort = Integer.parseInt(args[++i]);
-                        i++;
+                    case "-brokerport":
+                        brokerPort = Integer.parseInt(args[i + 1]);
                         break;
                     case "-o":
                     case "-op":
                     case "-objpath":
-                        catalogueObjectsPath = args[++i];
+                    case "-catalogueobjectspath":
+                        catalogueObjectsPath = args[i + 1];
                         break;
                     case "-d":
                     case "-domain":
@@ -128,11 +130,11 @@ public class DatabaseConfig {
                         break;
                     case "-lifetime":
                     case "-t":
-                        lifeTime = Integer.parseInt(args[++i]);
+                        lifeTime = Integer.parseInt(args[i + 1]);
                         break;
                     case "-endpoint":
                     case "-e":
-                        endpoint = args[++i];
+                        endpoint = args[i + 1];
                         break;
                     case "-coapaddress":
                     case "-ca":
@@ -140,11 +142,11 @@ public class DatabaseConfig {
                         break;
                     case "-coaphost":
                     case "-ch":
-                        coapHost = args[++i];
+                        coapHost = args[i + 1];
                         break;
                     case "-coapport":
                     case "-cp":
-                        coapPort = Integer.parseInt(args[++i]);
+                        coapPort = Integer.parseInt(args[i + 1]);
                         break;
                     case "-coapsaddress":
                     case "-csa":
@@ -156,7 +158,7 @@ public class DatabaseConfig {
                         break;
                     case "-coapsport":
                     case "-csp":
-                        coapsPort = Integer.parseInt(args[++i]);
+                        coapsPort = Integer.parseInt(args[i + 1]);
                         break;
                     case "-v":
                         // increase log level
@@ -169,6 +171,9 @@ public class DatabaseConfig {
                     case "-vvv":
                         // increase log level
                         logLevel = 0;
+                        break;
+                    case "-loglevel":
+                        logLevel = Integer.parseInt(args[i + 1]);
                         break;
                     default:
                         if (args[i].startsWith("-")) { // unknown option -someOption
