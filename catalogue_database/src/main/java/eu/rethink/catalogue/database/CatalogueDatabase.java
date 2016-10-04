@@ -38,6 +38,9 @@ import org.eclipse.leshan.core.response.WriteResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -105,7 +108,6 @@ public class CatalogueDatabase {
 
         // set DEVICE
         Device device = new Device();
-        device.setDatabase(this);
         initializer.setInstancesForObject(LwM2mId.DEVICE, device);
 
         List<LwM2mObjectEnabler> enablers = initializer.create(LwM2mId.SECURITY, LwM2mId.SERVER, LwM2mId.DEVICE);
@@ -141,6 +143,10 @@ public class CatalogueDatabase {
 
         client = builder.build();
         client.addObserver(observer);
+
+        // setup file watcher
+        setWatcher(config.catalogueObjectsPath);
+
         // Start the client
         client.start();
         LOG.info("Catalogue Database is running. Registering...");
@@ -164,9 +170,14 @@ public class CatalogueDatabase {
      */
     public void stop() {
         LOG.info("Stopping Catalogue Database");
-        if (client != null) {
-            client.destroy(true);
-        }
+        client.stop(true);
+        client.destroy(true);
+    }
+
+    public void restart() {
+        LOG.info("Restarting Catalogue Database");
+        stop();
+        start();
     }
 
     private LwM2mClientObserverAdapter observer = new LwM2mClientObserverAdapter() {
@@ -176,63 +187,104 @@ public class CatalogueDatabase {
         }
     };
 
+    private boolean watcherExists = false;
+
+    private void setWatcher(final String path) {
+        LOG.debug("Starting Folder Watcher");
+        if (watcherExists) {
+            LOG.debug("Watcher already exists. Skipping creating watcher");
+            return;
+        }
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                watcherExists = true;
+                try {
+                    final Path dirPath = FileSystems.getDefault().getPath(path);
+                    final WatchService watcher = dirPath.getFileSystem().newWatchService();
+                    dirPath.register(watcher, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY);
+                    Files.walkFileTree(dirPath, new SimpleFileVisitor<Path>() {
+                        @Override
+                        public FileVisitResult preVisitDirectory(Path path, BasicFileAttributes basicFileAttributes) throws IOException {
+                            path.register(watcher, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY);
+                            return super.preVisitDirectory(path, basicFileAttributes);
+                        }
+                    });
+                    try {
+                        while (!Thread.currentThread().isInterrupted()) {
+                            WatchKey key = watcher.take();
+                            List<WatchEvent<?>> events = key.pollEvents();
+                            for (WatchEvent event : events) {
+                                LOG.info("{}: {}", event.kind().name(), ((Path) event.context()).toAbsolutePath());
+                            }
+                            restart();
+                            key.reset();
+                        }
+                    } catch (InterruptedException e) {
+                        //e.printStackTrace();
+                        LOG.info("Catalogue Objects folder watcher interrupted");
+                    }
+                } catch (Exception e) {
+                    //e.printStackTrace();
+                    LOG.warn("Error while setting up Catalogue Objects folder watcher", e);
+                }
+                watcherExists = false;
+            }
+        }).start();
+    }
+
     /**
      * Provides the default device description of a Database instance.
      */
-    public static class Device extends BaseInstanceEnabler {
+    public class Device extends BaseInstanceEnabler {
 
-        private static String utcOffset = new SimpleDateFormat("X").format(Calendar.getInstance().getTime());
-        private static String timeZone = TimeZone.getDefault().getID();
-        private CatalogueDatabase database = null;
-        private static final String version = Device.class.getPackage().getImplementationVersion();
+        private String utcOffset = new SimpleDateFormat("X").format(Calendar.getInstance().getTime());
+        private String timeZone = TimeZone.getDefault().getID();
+        private final String version = Device.class.getPackage().getImplementationVersion();
 
-        public Device() {
-
-        }
-
-        private static String getManufacturer() {
+        private String getManufacturer() {
             return "reTHINK Catalogue Database";
         }
 
-        private static String getModelNumber() {
+        private String getModelNumber() {
             return "Model 1";
         }
 
-        private static String getSerialNumber() {
+        private String getSerialNumber() {
             return "RT-500-000-0001";
         }
 
-        private static String getFirmwareVersion() {
+        private String getFirmwareVersion() {
             return version;
         }
 
-        private static int getErrorCode() {
+        private int getErrorCode() {
             return 0;
         }
 
-        private static int getBatteryLevel() {
+        private int getBatteryLevel() {
             final Random rand = new Random();
             return rand.nextInt(100);
         }
 
-        private static int getMemoryFree() {
+        private int getMemoryFree() {
             final Random rand = new Random();
             return rand.nextInt(50) + 114;
         }
 
-        private static Date getCurrentTime() {
+        private Date getCurrentTime() {
             return new Date();
         }
 
-        private static String getUtcOffset() {
+        private String getUtcOffset() {
             return utcOffset;
         }
 
-        private static void setUtcOffset(String t) {
+        private void setUtcOffset(String t) {
             utcOffset = t;
         }
 
-        private static String getTimezone() {
+        private String getTimezone() {
             return timeZone;
         }
 
@@ -240,12 +292,8 @@ public class CatalogueDatabase {
             timeZone = t;
         }
 
-        private static String getSupportedBinding() {
+        private String getSupportedBinding() {
             return "U";
-        }
-
-        public void setDatabase(CatalogueDatabase database) {
-            this.database = database;
         }
 
         @Override
@@ -291,19 +339,10 @@ public class CatalogueDatabase {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    if (database != null) {
-                        database.stop();
-                        database.start();
-                    } else {
-                        LOG.warn("database reference not set!");
-                    }
+                    restart();
                 }
             }).start();
-            if (database != null) {
-                return ExecuteResponse.success();
-            } else {
-                return ExecuteResponse.internalServerError("Missing Database reference. Please set via setDatabase()");
-            }
+            return ExecuteResponse.success();
         }
 
         @Override
