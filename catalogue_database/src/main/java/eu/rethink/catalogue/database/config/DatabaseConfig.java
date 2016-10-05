@@ -39,7 +39,7 @@ public class DatabaseConfig {
 
     public String
             brokerHost = "localhost",
-            coapHost = "localhost",
+            coapHost = "0.0.0.0",
             endpoint = String.format("DB_%010d", new Random().nextInt(Integer.MAX_VALUE)),
             catalogueObjectsPath = "catalogue_objects";
 
