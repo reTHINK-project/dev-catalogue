@@ -166,7 +166,7 @@ public class CatalogueDatabase {
     }
 
     /**
-     * Stop leshan client
+     * Stop Leshan client
      */
     public void stop() {
         LOG.info("Stopping Catalogue Database");
@@ -174,6 +174,9 @@ public class CatalogueDatabase {
         client.destroy(true);
     }
 
+    /**
+     * Restart Leshan client
+     */
     public void restart() {
         LOG.info("Restarting Catalogue Database");
         stop();
@@ -189,6 +192,11 @@ public class CatalogueDatabase {
 
     private boolean watcherExists = false;
 
+    /**
+     * Setup a watcher on the given directory. Only one Watcher can run at any given time.
+     *
+     * @param path - relative or absolute Path to a directory
+     */
     private void setWatcher(final String path) {
         LOG.debug("Starting Folder Watcher");
         if (watcherExists) {
@@ -200,9 +208,16 @@ public class CatalogueDatabase {
             public void run() {
                 watcherExists = true;
                 try {
+                    // get path
                     final Path dirPath = FileSystems.getDefault().getPath(path);
+
+                    // create watcher
                     final WatchService watcher = dirPath.getFileSystem().newWatchService();
+
+                    // register watcher on base directory
                     dirPath.register(watcher, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY);
+
+                    // walk through subdirectories and register watcher on each of them
                     Files.walkFileTree(dirPath, new SimpleFileVisitor<Path>() {
                         @Override
                         public FileVisitResult preVisitDirectory(Path path, BasicFileAttributes basicFileAttributes) throws IOException {
@@ -211,6 +226,7 @@ public class CatalogueDatabase {
                         }
                     });
                     try {
+                        // catch events, trigger restart, and reset the WatchKey
                         while (!Thread.currentThread().isInterrupted()) {
                             WatchKey key = watcher.take();
                             List<WatchEvent<?>> events = key.pollEvents();
