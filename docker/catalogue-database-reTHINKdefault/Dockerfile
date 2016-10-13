@@ -9,7 +9,7 @@ MAINTAINER marc.emmelmann@fokus.fraunhofer.de
 
 
 # just assure that the database and default objects are installed.
-RUN cd /opt/reTHINK/catalogue/catalogue_objects
+# RUN cd /opt/reTHINK/catalogue/catalogue_objects
 
 # copy your own catalogue objects (as contained below the directory, this
 # docker file resides in) onto the docker image
