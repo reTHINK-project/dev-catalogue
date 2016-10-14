@@ -37,9 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
-import java.io.File;
-import java.io.IOException;
-
 /**
  * The reTHINK Catalogue Broker
  */
@@ -58,6 +55,7 @@ public class CatalogueBroker {
      * @param config - configuration object for the Catalogue Broker
      */
     public CatalogueBroker(BrokerConfig config) {
+        LOG.info("Catalogue Broker Version {}", getClass().getPackage().getImplementationVersion());
         if (config == null) {
             LOG.warn("Catalogue Broker started without BrokerConfig! Using default...");
             config = new BrokerConfig();
@@ -78,7 +76,7 @@ public class CatalogueBroker {
      * Start the Catalogue Broker
      */
     public void start() {
-        LOG.info("Starting Catalogue Broker based on config:\r\n{}", config.toString());
+        LOG.info("Starting Catalogue Broker based with: {}", config.toString());
 
         // setup SLF4JBridgeHandler needed for proper logging
         SLF4JBridgeHandler.removeHandlersForRootLogger();
@@ -88,13 +86,13 @@ public class CatalogueBroker {
             LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
             Configuration conf = ctx.getConfiguration();
             conf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.DEBUG);
-            conf.getRootLogger().setLevel(Level.INFO);
+            conf.getRootLogger().setLevel(Level.WARN);
             ctx.updateLoggers(conf);
         } else if (config.logLevel == 1) {
             LoggerContext vctx = (LoggerContext) LogManager.getContext(false);
             Configuration vconf = vctx.getConfiguration();
             vconf.getLoggerConfig("eu.rethink.catalogue").setLevel(Level.TRACE);
-            vconf.getRootLogger().setLevel(Level.DEBUG);
+            vconf.getRootLogger().setLevel(Level.INFO);
             vctx.updateLoggers(vconf);
         } else if (config.logLevel == 0) {
             LoggerContext vctx = (LoggerContext) LogManager.getContext(false);
@@ -105,13 +103,9 @@ public class CatalogueBroker {
         }
 
         // set custom Californium settings
+        NetworkConfig.createStandardWithoutFile();
         NetworkConfig.getStandard().setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION);
         NetworkConfig.getStandard().setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 1024);
-        try {
-            NetworkConfig.getStandard().store(new File(NetworkConfig.DEFAULT));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
         // Build LWM2M server
         LeshanServerBuilder builder = new LeshanServerBuilder();
@@ -171,14 +165,8 @@ public class CatalogueBroker {
         sslConnector.setPort(config.httpsPort);
         server.addConnector(sslConnector);
 
-        // setup sourcePackageURLPrefix
-        String sourcePackageURLPrefix = "hyperty-catalogue://" // protocol
-                + config.sourcePackageURLHost // hostname
-                + (config.httpsPort != 443 ? ":" + config.httpsPort : "") // port
-                + "/.well-known"; // path
-
         // rethink request handler
-        RequestHandler rethinkRequestHandler = new RequestHandler(lwServer, config.defaultDescriptors, sourcePackageURLPrefix);
+        RequestHandler rethinkRequestHandler = new RequestHandler(lwServer, config.defaultDescriptors);
 
         //ServletContextHandler servletContextHandler = new ServletContextHandler(server, "/", true, false);
 
