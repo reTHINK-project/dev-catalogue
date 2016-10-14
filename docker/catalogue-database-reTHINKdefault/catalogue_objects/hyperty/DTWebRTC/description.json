@@ -1,0 +1,17 @@
+{
+  "cguid": "10601",
+  "type": "Communicator",
+  "version": "1.0",
+  "objectName": "DTWebRTC",
+  "language": "Javascript ECMA6",
+  "description": "DT Hyperty with support for WebRTC and peer-to-peer communication",
+  "dataObjects": [
+    "https://catalogue.rethink.tlabscloud.com/.well-known/dataschema/Connection"
+  ],
+  "hypertyType": ["audio", "video"],  
+  "messageSchema": "",
+  "configuration": {
+  },
+  "constraints": {},
+  "policies": []
+}
