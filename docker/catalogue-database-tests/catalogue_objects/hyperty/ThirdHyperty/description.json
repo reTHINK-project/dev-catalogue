@@ -1,0 +1,13 @@
+{
+  "cguid": 984919876451321,
+  "hypertyType": [
+    "audio",
+    "video"
+  ],
+  "version": "1.0",
+  "objectName": "ThirdHyperty",
+  "description": "This is an example hyperty that has its sourcePackage stored somewhere else",
+  "sourcePackageURL": "http://someDomain.xxyyzz/myRemoteSourcePackage",
+  "language": "Javascript ECMA6",
+  "dataObjects": []
+}
