@@ -289,6 +289,61 @@
         "range": "",
         "units": "",
         "description": ""
+      },
+      {
+        "id": 12,
+        "name": "hypertyType",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 13,
+        "name": "dataObjects",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 14,
+        "name": "interworking",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 15,
+        "name": "idpProxy",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 16,
+        "name": "mutualAuthentication",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
       }
     ]
   },
@@ -415,6 +470,28 @@
         "operations": "RW",
         "instancetype": "single",
         "mandatory": true,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 11,
+        "name": "p2pHandlerStub",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 12,
+        "name": "p2pRequesterStub",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
         "type": "string",
         "range": "",
         "units": "",
