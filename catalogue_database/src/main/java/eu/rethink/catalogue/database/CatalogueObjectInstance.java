@@ -93,8 +93,17 @@ public class CatalogueObjectInstance extends BaseInstanceEnabler {
     private void setup() {
         findName();
         LOG = LoggerFactory.getLogger(this.getClass().getPackage().getName() + "." + this.name.replace(".", "_"));
-        isValid = validate();
+        try {
+            this.descriptor.remove(CGUID_FIELD_NAME);
+        } catch (Exception e) {
+            //e.printStackTrace();
+        }
 
+        // generate cguid since people don't bother to update it themselves
+        String hashCode = String.valueOf(this.descriptor.hashCode() & 0xfffffff);
+        //LOG.debug("generated cguid based on hash: {}", hashCode);
+        this.descriptor.addProperty(CGUID_FIELD_NAME, "" + hashCode);
+        isValid = validate();
     }
 
     private boolean validate() {
@@ -126,6 +135,7 @@ public class CatalogueObjectInstance extends BaseInstanceEnabler {
         ReadResponse response;
         if (descriptor.has(resourceName)) {
             JsonElement element = descriptor.get(resourceName);
+            LOG.debug("Returning: {}", element.isJsonPrimitive() ? element.getAsString() : element.toString());
             response = ReadResponse.success(resourceid, element.isJsonPrimitive() ? element.getAsString() : element.toString());
         } else if (resourceName.equals("sourceCode")) {
             try {
