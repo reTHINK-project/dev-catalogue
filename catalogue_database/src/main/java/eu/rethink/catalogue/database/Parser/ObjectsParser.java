@@ -25,10 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static eu.rethink.catalogue.database.Utils.*;
 
@@ -72,6 +69,7 @@ public class ObjectsParser {
             LOG.debug("Parsing '{}'", baseDir.getPath());
 
             File[] typeFolders = baseDir.listFiles(dirFilter);
+            Arrays.sort(typeFolders);
             Map<Integer, Set<CatalogueObjectInstance>> modelObjectsMap = new LinkedHashMap<>(MODEL_IDS.size());
 
             // setup modelObjectsMap
@@ -87,7 +85,7 @@ public class ObjectsParser {
                 } else {
                     LOG.debug("Parsing '{}'", typeFolder.getPath());
                     File[] instanceFolders = typeFolder.listFiles(dirFilter);
-
+                    Arrays.sort(instanceFolders);
                     for (File instanceFolder : instanceFolders) {
                         LOG.debug("Parsing '{}'", instanceFolder.getPath());
                         if (instanceFolder.getName().toLowerCase().equals("default")) {
@@ -137,6 +135,7 @@ public class ObjectsParser {
 
                                 // finally create instance objects
                                 CatalogueObjectInstance descriptor = new CatalogueObjectInstance(modelId, jDesc);
+
                                 CatalogueObjectInstance sourcePackage = new CatalogueObjectInstance(SOURCEPACKAGE_MODEL_ID, jPkg, code);
 
                                 if (descriptor.isValid() && sourcePackage.isValid()) {
@@ -155,6 +154,7 @@ public class ObjectsParser {
                     }
                 }
             }
+            //LOG.trace("Created modelObjectsMap: {}", gson.toJson(modelObjectsMap));
             return modelObjectsMap;
         }
     }
