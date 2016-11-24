@@ -36,7 +36,7 @@ import static eu.rethink.catalogue.database.Utils.*;
 /**
  * InstanceEnabler for reTHINK Catalogue Object instances.
  */
-public class CatalogueObjectInstance extends BaseInstanceEnabler {
+public class CatalogueObjectInstance extends BaseInstanceEnabler implements Comparable<CatalogueObjectInstance> {
     private transient Logger LOG;
     private JsonObject descriptor = null;
     private File sourceCode = null;
@@ -117,6 +117,11 @@ public class CatalogueObjectInstance extends BaseInstanceEnabler {
             return false;
         }
 
+        if (name.equals("default")) {
+            LOG.warn("Invalid objectName: 'default' is not allowed!");
+            return false;
+        }
+
         for (Map.Entry<Integer, ResourceModel> entry : objectModelMap.get(model).resources.entrySet()) {
             String name = entry.getValue().name;
             if (entry.getValue().mandatory && !descriptor.has(name) && !(name.equals("sourceCode") && sourceCode != null)) {
@@ -148,5 +153,10 @@ public class CatalogueObjectInstance extends BaseInstanceEnabler {
             response = ReadResponse.notFound();
         }
         return response;
+    }
+
+    @Override
+    public int compareTo(CatalogueObjectInstance catalogueObjectInstance) {
+        return this.name.compareTo(catalogueObjectInstance.name);
     }
 }
