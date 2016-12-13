@@ -80,29 +80,27 @@ public class CatalogueObjectInstance extends BaseInstanceEnabler implements Comp
     }
 
     private String findName() {
-        JsonElement name = descriptor.get("objectName");
+        String name = null;
+        try {
+            name = descriptor.get("objectName").getAsString();
+        } catch (Exception e) {
+            //e.printStackTrace();
+        }
         if (name == null)
-            name = descriptor.get("cguid");
+            try {
+                name = descriptor.get("sourceCodeClassname").getAsString() + "(sp)";
+            } catch (Exception e) {
+                //e.printStackTrace();
+            }
 
         if (name != null)
-            this.name = name.getAsString();
-
+            this.name = name;
         return this.name;
     }
 
     private void setup() {
         findName();
         LOG = LoggerFactory.getLogger(this.getClass().getPackage().getName() + "." + this.name.replace(".", "_"));
-        try {
-            this.descriptor.remove(CGUID_FIELD_NAME);
-        } catch (Exception e) {
-            //e.printStackTrace();
-        }
-
-        // generate cguid since people don't bother to update it themselves
-        String hashCode = String.valueOf(this.descriptor.hashCode() & 0xfffffff);
-        //LOG.debug("generated cguid based on hash: {}", hashCode);
-        this.descriptor.addProperty(CGUID_FIELD_NAME, "" + hashCode);
         isValid = validate();
     }
 
@@ -136,11 +134,11 @@ public class CatalogueObjectInstance extends BaseInstanceEnabler implements Comp
     @Override
     public ReadResponse read(int resourceid) {
         String resourceName = MODEL_ID_TO_RESOURCES_MAP_MAP.get(model).get(resourceid).name;
-        LOG.trace("Read on {} ({})", resourceid, resourceName);
+        LOG.debug("Read on {} ({})", resourceid, resourceName);
         ReadResponse response;
         if (descriptor.has(resourceName)) {
             JsonElement element = descriptor.get(resourceName);
-            LOG.debug("Returning: {}", element.isJsonPrimitive() ? element.getAsString() : element.toString());
+            LOG.trace("Returning: {}", element.isJsonPrimitive() ? element.getAsString() : element.toString());
             response = ReadResponse.success(resourceid, element.isJsonPrimitive() ? element.getAsString() : element.toString());
         } else if (resourceName.equals("sourceCode")) {
             try {

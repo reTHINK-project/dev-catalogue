@@ -25,6 +25,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.math.BigInteger;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 import static eu.rethink.catalogue.database.Utils.*;
@@ -117,11 +124,41 @@ public class ObjectsParser {
                                 }
 
                                 // put objectName from descriptor into sourcePackage
-                                String packageName = jDesc.get("objectName").getAsString() + "_sp";
-                                jPkg.addProperty("objectName", packageName);
+                                //String packageName = jDesc.get("sourceCodeClassname").getAsString() + "_" + jDesc.get("cguid").getAsString();
+                                String packageName = null;
+                                try {
+                                    packageName = jPkg.get("sourceCodeClassname").getAsString();
+                                } catch (Exception e) {
+                                    //e.printStackTrace();
+                                    // unable to get packageName -> is invalid
+                                    LOG.warn("Unable to extract sourceCodeClassname from sourcePackage {}. Invalid package? Will be ignored. Reason: {}", jPkg.toString(), e.getLocalizedMessage());
+                                    continue;
+                                }
+                                //jPkg.addProperty("objectName", packageName);
 
                                 // put sourcePackageURL that references this sourcePackage into descriptor
                                 jDesc.addProperty("sourcePackageURL", "/sourcepackage/" + packageName);
+
+                                try {
+                                    jDesc.remove(CGUID_FIELD_NAME);
+                                } catch (Exception e) {
+                                    //e.printStackTrace();
+                                }
+
+                                // generate cguid since people don't bother to update it themselves
+                                //String hashCode = String.valueOf(jDesc.hashCode() & 0xfffffff);
+                                String hashCode;
+
+                                try {
+                                    hashCode = generateMD5(jDesc.toString());
+                                } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
+                                    //e.printStackTrace();
+                                    LOG.warn("Error while generating CGUID. Using old algorithm. Reason: {}", e.getLocalizedMessage());
+                                    hashCode = String.valueOf(jDesc.hashCode() & 0xfffffff);
+                                }
+
+                                //LOG.debug("generated cguid based on hash: {}", hashCode);
+                                jDesc.addProperty(CGUID_FIELD_NAME, "" + hashCode);
 
                                 // check if there is a sourceCode file
                                 File code = null;
@@ -131,6 +168,27 @@ public class ObjectsParser {
                                         code = file;
                                         break;
                                     }
+                                }
+
+                                try {
+                                    if (code != null && code.exists()) {
+                                        LOG.trace("Generating MD5 from sourceCode file");
+                                        String md5 = generateMD5(code);
+                                        jPkg.addProperty("md5", md5);
+                                        String md52 = generateMD5(new String(Files.readAllBytes(Paths.get(code.toURI())), Charset.forName("UTF-8")));
+                                        LOG.debug("MD5 comparison for {}:\r\nfile:\t{},\r\nstring:\t{}", packageName, md5, md52);
+                                    } else {
+                                        LOG.trace("Generating MD5 from sourceCode string");
+                                        String md5 = generateMD5(jPkg.get("sourceCode").getAsString());
+
+                                        jPkg.addProperty("md5", md5);
+                                    }
+                                } catch (FileNotFoundException | NoSuchAlgorithmException | UnsupportedEncodingException e) {
+                                    //e.printStackTrace();
+                                    LOG.warn("Error while generating CGUID. Using old algorithm. Reason: {}", e.getLocalizedMessage());
+                                    hashCode = String.valueOf(jDesc.hashCode() & 0xfffffff);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
                                 }
 
                                 // finally create instance objects
@@ -198,5 +256,47 @@ public class ObjectsParser {
             //e.printStackTrace();
             LOG.warn("Error while printing file contents:", e);
         }
+    }
+
+    private String generateMD5(String base) throws NoSuchAlgorithmException, UnsupportedEncodingException {
+        //LOG.trace("generateMD5: {}", base);
+        byte[] digest = MessageDigest.getInstance("MD5").digest(base.getBytes("UTF-8"));
+        LOG.trace("digest byte[]:\t{}", digest);
+        BigInteger bigInt = new BigInteger(1, digest);
+        String digestString = bigInt.toString(16);
+        // Now we need to zero pad it if you actually want the full 32 chars.
+        while (digestString.length() < 32) {
+            digestString = "0" + digestString;
+        }
+        LOG.trace("digest string:\t{}", digestString);
+
+        return digestString;
+    }
+
+    private String generateMD5(File base) throws NoSuchAlgorithmException, IOException {
+        LOG.trace("generateMD5: {}", base);
+        MessageDigest md5 = MessageDigest.getInstance("MD5");
+        InputStream is = Files.newInputStream(Paths.get(base.toURI()));
+        DigestInputStream digestInputStream = new DigestInputStream(is, md5);
+        try {
+            long reads = 0;
+            while (digestInputStream.read() != -1) {
+                reads++;
+            }
+            LOG.trace("finished after {} reads", reads);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        byte[] digest = md5.digest();
+        LOG.trace("digest byte[]:\t{}", digest);
+        BigInteger bigInt = new BigInteger(1, digest);
+        String digestString = bigInt.toString(16);
+        // Now we need to zero pad it if you actually want the full 32 chars.
+        while (digestString.length() < 32) {
+            digestString = "0" + digestString;
+        }
+        LOG.trace("digest string:\t{}", digestString);
+
+        return digestString;
     }
 }
