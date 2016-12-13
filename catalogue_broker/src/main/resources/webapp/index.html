@@ -9,6 +9,7 @@
     <meta charset="UTF-8">
     <title>reTHINK Catalogue Test Page</title>
     <script src="angular.js"></script>
+    <script src="md5.js"></script>
 </head>
 <body>
 <div ng-app="rethinkTest" ng-controller="myCtrl">
@@ -234,12 +235,21 @@
             console.log("got package:", resp);
 
             var sourcePackage = resp;
-            var code = sourcePackage.sourceCode;
+            var code = sourcePackage["sourceCode"];
+
+            console.log("checking md5 hash", sourcePackage.md5);
+
+            if (sourcePackage.md5) {
+                var hash = md5(code);
+                console.log("locally generated hash is", hash);
+                console.log("base:");
+                console.log(code);
+
+            }
 
             if (sourcePackage.encoding === "base64")
                 code = atob(code);
 
-            console.log("About to exec following code: " + code);
             if (!skipExecution)
                 eval(code);
             return code;
@@ -288,6 +298,7 @@
             try {
                 var xmlHttp = new XMLHttpRequest();
                 xmlHttp.open("GET", url, false); // false for synchronous request
+//                xmlHttp.overrideMimeType("application/json");
                 xmlHttp.send();
 
                 if (xmlHttp.status != 200) {
@@ -295,11 +306,11 @@
                     $scope.response = errString;
                     throw new Error(errString);
                 } else {
-                    var resp = xmlHttp.responseText
+                    var resp = xmlHttp.responseText;
                     try {
                         resp = JSON.parse(resp);
                     } catch (e) {
-//                    console.log("json parsing failed, probably not json");
+                        console.log("json parsing failed, probably not json");
                     }
                     $scope.response = resp;
 
@@ -326,6 +337,14 @@
         };
 
         $scope.observeClientList();
+
+        $scope.testmd5 = function (url) {
+            var blub = $scope.makeRequest(url);
+            console.log("blub md5:", md5(blub));
+            console.log(blub);
+        };
+
+        window.myscope = $scope;
 
         window.rethink = rethink;
 

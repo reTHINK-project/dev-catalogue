@@ -24,9 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Configuration Object for the Catalogue Broker
@@ -39,9 +37,9 @@ public class BrokerConfig {
     public String
             host = "0.0.0.0",
             coapHost = host,
-            keystorePath = "ssl/keystore",
+            keystorePath,
             keystorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
-            truststorePath = "ssl/keystore",
+            truststorePath,
             truststorePassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz",
             keystoreManagerPassword = "OBF:1vub1vnw1shm1y851vgl1vg91y7t1shw1vn61vuz";
 
@@ -52,7 +50,7 @@ public class BrokerConfig {
             coapsPort = 5684,
             logLevel = 3;
 
-    public Map<String, String> defaultDescriptors = new HashMap<>();
+    public Map<String, List<String>> defaultDescriptors = new HashMap<>();
 
     /**
      * Create a BrokerConfig instance from a file
@@ -198,7 +196,12 @@ public class BrokerConfig {
                         String def = args[i + 1];
                         try {
                             String[] defParts = def.split(":|/|=");
-                            defaultDescriptors.put(defParts[0], defParts[1]);
+                            List<String> existingList = defaultDescriptors.get(defParts[0]);
+                            if (existingList == null) {
+                                existingList = new LinkedList<>();
+                                defaultDescriptors.put(defParts[0], existingList);
+                            }
+                            existingList.add(defParts[1]);
                         } catch (Exception e) {
                             //e.printStackTrace();
                             LOG.warn("Unable to parse option: -default[descriptor] " + def);

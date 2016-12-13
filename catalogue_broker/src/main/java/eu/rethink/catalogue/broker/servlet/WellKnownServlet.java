@@ -17,6 +17,9 @@
 
 package eu.rethink.catalogue.broker.servlet;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import eu.rethink.catalogue.broker.RequestHandler;
 import org.eclipse.leshan.ResponseCode;
 import org.slf4j.Logger;
@@ -30,6 +33,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +43,7 @@ import java.util.Map;
  */
 public class WellKnownServlet extends HttpServlet {
     private static Map<ResponseCode, Integer> coap2httpCodeMap = new HashMap<>();
+    Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     static {
         coap2httpCodeMap.put(ResponseCode.CREATED, HttpServletResponse.SC_CREATED);
@@ -77,6 +82,7 @@ public class WellKnownServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, final HttpServletResponse resp) throws ServletException, IOException {
         LOG.debug("Received GET request on {}", req.getRequestURI());
 
+        req.setCharacterEncoding("UTF-8");
         if (LOG.isTraceEnabled()) {
             Enumeration<String> headerNames = req.getHeaderNames();
             while (headerNames.hasMoreElements()) {
@@ -108,9 +114,14 @@ public class WellKnownServlet extends HttpServlet {
             @Override
             public void run() {
                 final ServletRequest aReq = asyncContext.getRequest();
+                try {
+                    aReq.setCharacterEncoding("UTF-8");
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                }
                 final String path = String.valueOf(aReq.getAttribute("javax.servlet.async.request_uri"));
                 // let it be handled by RequestHandler
-                requestHandler.handleGET(path, new RequestHandler.RequestCallback() {
+                requestHandler.handleRequest(path, null, new RequestHandler.RequestCallback() {
                     @Override
                     public void result(RequestHandler.RequestResponse response) {
                         ServletResponse aResp = asyncContext.getResponse();
@@ -126,7 +137,9 @@ public class WellKnownServlet extends HttpServlet {
                         // forward response
                         if (response.isSuccess()) {
                             try {
-                                aResp.getWriter().write(response.getJsonString(finalHost, path));
+                                String jsonString = response.getJsonString(finalHost, path);
+                                aResp.setContentType("application/json");
+                                aResp.getWriter().write(jsonString);
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
@@ -145,4 +158,75 @@ public class WellKnownServlet extends HttpServlet {
         });
     }
 
+    @Override
+    protected void doPost(HttpServletRequest req, final HttpServletResponse resp) throws ServletException, IOException {
+        LOG.debug("Received POST request on {}", req.getRequestURI());
+
+        String host = req.getHeader("X-Forwarded-Host");
+        if (host == null)
+            host = req.getHeader("Host");
+
+        resp.addHeader("Access-Control-Allow-Origin", "*");
+        final AsyncContext asyncContext = req.startAsync();
+        final String finalHost = host;
+        asyncContext.start(new Runnable() {
+            @Override
+            public void run() {
+                final ServletRequest aReq = asyncContext.getRequest();
+                final ServletResponse aResp = asyncContext.getResponse();
+
+                final String path = String.valueOf(aReq.getAttribute("javax.servlet.async.request_uri"));
+                // let it be handled by RequestHandler
+
+                JsonObject constraints = null;
+                try {
+                    constraints = gson.fromJson(aReq.getReader(), JsonObject.class);
+                    LOG.trace("got Request with constraints: {}", gson.toJson(constraints));
+                    requestHandler.handleRequest(path, constraints, new RequestHandler.RequestCallback() {
+                        @Override
+                        public void result(RequestHandler.RequestResponse response) {
+                            // set header so cross-domain requests work
+                            Integer code = coap2httpCodeMap.get(response.getCode());
+
+                            // try to map CoAP response code to http
+                            if (code == null) {
+                                LOG.warn("Unable to map coap response code {} to http; using default", response.getCode());
+                                code = response.isSuccess() ? HttpServletResponse.SC_OK : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+                            }
+                            resp.setStatus(code);
+                            // forward response
+                            if (response.isSuccess()) {
+                                try {
+                                    String jsonString = response.getJsonString(finalHost, path);
+                                    aResp.setContentType("application/json");
+                                    aResp.getWriter().write(jsonString);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            } else {
+                                LOG.debug("returning error ({}): {}", code, response.getJsonString(finalHost, path));
+                                try {
+                                    aResp.getWriter().write(response.getJsonString(finalHost, path));
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            asyncContext.complete();
+                        }
+                    });
+                } catch (Exception e) {
+                    LOG.warn("Error while trying to parse constraints", e);
+                    resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    try {
+                        aResp.getWriter().write("Unable to handle request:" + e.getLocalizedMessage());
+                        aResp.getWriter().flush();
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
+                    }
+                    asyncContext.complete();
+                }
+
+            }
+        });
+    }
 }

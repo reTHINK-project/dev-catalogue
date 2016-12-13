@@ -38,6 +38,7 @@ import org.eclipse.leshan.server.client.ClientUpdate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -72,7 +73,7 @@ public class RequestHandler {
 
     // fields that define the name of the catalogue object when requesting it using the http interface
     private static final String NAME_FIELD_NAME = "objectName"; // for all objects except sourcePackage
-    private static final String CGUID_FIELD_NAME = "cguid"; // for sourcePackages
+    private static final String CLASSNAME_FIELD_NAME = "sourceCodeClassname"; // for sourcePackages
 
     // {MODEL_ID : MODEL}
     private static final Map<Integer, Map<Integer, ResourceModel>> MODEL_MAP = new HashMap<>();
@@ -84,7 +85,7 @@ public class RequestHandler {
     // name to ID map
     private static Map<String, Integer> MODEL_NAME_TO_ID_MAP = new HashMap<>();
     // {MODEL_ID : { INSTANCE_NAME : INSTANCE_PATH}}
-    private static Map<Integer, Map<String, String>> nameToInstanceMapMap = new HashMap<>();
+    private static Map<Integer, Map<String, List<String>>> nameToInstanceMapMap = new HashMap<>();
     // {MODEL_ID : {RESOURCE_NAME : RESOURCE_ID}}
     private static Map<Integer, Map<String, Integer>> resourceNameToIdMapMap = new ConcurrentHashMap<>();
 
@@ -100,14 +101,14 @@ public class RequestHandler {
         MODEL_NAME_TO_ID_MAP.put(SOURCEPACKAGE_TYPE_NAME, SOURCEPACKAGE_MODEL_ID);
 
         for (Integer modelId : MODEL_NAME_TO_ID_MAP.values()) {
-            nameToInstanceMapMap.put(modelId, new TreeMap<String, String>());
+            nameToInstanceMapMap.put(modelId, new TreeMap<String, List<String>>());
         }
     }
 
     private LeshanServer server;
-    private Map<String, String> defaults = new HashMap<>();
+    private Map<String, List<String>> defaults = new HashMap<>();
 
-    RequestHandler(LeshanServer server, Map<String, String> defaults) {
+    RequestHandler(LeshanServer server, Map<String, List<String>> defaults) {
         this(server);
         this.defaults = defaults;
     }
@@ -177,7 +178,7 @@ public class RequestHandler {
      * @param path - URL GET request path, e.g. /.well-known/hyperty/myHyperty/version
      * @param cb   - callback to be called when a response is ready
      */
-    public void handleGET(String path, RequestCallback cb) {
+    public void handleRequest(String path, JsonObject constraints, RequestCallback cb) {
         // path should start with /.well-known/
         // but coap has no slash at the start, so check for it and prepend it if necessary.
         if (!path.startsWith("/"))
@@ -185,9 +186,9 @@ public class RequestHandler {
 
         // remove /.well-known/ from path
         path = StringUtils.removeStart(path, WELLKNOWN_PREFIX);
-        LOG.trace("adapted path: " + path);
         // split path up
         String[] pathParts = StringUtils.split(path, '/');
+        LOG.trace("pathParts: " + Arrays.toString(pathParts));
 
         String modelType = null;
         String instanceName = null;
@@ -201,33 +202,50 @@ public class RequestHandler {
                 modelType = pathParts[0];
                 break;
             default:
-                LOG.warn("Request with too many path parts! skipping parts: {}", Arrays.toString(Arrays.copyOfRange(pathParts, 3, pathParts.length)));
                 break;
         }
 
         RequestResponse requestResponse;
         if (modelType == null) {
-            String response = String.format("Please provide at least a type from %s or 'restart' or 'database'", MODEL_NAME_TO_ID_MAP.keySet());
-            LOG.warn(response);
-            requestResponse = new RequestResponse(ReadResponse.internalServerError(response));
+            Set<String> set = new HashSet<>(MODEL_NAME_TO_ID_MAP.keySet());
+            set.add("restart");
+            set.add("database");
+            String[] array = set.toArray(new String[set.size()]);
+            Arrays.sort(array);
+            requestResponse = new RequestResponse(ReadResponse.success(0, gson.toJson(array)));
         } else if (instanceName == null) {
-            requestResponse = handleModelType(modelType);
+            requestResponse = handleModelType(modelType, constraints);
         } else if (resourceName == null) {
-            requestResponse = handleInstance(modelType, instanceName);
+            requestResponse = handleInstance(modelType, instanceName, constraints);
         } else {
-            requestResponse = handleResource(modelType, instanceName, resourceName);
+            requestResponse = handleResource(modelType, instanceName, resourceName, constraints);
         }
 
         cb.result(requestResponse);
     }
 
-    private RequestResponse handleModelType(String modelType) {
+    private RequestResponse handleModelType(String modelType, JsonObject constraints) {
         Integer id = MODEL_NAME_TO_ID_MAP.get(modelType);
 
         if (id != null) { // request list of instances for a certain model
-            String response = gson.toJson(nameToInstanceMapMap.get(id).keySet());
-            LOG.trace("Returning list: " + response);
-            return new RequestResponse(ReadResponse.success(0, response), id);
+            if (constraints == null) {
+                String response = gson.toJson(nameToInstanceMapMap.get(id).keySet());
+                LOG.trace("Returning list: " + response);
+                return new RequestResponse(ReadResponse.success(0, response), id);
+            } else {
+                List<String> matchedInstances = new LinkedList<>();
+                for (String instanceName : nameToInstanceMapMap.get(id).keySet()) {
+                    RequestResponse response = handleResource(modelType, instanceName, "objectName", constraints);
+                    if (response.isSuccess())
+                        matchedInstances.add(response.getJsonString(null, null));
+                }
+                if (matchedInstances.size() > 0) {
+                    return new RequestResponse(ReadResponse.success(0, gson.toJson(matchedInstances)), id);
+                } else {
+                    return new RequestResponse(ReadResponse.internalServerError("No " + modelType + " instance found that meets the constraints " + constraints));
+                }
+            }
+
         } else if (modelType.equals("restart")) { // restart all databases
             return handleRestart(null);
         } else if (modelType.equals("database")) { // get list of databases
@@ -296,63 +314,99 @@ public class RequestHandler {
         }
     }
 
-    private RequestResponse handleInstance(String modelType, String instanceName) {
-        return handleResource(modelType, instanceName, null);
+    private RequestResponse handleInstance(String modelType, String instanceName, JsonObject constraints) {
+        return handleResource(modelType, instanceName, null, constraints);
     }
 
-    private RequestResponse handleResource(final String modelType, String instanceName, String resourceName) {
+    private RequestResponse handleResource(final String modelType, String instanceName, String resourceName, JsonObject constraints) {
         //check if resourceName is valid
         final Integer id = MODEL_NAME_TO_ID_MAP.get(modelType);
-        Integer resourceID;
 
         if (id != null) {
-            Map<String, Integer> resourceNameToIdMap = resourceNameToIdMapMap.get(id);
-            Map<String, String> nameToInstanceMap = nameToInstanceMapMap.get(id);
 
-            if (instanceName.equals("default") && defaults.containsKey(modelType)) {
-                instanceName = defaults.get(modelType);
-                LOG.trace("default instance for type '{}' requested -> using {}", modelType, instanceName);
+            String target = null;
+
+            Map<String, Integer> resourceNameToIdMap = resourceNameToIdMapMap.get(id);
+            Integer resourceID = resourceNameToIdMap.get(resourceName);
+
+            //resource name was given, but not found in the name:id map
+            if (resourceName != null && resourceID == null) {
+                String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, resourceNameToIdMap.keySet());
+                LOG.warn(response);
+                return new RequestResponse(ReadResponse.internalServerError(response), id);
             }
 
-            String target = nameToInstanceMap.get(instanceName);
-            if (target != null) {
-                resourceID = resourceNameToIdMap.get(resourceName);
-
-                //resource name was given, but not found in the name:id map
-                if (resourceName != null && resourceID == null) {
-                    String response = String.format("invalid resource name '%s'. Please use one of the following: %s", resourceName, resourceNameToIdMap.keySet());
-                    LOG.warn(response);
-                    return new RequestResponse(ReadResponse.internalServerError(response), id);
+            Map<String, List<String>> nameToInstanceMap = nameToInstanceMapMap.get(id);
+            List<String> possibleTargets;
+            // special case for "default" instances
+            if (instanceName.equals("default") && defaults.containsKey(modelType)) {
+                List<String> instanceNames = defaults.get(modelType);
+                possibleTargets = new LinkedList<>();
+                for (String iName : instanceNames) {
+                    possibleTargets.addAll(nameToInstanceMap.get(iName));
                 }
+                LOG.trace("default instance(s) for type '{}' requested -> using {}", modelType, instanceNames);
+            } else {
+                possibleTargets = nameToInstanceMap.get(instanceName);
+            }
+
+            LOG.trace("possible targets for {} -> {}", instanceName, possibleTargets);
+
+            if (possibleTargets == null || possibleTargets.isEmpty()) {
+                target = null;
+            } else if (possibleTargets.size() > 0 && constraints == null) {
+                target = possibleTargets.get(0);
+            } else {
+                LOG.trace("Checking if one of {} matches constraints {}", possibleTargets, constraints);
+                for (String possibleTarget : possibleTargets) {
+                    int matches = 0;
+                    Set<Map.Entry<String, JsonElement>> entrySet = constraints.entrySet();
+                    for (Map.Entry<String, JsonElement> entry : entrySet) {
+                        // iterate through constraints
+                        Integer constraintResourceID = resourceNameToIdMap.get(entry.getKey());
+                        JsonElement val = entry.getValue();
+                        if (constraintResourceID != null) {
+                            LOG.trace("Checking {} for constraint {}", possibleTarget, entry);
+                            String testTarget = possibleTarget + "/" + constraintResourceID;
+                            RequestResponse response = doReadRequest(testTarget, id);
+                            if (response.isSuccess()) {
+                                JsonElement json = response.getJson(null, null);
+                                if (meetsConstraints(json, val)) {
+                                    matches++;
+                                } else {
+                                    break;
+                                }
+                            } else {
+                                LOG.trace("Requesting {} failed: {}", testTarget, response.getJsonString(null, null));
+                                break;
+                            }
+                        } else {
+                            LOG.trace("No ID for constraint {}", entry.getKey());
+                            break;
+                        }
+                    }
+                    LOG.trace("Match result for {} (does not represent amount of matches): {}/{}", possibleTarget, matches, entrySet.size());
+                    if (matches == entrySet.size()) {
+                        LOG.trace("{} meets constraints", possibleTarget);
+                        // we have as many matches as constraints -> complete match!
+                        target = possibleTarget;
+                        break;
+                    } else {
+                        LOG.trace("{} does not meet constraints", possibleTarget);
+                    }
+                }
+                if (target == null) {
+                    return new RequestResponse(ReadResponse.internalServerError("Unable to find instance named " + instanceName + " that matches constraints " + constraints));
+                }
+            }
+
+            if (target != null) {
 
                 if (resourceID != null)
                     target += "/" + resourceID;
 
                 LOG.trace(String.format("path for object '%s': %s", instanceName, target));
-
-                String[] targetPaths = StringUtils.split(target, "/");
-                LOG.trace("checking endpoint: " + targetPaths[0]);
-                final Client client = server.getClientRegistry().get(targetPaths[0]);
-                if (client != null) {
-                    final String t = StringUtils.removeStart(target, "/" + targetPaths[0]);
-                    LOG.trace("requesting {}", t);
-                    ReadRequest request = new ReadRequest(t);
-                    final long startTime = System.currentTimeMillis();
-                    try {
-                        ReadResponse readResponse = server.send(client, request);
-                        long respTime = System.currentTimeMillis();
-                        LOG.trace("response received after {}ms", respTime - startTime);
-                        return new RequestResponse(readResponse, id);
-                    } catch (Exception e) {
-                        String error = "unable to request " + t + " from database " + client;
-                        LOG.warn(error, e);
-                        return new RequestResponse(ReadResponse.internalServerError(error + ": " + e.getMessage()), id);
-                    }
-                } else {
-                    String response = String.format("Found target for '%s', but endpoint is invalid. Redundany error? Requested endpoint: %s", instanceName, targetPaths[0]);
-                    LOG.warn(response);
-                    return new RequestResponse(ReadResponse.internalServerError(response), id);
-                }
+                return doReadRequest(target, id);
             } else {
                 String response;
                 if (instanceName.equals("default")) {
@@ -370,7 +424,79 @@ public class RequestHandler {
         } else {
             String response = String.format("Unknown object type, please use one of: %s or 'restart'", MODEL_NAME_TO_ID_MAP.keySet());
             LOG.warn(response);
-            return new RequestResponse(ReadResponse.internalServerError(response));
+            return new RequestResponse(ReadResponse.badRequest(response));
+        }
+    }
+
+    private boolean meetsConstraints(JsonElement jsonObject, JsonElement constraint) {
+        LOG.trace("Checking if {} meets constraint {}", jsonObject, constraint);
+        if (constraint instanceof JsonPrimitive) {
+            try {
+                if (jsonObject.getAsString().equals(constraint.getAsString())) {
+                    LOG.trace("constraint met");
+                    return true;
+                } else {
+                    LOG.trace("constraint not met");
+                    return false;
+                }
+            } catch (Exception e) {
+                //e.printStackTrace();
+                LOG.trace("Check failed: {}", e.getLocalizedMessage());
+                return false;
+            }
+        } else if (constraint instanceof JsonArray) {
+            try {
+                for (JsonElement element : constraint.getAsJsonArray()) {
+                    if (!jsonObject.getAsJsonArray().contains(element))
+                        return false;
+                }
+            } catch (Exception e) {
+                //e.printStackTrace();
+                LOG.trace("Check failed: {}", e.getLocalizedMessage());
+                return false;
+            }
+            return true;
+        } else if (constraint instanceof JsonObject) {
+            try {
+                for (Map.Entry<String, JsonElement> constraintEntries : constraint.getAsJsonObject().entrySet()) {
+                    if (!meetsConstraints(jsonObject.getAsJsonObject().get(constraintEntries.getKey()), constraintEntries.getValue())) {
+                        return false;
+                    }
+                }
+            } catch (Exception e) {
+                //e.printStackTrace();
+                LOG.trace("Check failed: {}", e.getLocalizedMessage());
+                return false;
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private RequestResponse doReadRequest(String target, int id) {
+        String[] targetPaths = StringUtils.split(target, "/");
+        LOG.trace("checking endpoint: " + targetPaths[0]);
+        final Client client = server.getClientRegistry().get(targetPaths[0]);
+        if (client != null) {
+            final String t = StringUtils.removeStart(target, "/" + targetPaths[0]);
+            LOG.trace("requesting {}", t);
+            ReadRequest request = new ReadRequest(t);
+            final long startTime = System.currentTimeMillis();
+            try {
+                ReadResponse readResponse = server.send(client, request);
+                long respTime = System.currentTimeMillis();
+                LOG.trace("response received after {}ms", respTime - startTime);
+                return new RequestResponse(readResponse, id);
+            } catch (Exception e) {
+                String error = "unable to request " + t + " from database " + client;
+                LOG.warn(error, e);
+                return new RequestResponse(ReadResponse.internalServerError(error + ": " + e.getMessage()), id);
+            }
+        } else {
+            String response = String.format("Found target, but endpoint is invalid. Redundancy error? Requested endpoint: %s", targetPaths[0]);
+            LOG.warn(response);
+            return new RequestResponse(ReadResponse.internalServerError(response), id);
         }
     }
 
@@ -438,7 +564,7 @@ public class RequestHandler {
 
                     Integer identifier = resourceNameToIdMapMap.get(model).get(NAME_FIELD_NAME);
                     if (identifier == null)
-                        identifier = resourceNameToIdMapMap.get(model).get(CGUID_FIELD_NAME);
+                        identifier = resourceNameToIdMapMap.get(model).get(CLASSNAME_FIELD_NAME);
 
                     String target = foundModelLink + "/" + identifier;
                     ReadRequest request = new ReadRequest(target);
@@ -466,9 +592,18 @@ public class RequestHandler {
                             public void visit(LwM2mResource resource) {
                                 LOG.trace("resource visit: " + resource);
                                 String objectName = resource.getValue().toString();
-                                Map<String, String> nametToInstanceMap = nameToInstanceMapMap.get(model);
+                                Map<String, List<String>> nametToInstanceMap = nameToInstanceMapMap.get(model);
                                 String instanceVal = "/" + client.getEndpoint() + foundModelLink;
-                                nametToInstanceMap.put(objectName, instanceVal);
+                                List<String> possibleTargets = nametToInstanceMap.get(objectName);
+                                if (possibleTargets != null) {
+                                    possibleTargets.add(instanceVal);
+                                    LOG.debug("Adding {} to existing map for {}", instanceVal, objectName);
+                                } else {
+                                    LOG.debug("Creating new map for {}: {}", objectName, instanceVal);
+                                    possibleTargets = new LinkedList<>();
+                                    possibleTargets.add(instanceVal);
+                                    nametToInstanceMap.put(objectName, possibleTargets);
+                                }
 
                                 //map object names to client, for easy removal in case of client disconnect
                                 Map<Integer, List<String>> modelObjectsMap = clientToObjectsMap.get(client.getRegistrationId());
@@ -507,9 +642,18 @@ public class RequestHandler {
         Map<Integer, List<String>> modelObjectsMap = clientToObjectsMap.get(client.getRegistrationId());
         if (modelObjectsMap != null) {
             for (Map.Entry<Integer, List<String>> entry : modelObjectsMap.entrySet()) {
-                Map<String, String> nameToInstanceMap = nameToInstanceMapMap.get(entry.getKey());
+                Map<String, List<String>> nameToInstanceMap = nameToInstanceMapMap.get(entry.getKey());
                 for (String objectName : entry.getValue()) {
-                    nameToInstanceMap.remove(objectName);
+                    //nameToInstanceMap.remove(objectName);
+                    List<String> possibleTargets = nameToInstanceMap.get(objectName);
+                    for (String possibleTarget : possibleTargets) {
+                        if (possibleTarget.startsWith("/" + client.getEndpoint()))
+                            possibleTargets.remove(possibleTarget);
+
+                        if (possibleTargets.size() == 0)
+                            nameToInstanceMap.remove(objectName);
+                    }
+
                 }
             }
         }
@@ -576,6 +720,7 @@ public class RequestHandler {
                         for (Map.Entry<Integer, LwM2mResource> entry : resources.entrySet()) {
                             String name = modelMap.get(entry.getKey()).name;
                             String value = entry.getValue().getValue().toString();
+                            value = new String(value.getBytes(), Charset.forName("UTF-8"));
                             // add sourcePackageURLPrefix if we are handling sourcePackageURL currently
                             if (name.equals("sourcePackageURL") && value.startsWith("/")) {
                                 value = "hyperty-catalogue://" + host + "/.well-known" + value;

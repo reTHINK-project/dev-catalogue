@@ -28,6 +28,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.*;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.webapp.WebAppContext;
 import org.eclipse.leshan.server.californium.LeshanServerBuilder;
@@ -140,10 +141,20 @@ public class CatalogueBroker {
         // === jetty-https.xml ===
         // SSL Context Factory
         SslContextFactory sslContextFactory = new SslContextFactory();
-        sslContextFactory.setKeyStorePath(config.keystorePath);
+
+        Resource keystore = Resource.newClassPathResource("/keystore");
+        if (keystore != null && keystore.exists() && config.keystorePath == null && config.truststorePath == null) {
+            sslContextFactory.setKeyStoreResource(keystore);
+            sslContextFactory.setTrustStoreResource(keystore);
+        } else {
+            if (config.keystorePath == null || config.truststorePath == null) {
+                LOG.warn("Missing keystorePath or truststorePath for SSL configuration");
+            }
+            sslContextFactory.setKeyStorePath(config.keystorePath);
+            sslContextFactory.setTrustStorePath(config.truststorePath);
+        }
         sslContextFactory.setKeyStorePassword(config.keystorePassword);
         sslContextFactory.setKeyManagerPassword(config.keystoreManagerPassword);
-        sslContextFactory.setTrustStorePath(config.truststorePath);
         sslContextFactory.setTrustStorePassword(config.truststorePassword);
         sslContextFactory.setExcludeCipherSuites("SSL_RSA_WITH_DES_CBC_SHA",
                 "SSL_DHE_RSA_WITH_DES_CBC_SHA", "SSL_DHE_DSS_WITH_DES_CBC_SHA",
