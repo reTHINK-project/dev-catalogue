@@ -812,10 +812,10 @@
       },
       {
         "id": 4,
-        "name": "objectName",
+        "name": "md5",
         "operations": "RW",
         "instancetype": "single",
-        "mandatory": false,
+        "mandatory": true,
         "type": "string",
         "range": "",
         "units": "",
