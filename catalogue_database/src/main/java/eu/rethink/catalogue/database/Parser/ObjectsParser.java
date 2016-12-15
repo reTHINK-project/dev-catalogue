@@ -21,6 +21,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import eu.rethink.catalogue.database.CatalogueObjectInstance;
 import eu.rethink.catalogue.database.exception.CatalogueObjectParsingException;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,7 +177,7 @@ public class ObjectsParser {
                                         String md5 = generateMD5(code);
                                         jPkg.addProperty("md5", md5);
                                         String md52 = generateMD5(new String(Files.readAllBytes(Paths.get(code.toURI())), Charset.forName("UTF-8")));
-                                        LOG.debug("MD5 comparison for {}:\r\nfile:\t{},\r\nstring:\t{}", packageName, md5, md52);
+                                        //LOG.debug("MD5 comparison for {}:\r\nfile:\t{},\r\nstring:\t{}", packageName, md5, md52);
                                     } else {
                                         LOG.trace("Generating MD5 from sourceCode string");
                                         String md5 = generateMD5(jPkg.get("sourceCode").getAsString());
@@ -258,7 +259,7 @@ public class ObjectsParser {
     }
 
     private String generateMD5(String base) throws NoSuchAlgorithmException, UnsupportedEncodingException {
-        LOG.trace("generateMD5: {}", base);
+        LOG.trace("generateMD5: {}", StringUtils.abbreviate(base, 64));
         byte[] digest = MessageDigest.getInstance("MD5").digest(base.getBytes("UTF-8"));
         //LOG.trace("digest byte[]:\t{}", digest);
         BigInteger bigInt = new BigInteger(1, digest);
@@ -267,7 +268,7 @@ public class ObjectsParser {
         while (digestString.length() < 32) {
             digestString = "0" + digestString;
         }
-        LOG.trace("digest string:\t{}", digestString);
+        LOG.trace("digest string: {}", digestString);
 
         return digestString;
     }
@@ -295,7 +296,7 @@ public class ObjectsParser {
         while (digestString.length() < 32) {
             digestString = "0" + digestString;
         }
-        LOG.trace("digest string:\t{}", digestString);
+        LOG.trace("digest string: {}", digestString);
 
         return digestString;
     }

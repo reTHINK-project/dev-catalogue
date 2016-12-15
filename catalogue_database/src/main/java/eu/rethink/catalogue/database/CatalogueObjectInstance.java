@@ -19,6 +19,7 @@ package eu.rethink.catalogue.database;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.leshan.client.resource.BaseInstanceEnabler;
 import org.eclipse.leshan.core.model.ResourceModel;
 import org.eclipse.leshan.core.response.ReadResponse;
@@ -42,7 +43,7 @@ public class CatalogueObjectInstance extends BaseInstanceEnabler implements Comp
     private File sourceCode = null;
     private int model;
     private boolean isValid = true;
-    private String name = "unknown";
+    private String name;
 
     public CatalogueObjectInstance(int model, JsonObject descriptor, File sourceCode) {
         this.model = model;
@@ -139,8 +140,9 @@ public class CatalogueObjectInstance extends BaseInstanceEnabler implements Comp
         ReadResponse response;
         if (descriptor.has(resourceName)) {
             JsonElement element = descriptor.get(resourceName);
-            LOG.trace("Returning: {}", element.isJsonPrimitive() ? element.getAsString() : element.toString());
-            response = ReadResponse.success(resourceid, element.isJsonPrimitive() ? element.getAsString() : element.toString());
+            String respVal = element.isJsonPrimitive() ? element.getAsString() : element.toString();
+            LOG.trace("Returning: {}", StringUtils.abbreviate(respVal, 64));
+            response = ReadResponse.success(resourceid, respVal);
         } else if (resourceName.equals("sourceCode")) {
             try {
                 response = ReadResponse.success(resourceid, new String(Files.readAllBytes(Paths.get(sourceCode.toURI())), "UTF-8"));

@@ -17,7 +17,7 @@
 package eu.rethink.catalogue.broker;
 
 import com.google.gson.*;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.leshan.LinkObject;
 import org.eclipse.leshan.ResponseCode;
 import org.eclipse.leshan.core.model.LwM2mModel;
