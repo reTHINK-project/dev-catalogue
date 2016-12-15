@@ -815,7 +815,7 @@
         "name": "md5",
         "operations": "RW",
         "instancetype": "single",
-        "mandatory": true,
+        "mandatory": false,
         "type": "string",
         "range": "",
         "units": "",

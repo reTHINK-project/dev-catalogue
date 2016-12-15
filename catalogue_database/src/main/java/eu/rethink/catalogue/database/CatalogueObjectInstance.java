@@ -79,27 +79,28 @@ public class CatalogueObjectInstance extends BaseInstanceEnabler implements Comp
         return isValid;
     }
 
-    private String findName() {
-        String name = null;
-        try {
-            name = descriptor.get("objectName").getAsString();
-        } catch (Exception e) {
-            //e.printStackTrace();
-        }
-        if (name == null)
+    public String getName() {
+        if (this.name == null) {
+            String name = null;
             try {
-                name = descriptor.get("sourceCodeClassname").getAsString() + "(sp)";
+                name = descriptor.get("objectName").getAsString();
             } catch (Exception e) {
                 //e.printStackTrace();
             }
-
-        if (name != null)
+            if (name == null)
+                try {
+                    name = descriptor.get("sourceCodeClassname").getAsString() + "(sp)";
+                } catch (Exception e) {
+                    //e.printStackTrace();
+                }
             this.name = name;
+        }
+
         return this.name;
     }
 
     private void setup() {
-        findName();
+        getName();
         LOG = LoggerFactory.getLogger(this.getClass().getPackage().getName() + "." + this.name.replace(".", "_"));
         isValid = validate();
     }

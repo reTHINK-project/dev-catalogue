@@ -186,7 +186,6 @@ public class ObjectsParser {
                                 } catch (FileNotFoundException | NoSuchAlgorithmException | UnsupportedEncodingException e) {
                                     //e.printStackTrace();
                                     LOG.warn("Error while generating CGUID. Using old algorithm. Reason: {}", e.getLocalizedMessage());
-                                    hashCode = String.valueOf(jDesc.hashCode() & 0xfffffff);
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
@@ -259,9 +258,9 @@ public class ObjectsParser {
     }
 
     private String generateMD5(String base) throws NoSuchAlgorithmException, UnsupportedEncodingException {
-        //LOG.trace("generateMD5: {}", base);
+        LOG.trace("generateMD5: {}", base);
         byte[] digest = MessageDigest.getInstance("MD5").digest(base.getBytes("UTF-8"));
-        LOG.trace("digest byte[]:\t{}", digest);
+        //LOG.trace("digest byte[]:\t{}", digest);
         BigInteger bigInt = new BigInteger(1, digest);
         String digestString = bigInt.toString(16);
         // Now we need to zero pad it if you actually want the full 32 chars.
@@ -279,6 +278,7 @@ public class ObjectsParser {
         InputStream is = Files.newInputStream(Paths.get(base.toURI()));
         DigestInputStream digestInputStream = new DigestInputStream(is, md5);
         try {
+            LOG.trace("Reading file...");
             long reads = 0;
             while (digestInputStream.read() != -1) {
                 reads++;
@@ -288,7 +288,7 @@ public class ObjectsParser {
             e.printStackTrace();
         }
         byte[] digest = md5.digest();
-        LOG.trace("digest byte[]:\t{}", digest);
+        //LOG.trace("digest byte[]:\t{}", digest);
         BigInteger bigInt = new BigInteger(1, digest);
         String digestString = bigInt.toString(16);
         // Now we need to zero pad it if you actually want the full 32 chars.

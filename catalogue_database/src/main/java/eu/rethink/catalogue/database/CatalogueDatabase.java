@@ -126,7 +126,7 @@ public class CatalogueDatabase {
                     // trace log for each instance
                     if (LOG.isTraceEnabled()) {
                         for (CatalogueObjectInstance catalogueObjectInstance : entry.getValue()) {
-                            LOG.trace("added instance {}", gson.toJson(catalogueObjectInstance.getDescriptor()));
+                            LOG.trace("added instance {}", gson.toJson(catalogueObjectInstance.getName()));
                         }
                     }
                 }
