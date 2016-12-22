@@ -105,3 +105,28 @@
   * optimized code
   * increased stability
   * better validation
+
+## 1.3.1
+* auto-detect changes in catalogue objects folder and reregister Database on change
+* under-the-hood optimizations for Broker and Database
+* logging improvements
+
+## 1.3.2
+* changed default coap host from localhost to 0.0.0.0
+
+## 1.4.0
+* fixed docker build error
+* deleted default catalogue_objects folder
+* updated libs
+* Broker specific:
+  * default keystore now included in jar
+  * added md5 checksums to sourcePackages
+  * added ability to filter response with constraints by using HTTP POST request
+  * added ability to set multiple objects as "default"
+  * HTTP servlet now responds with proper content type ("application/json")
+  * sets up sourcePackages by sourceCodeClassname
+  * test website does a simple md5 check when clicking on "get & execute code"
+* Database parses files alphabetically
+  * generate md5 checksums of sourceCode and put it in sourcePackage as new attribute
+  * auto generate cguid
+  * made CatalogueObjectInstances comparable
