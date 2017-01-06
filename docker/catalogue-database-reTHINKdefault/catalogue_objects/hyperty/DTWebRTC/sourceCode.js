@@ -1,8 +1,8 @@
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.activate = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 module.exports={
-  "development": true,
-  "runtimeURL": "hyperty-catalogue://catalogue.localhost/.well-known/runtime/Runtime",
-  "domain": "localhost"
+  "development": "false",
+  "runtimeURL": "hyperty-catalogue://catalogue.matrix2.rethink.com/.well-known/runtime/Runtime",
+  "domain": "matrix2.rethink.com"
 }
 },{}],2:[function(require,module,exports){
 (function (global){
@@ -1905,6 +1905,10 @@ var _EventEmitter2 = require('../utils/EventEmitter');
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
+var _Search = require('../utils/Search');
+
+var _Search2 = _interopRequireDefault(_Search);
+
 var _stunTurnserverConfig = require('./stunTurnserverConfig');
 
 var _stunTurnserverConfig2 = _interopRequireDefault(_stunTurnserverConfig);
@@ -1948,8 +1952,9 @@ var DTWebRTC = function (_EventEmitter) {
     _this._domain = (0, _utils.divideURL)(hypertyURL).domain;
     _this._objectDescURL = 'hyperty-catalogue://catalogue.' + _this._domain + '/.well-known/dataschema/Connection';
     _this._syncher = new _Syncher.Syncher(hypertyURL, bus, configuration);
-    _this.discovery = new _Discovery2.default(hypertyURL, bus);
-    _this.identityManager = new _IdentityManager2.default(hypertyURL, configuration.runtimeURL, bus);
+    var discovery = new _Discovery2.default(hypertyURL, bus);
+    var identityManager = new _IdentityManager2.default(hypertyURL, configuration.runtimeURL, bus);
+    _this.search = new _Search2.default(discovery, identityManager);
     _this.objObserver;
     _this.objReporter;
     _this.callerIdentity;
@@ -2128,20 +2133,24 @@ var DTWebRTC = function (_EventEmitter) {
         _this5.trigger('localvideo', stream);
         _this5.mediaStream = stream;
         _this5.pc.addStream(stream); // add the stream to the peer connection so the other peer can receive it later
-        _this5.pc.setRemoteDescription(new RTCSessionDescription(offer), function () {
-          // connect to the other hyperty now
-          _this5.connect(_this5.partner).then(function (objReporter) {
-            console.log("[DTWebRTC]: objReporter created successfully: ", objReporter);
-            _this5.objReporter = objReporter;
+        // this.pc.setRemoteDescription(new RTCSessionDescription(offer), () => {
+        // connect to the other hyperty now
+        _this5.connect(_this5.partner).then(function (objReporter) {
+          console.log("[DTWebRTC]: objReporter created successfully: ", objReporter);
+          _this5.objReporter = objReporter;
 
-            _this5.pc.createAnswer().then(function (answer) {
-              _this5.objReporter.data.connectionDescription = answer;
-              _this5.pc.setLocalDescription(new RTCSessionDescription(answer), function () {
-                console.log("[DTWebRTC]: localDescription (answer) successfully set: ", answer);
-              });
+          _this5.pc.createAnswer().then(function (answer) {
+            _this5.objReporter.data.connectionDescription = answer;
+            _this5.pc.setLocalDescription(new RTCSessionDescription(answer), function () {
+              console.log("[DTWebRTC]: localDescription (answer) successfully set: ", answer);
+            }, function (err) {
+              console.log("Error in setLocalDescription: " + err);
             });
           });
         });
+        // }, (err) => {
+        //   console.log("Error in setRemoteDescription: " + err);
+        // });
       });
     }
 
@@ -2244,8 +2253,8 @@ var DTWebRTC = function (_EventEmitter) {
         console.info('[DTWebRTC]: Process Connection Description: ', data);
         this.pc.setRemoteDescription(new RTCSessionDescription(data)).then(function () {
           console.log("[DTWebRTC]: remote success");
-        }).catch(function (e) {
-          console.log("[DTWebRTC]: remote error: ", e);
+        }, function (err) {
+          console.log("[DTWebRTC]: setRemoteDescription error: ", err);
         });
       }
 
@@ -2260,14 +2269,16 @@ var DTWebRTC = function (_EventEmitter) {
     key: 'cleanupPC',
     value: function cleanupPC() {
       this.sender = null;
-      if (this.mediaStream) {
+      if (this.mediaStream && this.pc) {
+        // removeStream is deprecated --> using removeTrack instead
         var tracks = this.mediaStream.getTracks();
         tracks.forEach(function (track) {
           track.stop();
+          // this.pc.removeTrack(track);
         });
-        if (this.pc) {
-          this.pc.removeStream(this.mediaStream);
-        }
+        // if ( this.pc ) {
+        //   this.pc.removeStream(this.mediaStream);
+        // }
       }
       if (this.pc) this.pc.close();
       this.pc = null;
@@ -2328,7 +2339,7 @@ function activate(hypertyURL, bus, configuration) {
 }
 module.exports = exports['default'];
 
-},{"../../config.json":1,"../utils/EventEmitter":8,"../utils/utils":9,"./stunTurnserverConfig":7,"service-framework/dist/Discovery":2,"service-framework/dist/IdentityManager":3,"service-framework/dist/Syncher":4,"webrtc-adapter-test":5}],7:[function(require,module,exports){
+},{"../../config.json":1,"../utils/EventEmitter":8,"../utils/Search":9,"../utils/utils":10,"./stunTurnserverConfig":7,"service-framework/dist/Discovery":2,"service-framework/dist/IdentityManager":3,"service-framework/dist/Syncher":4,"webrtc-adapter-test":5}],7:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2484,6 +2495,129 @@ exports.default = EventEmitter;
 module.exports = exports["default"];
 
 },{}],9:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var Search = function () {
+  function Search(discovery, identityManager) {
+    _classCallCheck(this, Search);
+
+    if (!discovery) throw new Error('The discovery component is a needed parameter');
+    if (!identityManager) throw new Error('The identityManager component is a needed parameter');
+
+    var _this = this;
+
+    _this.discovery = discovery;
+    _this.identityManager = identityManager;
+  }
+
+  _createClass(Search, [{
+    key: 'myIdentity',
+    value: function myIdentity() {
+      var _this = this;
+
+      return new Promise(function (resolve, reject) {
+
+        _this.identityManager.discoverUserRegistered().then(function (result) {
+          resolve(result);
+        }).catch(function (reason) {
+          reject(reason);
+        });
+      });
+    }
+
+    /**
+     * List of usersURL to search
+     * @param  {array<URL.userURL>}  users List of UserUR, like this format user://<ipddomain>/<user-identifier>
+     * @return {Promise}
+     */
+
+  }, {
+    key: 'users',
+    value: function users(usersURLs, providedDomains, schemes, resources) {
+
+      if (!usersURLs) throw new Error('You need to provide a list of users');
+      if (!providedDomains) throw new Error('You need to provide a list of domains');
+      if (!resources) throw new Error('You need to provide a list of resources');
+      if (!schemes) throw new Error('You need to provide a list of schemes');
+
+      var _this = this;
+
+      return new Promise(function (resolve) {
+
+        console.log('Users: ', usersURLs, usersURLs.length);
+        console.log('Domains: ', providedDomains, providedDomains.length);
+
+        if (usersURLs.length === 0) {
+          console.info('Don\'t have users to discovery');
+
+          resolve(usersURLs);
+        } else {
+          (function () {
+            var getUsers = [];
+
+            usersURLs.forEach(function (userURL, index) {
+              var currentDomain = providedDomains[index];
+              console.log('Search user ' + userURL + ' for provided domain:', currentDomain);
+              getUsers.push(_this.discovery.discoverHyperty(userURL, schemes, resources, currentDomain));
+            });
+
+            console.info('Requests promises: ', getUsers);
+
+            Promise.all(getUsers.map(function (promise) {
+              return promise.then(function (hyperty) {
+                return hyperty;
+              }, function (error) {
+                return error;
+              });
+            })).then(function (hyperties) {
+
+              console.log('Hyperties', hyperties);
+
+              var result = hyperties.map(function (hyperty) {
+
+                var recent = Object.keys(hyperty).reduceRight(function (a, b) {
+                  var hypertyDate = new Date(hyperty[b].lastModified);
+                  var hypertyDateP = new Date(hyperty[a].lastModified);
+                  if (hypertyDateP.getTime() < hypertyDate.getTime()) {
+                    return b;
+                  }
+                  return a;
+                });
+                return hyperty[recent];
+              });
+
+              var clean = result.filter(function (hyperty) {
+                return hyperty.hasOwnProperty('hypertyID');
+              });
+
+              console.info('Requests result: ', clean);
+
+              resolve(clean);
+            }).catch(function (reason) {
+              console.error(reason);
+              resolve(usersURLs);
+            });
+          })();
+        }
+      });
+    }
+  }]);
+
+  return Search;
+}();
+
+exports.default = Search;
+module.exports = exports['default'];
+
+},{}],10:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
