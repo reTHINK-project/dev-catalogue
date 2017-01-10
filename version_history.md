@@ -130,3 +130,4 @@
   * generate md5 checksums of sourceCode and put it in sourcePackage as new attribute
   * auto generate cguid
   * made CatalogueObjectInstances comparable
+  
