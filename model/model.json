@@ -630,7 +630,7 @@
     ]
   },
   {
-    "name": "Protostub",
+    "name": "IDPProxy",
     "id": 1341,
     "instancetype": "multiple",
     "mandatory": false,
@@ -749,6 +749,61 @@
       {
         "id": 11,
         "name": "constraints",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 12,
+        "name": "hypertyType",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 13,
+        "name": "dataObjects",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 14,
+        "name": "interworking",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 15,
+        "name": "idpProxy",
+        "operations": "RW",
+        "instancetype": "single",
+        "mandatory": false,
+        "type": "string",
+        "range": "",
+        "units": "",
+        "description": ""
+      },
+      {
+        "id": 16,
+        "name": "mutualAuthentication",
         "operations": "RW",
         "instancetype": "single",
         "mandatory": false,
