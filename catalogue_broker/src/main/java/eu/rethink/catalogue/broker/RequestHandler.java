@@ -371,7 +371,7 @@ public class RequestHandler {
                             RequestResponse response = doReadRequest(testTarget, id);
                             if (response.isSuccess()) {
                                 JsonElement json = response.getJson(null, null);
-                                if (meetsConstraints(json, val)) {
+                                if (meetsConstraints(val, json)) {
                                     matches++;
                                 } else {
                                     break;
@@ -433,12 +433,22 @@ public class RequestHandler {
         if (constraint instanceof JsonPrimitive) {
             try {
                 if (jsonObject.getAsString().equals(constraint.getAsString())) {
-                    LOG.trace("constraint met");
+                    LOG.trace("constraint met (String)");
                     return true;
-                } else {
-                    LOG.trace("constraint not met");
-                    return false;
                 }
+
+                try {
+                    if (jsonObject.getAsFloat() == constraint.getAsFloat()) {
+                        LOG.trace("constraint met (float)");
+                        return true;
+                    }
+                } catch (Exception e) {
+                    LOG.trace("Unable to check constraint as float (probably unequal strings)");
+                }
+
+
+                LOG.trace("constraint not met");
+                return false;
             } catch (Exception e) {
                 //e.printStackTrace();
                 LOG.trace("Check failed: {}", e.getLocalizedMessage());
