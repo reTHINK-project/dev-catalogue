@@ -343,7 +343,11 @@ public class RequestHandler {
                 List<String> instanceNames = defaults.get(modelType);
                 possibleTargets = new LinkedList<>();
                 for (String iName : instanceNames) {
-                    possibleTargets.addAll(nameToInstanceMap.get(iName));
+                    try {
+                        possibleTargets.addAll(nameToInstanceMap.get(iName));
+                    } catch (NullPointerException e) {
+                        LOG.error("Unable to find {} of {} in {}! Skipping...", iName, instanceNames, nameToInstanceMap);
+                    }
                 }
                 LOG.trace("default instance(s) for type '{}' requested -> using {}", modelType, instanceNames);
             } else {
