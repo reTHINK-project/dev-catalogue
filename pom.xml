@@ -14,8 +14,7 @@
         <leshan.version>0.1.11-M13</leshan.version>
         <jetty.version>9.1.4.v20140401</jetty.version>
         <log4j.version>2.6.2</log4j.version>
-        <slf4j.api.version>[1.7.0, 1.8)</slf4j.api.version>
-
+        <slf4j.api.version>1.7.25</slf4j.api.version>
     </properties>
 
     <modules>
