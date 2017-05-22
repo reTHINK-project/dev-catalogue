@@ -14,7 +14,7 @@ Deliverable D4.1 provides a detailed performance evaluation of the Catalogue usi
 
 The system under test (SUT) comprises set-up of the catalogue as found in the reTHINK testbed deployment. The set-up resembles a deployment found at a commercial service provider.  In fact, the set-up in the figure below is the testbed setup at Fraunhofer Fokus, which is as a virtulized platform (as a service) run on commercial equipment and network components guarged by a commercial firewall. The used hardware is unchanged with regard to the tests run for [D4.1] and hence not described in detail herein. As in the former assessment of the catalogue, autobench and httperf are used to probe the SUT.
 
-**Figure -- System under test (SUT) for the Catalogue performance assessment**
+![Figure -- System under test (SUT) for the Catalogue performance assessment](./catalogue-fokus-performance-test-setup.png)
 
 #### Retrieved Catalogue objects
 
@@ -85,11 +85,11 @@ The following figure illustrates a single connection issues by httperf. For that
 
 For this example, the resulting (average) request and response rate should be equal, i.e.: N / Call Duration.
 
-**Figure -- Illustration of a single httperf connection**
+![Figure -- Illustration of a single httperf connection](./httperf-single-connection.png)
 
 The following figure illustrates the situation for multiple connections issued by httperf per experiment. The top part of the figure shows the case in which the Connection Duration is shorter than the Inter-Connection Time, the latter being configured via the connection rate (Inter-Connection Time = 1 / rate). Assuming M refers to the number of connections per experiment (which can be configured upon invokation of httperf), and M beeing sufficiently large, the average request rate for the depicted experiment can be approximated by N / Inter-Connection Time or alternatively by N * M / Experiment Duration. (Note that in the figure, M = 2.)
 
-**figure -- Illustration of a multiple httperf connections**
+![Figure -- Illustration of a multiple httperf connections](./httperf-multiple-connections.png)
 
 The bottom part of the figure above shows the case in which the Response Time is so long that the resulting Connection Duration is longer than the Inter-Connection Time, i.e., due to the configured rate, a new connection is started before the previous connection finishes. Due to the overlapping connections, we see periods in which http-requests are issued simultaneously from several connections; the experiment duration as shorter as compared to the situation illustrated in the upper part of the figure. Hence, the average request (and response) rate reported for the experiment shown in the bottom part of the figure is higher.
 
