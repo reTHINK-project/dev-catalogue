@@ -137,12 +137,19 @@ As the main intend of the catalogue implementation is to provide a proof-of-conc
 
 #### Catalogue Response Time for retrieving the full Hyperty Runtime Catalogue Object including the executable source code.
 
+Qualitatively, retrieving the full sources of the Hyperty Runtime provides the same results as just retrieving the catalogue object descriptor of the Hyperty Runtime.  Measurement results show a steady state phase for request rates below 600 requests per second; the average response time here is 1.35 ms.  The latter is 15% higher than for just retrieving the catalogue descriptor object, which accounts for the additional 150 kB of source code contained in the response. The response time saturates at roughly 8.54 ms for a demanded request rate of 3500 demanded requests per second. The circumstances that this demanded request rate is larger as for requesting the significantly smaller catalogue object descriptor seems to be caused by seeing less variations in response times as compared to the previous set of experiments. Having responses larger in size seems to stableize the process of generating the responses as copying message in memory becomes more significant. The behavior is consistent with expectations as the actual measured rate of received responses per time interval decreases for larger responses as shown later.
 
 ![Figure -- Catalogue Assessment: Response Time for Retrieving the Source Code of the Default Hyperty Runtime Descriptor as a function of Demanded Request Rate](./runtimeSourceRetrievalRespTime.png)
 
+Looking at the following figuer, which plots for lower rates the average response time as well as the corresponging 95-percent confidence levels, we see that for rates lower than 400 requests per second, confidence levels do not overlap with conficendence levels at higher rates for which the SUT is saturated; hence we may deduct at 95% certainity that for rates lower than 400 requests per second, the expected mean response time is 1.35 ms and is constant with respect to the imposed load.
+
 ![Figure -- Catalogue Assessment: Response Time for Retrieving the Source Code of the Default Hyperty Runtime Descriptor as a function of Demanded Request Rate (unsaturated system, showing 95% confidence values)](./runtimeSourceRetrievalRespTimeMagnification.png)
 
+The measured actual response rate for retrieving the "mere" catalgogue descriptor object or the full source code of the default hyperty saturate at approx 2500 demanded requests per second.  Whereas in the former case, we measure an actual response rate of 1350 Hz, the reate decreased for a full retrieval of the hyperty runtime's source code to 1180 Hz. 
+
 ![Figure -- Catalogue Assessment: Illustates the the actual (i.e., measured) request rate over the demanded request rate for retrieving the Default Hyperty's Source Code](./runtimeSourceRetrievalRespRate.png)
+
+Finally, evaluating the number of errors encountered while requesting the full hyperty runtime source code, the Catalogue implementations performs nearly without any error in the steady phase (only 2 errors encountered for a total of 20000 experiments within the systems steady phase).
 
 ![Figure -- Catalogue Assessment: Reported errors while retrieving the Source Code of the Defaul Hyperty](./runtimeSourceRetrievalHttpErrors.png)
 
