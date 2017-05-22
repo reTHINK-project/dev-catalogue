@@ -135,10 +135,18 @@ Finally, looking at reported errors during the experiment (see next figure), all
 
 As the main intend of the catalogue implementation is to provide a proof-of-concept suitable to evaluate the reTHINK concept at a hackathon, testbed, or pre-commercial trials, in summary, one can assess that such an evaluation is well possible as in either case, it is unlikely that more than 410 devices contact the catalogue simultaneously within one second in order to retrieve a catalogue object descriptor.
 
-
-
-
 #### Catalogue Response Time for retrieving the full Hyperty Runtime Catalogue Object including the executable source code.
+
+
+![Figure -- Catalogue Assessment: Response Time for Retrieving the Source Code of the Default Hyperty Runtime Descriptor as a function of Demanded Request Rate](./runtimeSourceRetrievalRespTime.png)
+
+![Figure -- Catalogue Assessment: Response Time for Retrieving the Source Code of the Default Hyperty Runtime Descriptor as a function of Demanded Request Rate (unsaturated system, showing 95% confidence values)](./runtimeSourceRetrievalRespTimeMagnification.png)
+
+![Figure -- Catalogue Assessment: Illustates the the actual (i.e., measured) request rate over the demanded request rate for retrieving the Default Hyperty's Source Code](./runtimeSourceRetrievalRespRate.png)
+
+![Figure -- Catalogue Assessment: Reported errors while retrieving the Source Code of the Defaul Hyperty](./runtimeSourceRetrievalHttpErrors.png)
+
+
 
 ### Conclusions and recommendations
  
