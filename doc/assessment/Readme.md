@@ -119,19 +119,19 @@ Considering all response times for an imposed load below the system’s saturati
  
 Note that the round trip time measured via ping between the testing device and the Catalogue for these measurements is 0.56 ms on average; and that this RTT is included in all of the reported response times.
 
-**Figure -- Catalogue Assessment: Response Time for Retrieving the Default Hyperty Runtime Descriptor as a function of Demanded Request Rate**
+![Figure -- Catalogue Assessment: Response Time for Retrieving the Default Hyperty Runtime Descriptor as a function of Demanded Request Rate](./runtimeCatalogueObjectRespTime.png)
 
 The next figure plots for lower rates the average response time as well as the corresponging 95-percent confidence levels. We encounter high variations in the expected mean response time as a function of the imposed load. It seems that imposed request rates in multiples of 50 Hz cause high variations in the response time and increase the expected mean for that load as well. Though the actual reason for that behavior is hard to analyze, measurements show that even for the worst case (here at an imposed load of 200 requests per second), the expected mean response time is with 95% confidence below 30 ms, which can be assumed as a rare, worst case expected performance.
 
-**Figure -- Catalogue Assessment: Response Time for Retrieving the Default Hyperty Runtime Descriptor as a function of Demanded Request Rate (unsaturated system, showing 95% confidence values)**
+![Figure -- Catalogue Assessment: Response Time for Retrieving the Default Hyperty Runtime Descriptor as a function of Demanded Request Rate (unsaturated system, showing 95% confidence values)](./runtimeCatalogueObjectRespTimeMagnification.png)
 
 The obersavations regarding the stable state of the system (i.e. below 500 requests per second) and its satuation phase (in between 500 and 2500 requests per second) are also shown in plotting the actual measured request rate over the demanded (i.e. imposed) request rate. Both rates are in linear relation for the stable state, and go into saturation, which is reated at around 2500 imposed requests per second, which result in actual response rates of 1350 Hz.
 
-**Figure -- Catalogue Assessment: Illustates the the actual (i.e., measured) request rate over the demanded request rate**
+![Figure -- Catalogue Assessment: Illustates the the actual (i.e., measured) request rate over the demanded request rate](./runtimeCatalogueObjectRespRate.png)
 
 Finally, looking at reported errors during the experiment (see next figure), all experiments have an imposed rate of less than 410 requests per second run without any reported error. All reported errors are time-out errors; a time-out is triggered by httperf if either a TCP connection could not be established for 5 seconds, or if a response is not received within that timeframe.
 
-**Figure -- Catalogue Assessment: Reported errors**
+![Figure -- Catalogue Assessment: Reported errors](./runtimeCatalogueObjectHttpErrors.png)
 
 As the main intend of the catalogue implementation is to provide a proof-of-concept suitable to evaluate the reTHINK concept at a hackathon, testbed, or pre-commercial trials, in summary, one can assess that such an evaluation is well possible as in either case, it is unlikely that more than 410 devices contact the catalogue simultaneously within one second in order to retrieve a catalogue object descriptor.
 
