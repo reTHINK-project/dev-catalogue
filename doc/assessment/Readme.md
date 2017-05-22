@@ -156,5 +156,8 @@ Finally, evaluating the number of errors encountered while requesting the full h
 
 
 ### Conclusions and recommendations
- 
- 
+
+The goal of the Catalogue service is to store and provide descriptors of Hyperties, Runtimes, ProtoStubs, etc. available for use and to allow downloading their source code. The implementation of the Cataologue service assures response times in the order of a few milli-seconds. As such, the implementation of the Catlogue is responsinve enough not to noticeable effect the establishment of end-to-end communication. 
+
+The implementation of the Catalogue service provides stable response times that are invariant against request rates below 500 Hz. Response times linearly increase from around 1.5 ms to around 9 ms for response rates up to 2000 Hz.  As such, the implementation of the catalogue suits large scale proof-of-concept (pre-commercial) set-ups.  If a given deployment needs to server more than 500 (respectively 2000) requests within a one-second time frame, a deployment may evaluate "load distribution mechanisms" as, for example, natively offered by apache servers, which may forward incoming http-requests on a round-robin base to several servers (here catalogues) in the backend.
+
