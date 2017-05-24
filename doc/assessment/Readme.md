@@ -4,15 +4,15 @@
 
 The Catalogue provides the service to store descriptors of Hyperties available for use. It also provides the means for the runtime to obtain (download) the implementation of a Hyperty and ProtocolStubs required for ProtOfly after learning about an Hyperty from the Registry Service.
 
-As such, the Catalogue Service merely stores information and in particular does not need to manipulate any of the stored records. For a detailed description of the internals of the catalogue, please refer to **xxx-add-ref-two-wp4-deliverables-xxx**.
+As such, the Catalogue Service merely stores information and in particular does not need to manipulate any of the stored records. For a detailed description of the internals of the catalogue as well as installation and set-up guides, please refer to [D4.1], [D4.2], and [D6.1].
 
 ### Methodology and setup
 
-Deliverable D4.1 provides a detailed performance evaluation of the Catalogue using dummy test hyperties and ProtoStubs. As such, the evaluation of the catalogue in this deliverable repeats the methodology as described in [D4.1] but uses actual, larger components served by the catalogue, i.e., actual hypeties and ProtoStubs as developed over the coarse of the the prject are retrieved to evalute the catalogue’s performance. The tests mimic a real world situation in which a client requests its runtime from the Catalogue Server.
+Deliverable [D6.3] provides a detailed performance evaluation of the Catalogue using dummy test hyperties and ProtoStubs. As such, the evaluation of the catalogue in this deliverable repeats the methodology as described in [D6.3] but uses actual, larger components served by the catalogue, i.e., actual hypeties and ProtoStubs as developed over the coarse of the the prject are retrieved to evalute the catalogue’s performance. The tests mimic a real world situation in which a client requests its runtime from the Catalogue Server.
 
 #### System under Test
 
-The system under test (SUT) comprises set-up of the catalogue as found in the reTHINK testbed deployment. The set-up resembles a deployment found at a commercial service provider.  In fact, the set-up in the figure below is the testbed setup at Fraunhofer Fokus, which is as a virtulized platform (as a service) run on commercial equipment and network components guarged by a commercial firewall. The used hardware is unchanged with regard to the tests run for [D4.1] and hence not described in detail herein. As in the former assessment of the catalogue, autobench and httperf are used to probe the SUT.
+The system under test (SUT) comprises set-up of the catalogue as found in the reTHINK testbed deployment. The set-up resembles a deployment found at a commercial service provider.  In fact, the set-up in the figure below is the testbed setup at Fraunhofer Fokus, which is as a virtulized platform (as a service) run on commercial equipment and network components guarged by a commercial firewall. The used hardware is unchanged with regard to the tests run for the initial assesments documented in [D6.3] and hence not described in detail herein. As in the former assessment of the catalogue, autobench and httperf are used to probe the SUT.
 
 ![Figure -- System under test (SUT) for the Catalogue performance assessment](./catalogue-fokus-performance-test-setup.png)
 
@@ -66,11 +66,11 @@ The sourcpackage object returned by the Catalogue is shown below. Note that the 
 
 #### Metrics
 
-Deliverable D4.1  **[add-ref-here]**  identifies two functional requirements for the catalogue:
+Deliverable [D4.1] identifies two functional requirements for the catalogue:
    * "The catalogue service shall allow discovering the information it stores."
    * "The catalogue service should provide fast response times. As querying the Catalogue occurs before an end-to-end communication is established, response times have no immediate impact on an established end-to-end communication."
 
-They transfer into the relevant KPIs, i.e.: average request (vs. response) rate and average response time, as well as numbers of errors encountered when retrieving information nfrom the catalogue.  In addition, the number of erros are recorded for each experiment in order to verify that reported measurements are not biased by any irregularities in the SUT, the testing device, or the communication between the latter two. Deliverable D6.4 **[add-ref-here]** provided a detailed discussion of those KPIs in the context of the performance evaluation of the catalogue. 
+They transfer into the relevant KPIs, i.e.: average request (vs. response) rate and average response time, as well as numbers of errors encountered when retrieving information nfrom the catalogue.  In addition, the number of erros are recorded for each experiment in order to verify that reported measurements are not biased by any irregularities in the SUT, the testing device, or the communication between the latter two. Deliverable [D6.3] provided a detailed discussion of those KPIs in the context of the performance evaluation of the catalogue. 
 
 As the interface towards the catalogue is http-based, separate metrics for testing conformance are not defined.  The catalogue behavior is conformant if it successfully returns (an existing) http-request for a catalogue element (i.e. hyperty, ProtoStub, etc).
 
@@ -97,9 +97,7 @@ In conclusion, for assing the performance of the Catalogue, one has to set the c
 
 Besides, it should be noted that httperf is not run immediately but is invoced by autobench [autobench], which allows to run several httperf-based experiments in a row where each experiment is invoked with a different connection rate.
 
-For all experiments, the Catalogue is provisioned with catalogue objects as contained in the default database available as part of the "rethink/default-database" docker image. The catalogue objects contain a descriptor and associated code for the "HelloWorldObserver" hyperty. This hyperty descriptor is used in the http-request queries for all experiments.
-
-Each experiment is repeated 200 times to calculate statistic significance of the results, i.e., to obtain confidence values for the reported averages. The corresponding autobench command is:
+Each experiment is repeated 200 times to calculate statistic significance of the results, i.e., to obtain confidence values for the reported averages. Repetitions of measurements are automatically invoked using [autobench], which in turn calls the corresponding httperf command. The corresponding autobench command is:
 
 ```
 autobench --single_host --host1 ${CATALOGUE_URL} --uri1 ${URI} --low_rate 1 --high_rate 4000 --rate_step 5 --num_call 1 --num_conn 20 --timeout 5 --output_fmt tsv --port1 $PORT --file response_time_numcalls_1_$i.tab 2>&1 | tee response_time_numcalls_1_$i.outputLog
@@ -164,4 +162,13 @@ The goal of the Catalogue service is to store and provide descriptors of Hyperti
 As such, the implementation of the Catlogue is responsinve enough not to noticeable effect the establishment of end-to-end communication. 
 
 The implementation of the Catalogue service provides stable response times that are invariant against request rates below 500 Hz. Response times linearly increase from around 1.15 ms to around 8.54 ms for response rates up to 3000 Hz.  As such, the implementation of the catalogue suits large scale proof-of-concept (pre-commercial) set-ups.  It should be noted that this performance limitations is with regard to the number of simultaneous requests within a second and not with regard to the number of devices supported in a test bed.  Statistically, a test bed may support a far larger number of devices as not all of them are likely to contact the Catalogue server simultaneously. In case a given deployment needs to server more than 500 (respectively 3000) requests within a one-second time frame, a deployment may evaluate "load distribution mechanisms" as, for example, natively offered by apache servers, which may forward incoming http-requests on a round-robin base to several servers (here catalogues) in the backend.
+
+### References
+
+* [autobench] -- autobench homepage.  Online: http://www.xenoclast.org/autobench/ ; last accessed May 2017.
+* [D4.1]  -- reTHINK Project: Management and Security features specifications, D4.1. September 2015.
+* [D4.2] -- reTHINK Project: Implementation of Governance and identity management components for phase 1, D4.2. February 2016.
+* [D6.1] -- reTHINK Project: Testbed specification, D6.1. April 2016.
+* [D6.3] -- reTHINK Project: Assessment Report, D6.3. June 2016.
+* [httperf] -- httperf repository homepage.  Online: https://github.com/httperf/httperf ; last accessessed May 2017.
 
