@@ -132,4 +132,4 @@
   * made CatalogueObjectInstances comparable
 
 ## 1.4.1
-* tba
+* changed behaviour of constraints functionality

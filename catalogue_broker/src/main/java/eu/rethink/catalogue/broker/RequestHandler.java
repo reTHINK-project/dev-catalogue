@@ -343,7 +343,11 @@ public class RequestHandler {
                 List<String> instanceNames = defaults.get(modelType);
                 possibleTargets = new LinkedList<>();
                 for (String iName : instanceNames) {
-                    possibleTargets.addAll(nameToInstanceMap.get(iName));
+                    try {
+                        possibleTargets.addAll(nameToInstanceMap.get(iName));
+                    } catch (NullPointerException e) {
+                        LOG.error("Unable to find {} of {} in {}! Skipping...", iName, instanceNames, nameToInstanceMap);
+                    }
                 }
                 LOG.trace("default instance(s) for type '{}' requested -> using {}", modelType, instanceNames);
             } else {
@@ -722,8 +726,10 @@ public class RequestHandler {
 
                     @Override
                     public void visit(LwM2mObjectInstance instance) {
-                        if (LOG.isTraceEnabled())
-                            LOG.trace("visiting instance {}", instance);
+                        if (LOG.isTraceEnabled()) {
+                            String inst = instance.toString();
+                            LOG.trace("visiting instance {}", inst.length() > 100 ? inst.substring(0, 100) : inst);
+                        }
                         JsonObject jResponse = new JsonObject();
                         Map<Integer, LwM2mResource> resources = instance.getResources();
                         // parse resources into json
@@ -746,8 +752,10 @@ public class RequestHandler {
 
                     @Override
                     public void visit(LwM2mResource resource) {
-                        if (LOG.isTraceEnabled())
-                            LOG.trace("visiting resource {}", resource);
+                        if (LOG.isTraceEnabled()) {
+                            String res = resource.toString();
+                            LOG.trace("visiting resource {}", res.length() > 100 ? res.substring(0, 100) : res);
+                        }
                         String val = resource.getValue().toString();
 
                         try {
@@ -766,8 +774,10 @@ public class RequestHandler {
                 LOG.trace("is executeResponse");
                 resp[0] = new JsonPrimitive("Successfully executed command");
             }
-            if (LOG.isTraceEnabled())
-                LOG.trace("returning json: {}", gson.toJson(resp[0]));
+            if (LOG.isTraceEnabled()) {
+                String json = gson.toJson(resp[0]);
+                LOG.trace("returning json: {}", json.length() > 100 ? json.substring(0, 100) : json);
+            }
             return resp[0];
         }
 
