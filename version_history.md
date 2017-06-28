@@ -133,3 +133,7 @@
 
 ## 1.4.1
 * changed behaviour of constraints functionality
+
+## 1.4.2
+* fixed not caching error when trying to access resource declared as default that is not available
+c

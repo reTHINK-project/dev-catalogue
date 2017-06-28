@@ -9,3 +9,6 @@
 ## [Internals](./internals)
 * [Developer view](./internals/developer_view.md)
 * [User view](./internals/user_view.md)
+
+## [Performance Assessment](./assessment/Readme.md)
+
