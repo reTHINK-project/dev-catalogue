@@ -163,12 +163,3 @@ As such, the implementation of the Catlogue is responsinve enough not to noticea
 
 The implementation of the Catalogue service provides stable response times that are invariant against request rates below 500 Hz. Response times linearly increase from around 1.15 ms to around 8.54 ms for response rates up to 3000 Hz.  As such, the implementation of the catalogue suits large scale proof-of-concept (pre-commercial) set-ups.  It should be noted that this performance limitations is with regard to the number of simultaneous requests within a second and not with regard to the number of devices supported in a test bed.  Statistically, a test bed may support a far larger number of devices as not all of them are likely to contact the Catalogue server simultaneously. In case a given deployment needs to server more than 500 (respectively 3000) requests within a one-second time frame, a deployment may evaluate "load distribution mechanisms" as, for example, natively offered by apache servers, which may forward incoming http-requests on a round-robin base to several servers (here catalogues) in the backend.
 
-### References
-
-* [autobench] -- autobench homepage.  Online: http://www.xenoclast.org/autobench/ ; last accessed May 2017.
-* [D4.1]  -- reTHINK Project: Management and Security features specifications, D4.1. September 2015.
-* [D4.2] -- reTHINK Project: Implementation of Governance and identity management components for phase 1, D4.2. February 2016.
-* [D6.1] -- reTHINK Project: Testbed specification, D6.1. April 2016.
-* [D6.3] -- reTHINK Project: Assessment Report, D6.3. June 2016.
-* [httperf] -- httperf repository homepage.  Online: https://github.com/httperf/httperf ; last accessessed May 2017.
-
