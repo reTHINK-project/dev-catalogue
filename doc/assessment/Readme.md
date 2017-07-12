@@ -8,20 +8,20 @@ As such, the Catalogue Service merely stores information and in particular does 
 
 ### Methodology and setup
 
-Deliverable [D6.3] provides a detailed performance evaluation of the Catalogue using dummy test hyperties and ProtoStubs. As such, the evaluation of the catalogue in this deliverable repeats the methodology as described in [D6.3] but uses actual, larger components served by the catalogue, i.e., actual hypeties and ProtoStubs as developed over the coarse of the the prject are retrieved to evalute the catalogue’s performance. The tests mimic a real world situation in which a client requests its runtime from the Catalogue Server.
+Deliverable [D6.3] provides a detailed performance evaluation of the Catalogue using dummy test Hyperties and ProtoStubs. As such, the evaluation of the catalogue in this deliverable repeats the methodology as described in [D6.3] but uses actual, larger components served by the catalogue, i.e., actual Hyperties and ProtoStubs as developed over the course of the project are retrieved to evaluate the catalogue’s performance. The tests mimic a real world situation in which a client requests its runtime from the Catalogue Server.
 
 #### System under Test
 
-The system under test (SUT) comprises set-up of the catalogue as found in the reTHINK testbed deployment. The set-up resembles a deployment found at a commercial service provider.  In fact, the set-up in the figure below is the testbed setup at Fraunhofer Fokus, which is as a virtulized platform (as a service) run on commercial equipment and network components guarged by a commercial firewall. The used hardware is unchanged with regard to the tests run for the initial assesments documented in [D6.3] and hence not described in detail herein. As in the former assessment of the catalogue, autobench and httperf are used to probe the SUT.
+The system under test (SUT) comprises set-up of the catalogue as found in the reTHINK testbed deployment. The set-up resembles a deployment found at a commercial service provider.  In fact, the set-up in the figure below is the testbed setup at Fraunhofer Fokus, which is as a virtualized platform (as a service), run on commercial equipment and network components guarded by a commercial firewall. The used hardware is unchanged with regard to the tests run for the initial assessments documented in [D6.3] and hence not described in detail herein. As in the former assessment of the catalogue, autobench and httperf are used to probe the SUT.
 
 ![Figure -- System under test (SUT) for the Catalogue performance assessment](./catalogue-fokus-performance-test-setup.png)
 
 #### Retrieved Catalogue objects
 
-Performance tests were conducted for retrieving all information for a Hyperty Runtime stored in the catalogue.  In a first experiment, the Catalogue Object Descriptor is retrieved from the Catalgoue Server. The descriptor contains all information about the stored object in order to decide at the client if a full retrieval of the object’s source code is necessary.  The actual executalbe code of the Hyperty Runtime is retrieved in a second experiment.
+Performance tests were conducted for retrieving all information for a Hyperty Runtime stored in the catalogue.  In a first experiment, the Catalogue Object Descriptor is retrieved from the Catalogue Server. The descriptor contains all information about the stored object in order to decide at the client if a full retrieval of the object’s source code is necessary.  The actual executable code of the Hyperty Runtime is retrieved in a second experiment.
 
-As such, the experiments mimic the real world behavior of the reTHINK system in which clients may retireve a catalogue object descriptor first in order to decide if a locally stored copy of a prefious fetch is still up to date, and in case a newer version of the source is available, perform a full fetch of the catalogue object including the executalbe source code.
-The Catalogue Object Descriptor for the Runtime is hown below.  
+As such, the experiments mimic the real world behaviour of the reTHINK system in which clients may retrieve a catalogue object descriptor first in order to decide if a locally stored copy of a previous fetch is still up to date, and in case a newer version of the source is available, perform a full fetch of the catalogue object including the executable source code.
+The Catalogue Object Descriptor for the Runtime is shown below.  
 
 ```
 {
@@ -50,7 +50,7 @@ The Catalogue Object Descriptor for the Runtime is hown below.
 }
 ```
 
-The sourcpackage object returned by the Catalogue is shown below. Note that the content of the sourceCode field is not shown below; the size of the Runtime’s source, which is retrieved in the second set of experiments, is approx. 153 kB.
+The sourcepackage object returned by the Catalogue is shown below. Note that the content of the sourceCode field is not shown below; the size of the Runtime’s source, which is retrieved in the second set of experiments, is approx. 153 kB.
 
 ```
 {
@@ -70,18 +70,18 @@ Deliverable [D4.1] identifies two functional requirements for the catalogue:
    * "The catalogue service shall allow discovering the information it stores."
    * "The catalogue service should provide fast response times. As querying the Catalogue occurs before an end-to-end communication is established, response times have no immediate impact on an established end-to-end communication."
 
-They transfer into the relevant KPIs, i.e.: average request (vs. response) rate and average response time, as well as numbers of errors encountered when retrieving information nfrom the catalogue.  In addition, the number of erros are recorded for each experiment in order to verify that reported measurements are not biased by any irregularities in the SUT, the testing device, or the communication between the latter two. Deliverable [D6.3] provided a detailed discussion of those KPIs in the context of the performance evaluation of the catalogue. 
+They transfer into the relevant KPIs, i.e.: average request (vs. response) rate and average response time, as well as numbers of errors encountered when retrieving information from the catalogue.  In addition, the number of errors are recorded for each experiment in order to verify that reported measurements are not biased by any irregularities in the SUT, the testing device, or the communication between the latter two. Deliverable [D6.3] provided a detailed discussion of those KPIs in the context of the performance evaluation of the catalogue. 
 
-As the interface towards the catalogue is http-based, separate metrics for testing conformance are not defined.  The catalogue behavior is conformant if it successfully returns (an existing) http-request for a catalogue element (i.e. hyperty, ProtoStub, etc).
+As the interface towards the catalogue is http-based, separate metrics for testing conformance are not defined.  The catalogue behaviour is conformant if it successfully returns (an existing) http-request for a catalogue element (i.e. hyperty, ProtoStub, etc).
 
 #### Experiment Blueprint
 
-The basic experiment which is used to impose load on the SUT consist of a "testing device" that runs httperf [httperf] to send http-requests to the Catalouge. The following parameters of httperf as considered in the experiment influcence the load imposed on the SUT:
+The basic experiment which is used to impose load on the SUT consist of a "testing device" that runs httperf [httperf] to send http-requests to the Catalogue. The following parameters of httperf as considered in the experiment influence the load imposed on the SUT:
   * rate -- the rate at which (persistent) http connections are invoked;
   * number of connections -- the number of connections to invoke per experiment; and
   * number of calls -- the number of http requests send for each connection.
 
-The following figure illustrates a single connection issues by httperf. For that connection, httperf issues N calls, i.e., http-requests. Calls are issued sequentially, i.e., httperf waits for the response corresponding to REQ_0_x before it issues the following request, i.e., REQ_0_x+1. The time at the testing device between issuing a request and receiving the corresponding response is denoted as Response Time. The figure accounts as well for a potential processing time between receiving a response (e.g.: RES_0_x) and issuing the following request (e.g.: REQ_0_x+1); this time is refered to rho_0. Accordingly, the Inter-Request Time is given by rho_0 + Response Time; and the Call Duration is given by N * Inter-Request Time where Nrefers to the number of calls (i.e., issued http-requests) per connection. As the number of calls per connection is given as a parameter.
+The following figure illustrates a single connection issues by httperf. For that connection, httperf issues N calls, i.e., http-requests. Calls are issued sequentially, i.e., httperf waits for the response corresponding to REQ_0_x before it issues the following request, i.e., REQ_0_x+1. The time at the testing device between issuing a request and receiving the corresponding response is denoted as Response Time. The figure accounts as well for a potential processing time between receiving a response (e.g.: RES_0_x) and issuing the following request (e.g.: REQ_0_x+1); this time is referred to rho_0. Accordingly, the Inter-Request Time is given by rho_0 + Response Time; and the Call Duration is given by N * Inter-Request Time where Nrefers to the number of calls (i.e., issued http-requests) per connection. As the number of calls per connection is given as a parameter.
 
 For this example, the resulting (average) request and response rate should be equal, i.e.: N / Call Duration.
 
